@@ -9,11 +9,14 @@ export interface Product {
   revenue: number
   status: 'active' | 'archived'
   stripeId: string
+  slug: string | null
+  currency: string
 }
 
 function toProduct(r: {
   id: string; name: string; price: number; interval: string;
   sales: number; revenue: bigint; status: string; stripeId: string;
+  slug: string | null; currency: string;
 }): Product {
   return {
     id:       r.id,
@@ -24,6 +27,8 @@ function toProduct(r: {
     revenue:  Number(r.revenue),
     status:   r.status as Product['status'],
     stripeId: r.stripeId,
+    slug:     r.slug,
+    currency: r.currency,
   }
 }
 

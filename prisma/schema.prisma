@@ -44,16 +44,45 @@ model DailySale {
 }
 
 model Product {
-  id       String @id
-  name     String
-  price    Int
-  interval String
-  sales    Int
-  revenue  BigInt
-  status   String
-  stripeId String @map("stripe_id")
+  id               String   @id
+  name             String
+  price            Int
+  interval         String
+  sales            Int
+  revenue          BigInt
+  status           String
+  stripeId         String   @map("stripe_id")
+  slug             String?  @unique
+  currency         String   @default("EUR")
+  paymentMethods   Json     @default("[]") @map("payment_methods")
+  shippingOptions  Json     @default("[]") @map("shipping_options")
+  orderBumps       Json     @default("[]") @map("order_bumps")
+  reviews          Json     @default("[]")
+  checkoutTemplate String   @default("single_step") @map("checkout_template")
+  successUrl       String   @default("") @map("success_url")
+  utmfyApiToken    String   @default("") @map("utmfy_api_token")
+  userId           String   @default("") @map("user_id")
+  checkoutPayments CheckoutPayment[]
 
   @@map("products")
+}
+
+model CheckoutPayment {
+  id                    String   @id @default(cuid())
+  productId             String   @map("product_id")
+  status                String   @default("pending")
+  amount                Int
+  currency              String   @default("EUR")
+  stripePaymentIntentId String?  @unique @map("stripe_payment_intent_id")
+  customerName          String   @default("") @map("customer_name")
+  customerEmail         String   @default("") @map("customer_email")
+  customerPhone         String   @default("") @map("customer_phone")
+  metadata              Json     @default("{}")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  product               Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("checkout_payments")
 }
 
 model PixelConfig {

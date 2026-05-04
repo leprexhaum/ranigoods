@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { pixelService } from '@/lib/services/pixel.service'
 import { productService } from '@/lib/services/product.service'
+import { checkoutService } from '@/lib/services/checkout.service'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -138,6 +139,8 @@ export async function POST(req: NextRequest) {
     case 'payment_intent.succeeded': {
       const pi = event.data.object as Stripe.PaymentIntent
       await persistPayment(pi)
+      // Atualizar CheckoutPayment se existir
+      await checkoutService.updatePaymentStatus(pi.id, 'paid')
       await pixelService.trackEvent('Purchase', {
         event: 'Purchase',
         data: {
@@ -155,6 +158,7 @@ export async function POST(req: NextRequest) {
     case 'payment_intent.payment_failed': {
       const pi = event.data.object as Stripe.PaymentIntent
       await persistFailedPayment(pi)
+      await checkoutService.updatePaymentStatus(pi.id, 'failed')
       break
     }
 

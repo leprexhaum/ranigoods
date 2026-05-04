@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
       status:   status ?? 'active',
       sales:    0,
       revenue:  0,
+      slug:     body.slug ?? null,
+      currency: body.currency ?? 'EUR',
     })
 
     return NextResponse.json(product, { status: 201 })

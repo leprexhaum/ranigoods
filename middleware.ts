@@ -3,7 +3,8 @@ import { jwtVerify } from 'jose'
 
 const COOKIE       = 'rg_session'
 const PUBLIC_PATHS = ['/login', '/cadastro']
-const PUBLIC_API   = ['/api/auth/', '/api/pixels/track', '/api/pixels/config', '/api/stripe/webhook']
+const PUBLIC_PAGE_PREFIXES = ['/checkout']
+const PUBLIC_API   = ['/api/auth/', '/api/pixels/track', '/api/pixels/config', '/api/stripe/webhook', '/api/checkout/']
 
 function getKey() {
   const secret = process.env.JWT_SECRET
@@ -14,9 +15,10 @@ function getKey() {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Sempre permitir rotas públicas de API e next internals
+  // Sempre permitir rotas públicas de API, páginas de checkout e next internals
   if (
     PUBLIC_API.some(p => pathname.startsWith(p)) ||
+    PUBLIC_PAGE_PREFIXES.some(p => pathname.startsWith(p)) ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     /\.(png|jpg|jpeg|svg|ico|webp|woff2?)$/.test(pathname)

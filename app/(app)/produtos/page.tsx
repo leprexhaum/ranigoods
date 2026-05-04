@@ -1,14 +1,36 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Package, Plus, ExternalLink, MoreVertical, Loader2 } from 'lucide-react'
+import { Package, Plus, ExternalLink, MoreVertical, Loader2, Link2, Check } from 'lucide-react'
 import clsx from 'clsx'
-import DateFilter, { getRange } from '@/components/ui/DateFilter'
+import DateFilter from '@/components/ui/DateFilter'
 import type { DatePreset } from '@/components/ui/DateFilter'
 import type { Product } from '@/lib/services/product.service'
 
 function formatBRL(cents: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
+}
+
+function CopyLinkButton({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false)
+  const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/checkout/${slug}`
+
+  const copy = () => {
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={copy}
+      className="flex items-center gap-1 text-ep-muted hover:text-ep-accent text-xs transition-colors"
+      title={url}
+    >
+      {copied ? <Check size={11} className="text-ep-success" /> : <Link2 size={11} />}
+      {copied ? 'Copiado!' : 'Link checkout'}
+    </button>
+  )
 }
 
 export default function ProdutosPage() {
@@ -134,7 +156,7 @@ export default function ProdutosPage() {
                   </div>
                   <div>
                     <h3 className="text-ep-primary text-sm font-semibold">{product.name}</h3>
-                    <p className="text-ep-muted text-xs font-mono">{product.stripeId || '—'}</p>
+                    <p className="text-ep-muted text-xs font-mono">{product.slug ? `/${product.slug}` : product.stripeId || '—'}</p>
                   </div>
                 </div>
                 <div className="relative group/menu">
@@ -186,17 +208,20 @@ export default function ProdutosPage() {
                 >
                   {product.status === 'active' ? 'Ativo' : 'Arquivado'}
                 </span>
-                {product.stripeId && (
-                  <a
-                    href={`https://dashboard.stripe.com/products/${product.stripeId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-ep-muted hover:text-ep-accent text-xs transition-colors"
-                  >
-                    <ExternalLink size={11} />
-                    Ver no Stripe
-                  </a>
-                )}
+                <div className="flex items-center gap-3">
+                  {product.slug && <CopyLinkButton slug={product.slug} />}
+                  {product.stripeId && (
+                    <a
+                      href={`https://dashboard.stripe.com/products/${product.stripeId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-ep-muted hover:text-ep-accent text-xs transition-colors"
+                    >
+                      <ExternalLink size={11} />
+                      Stripe
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           ))}
