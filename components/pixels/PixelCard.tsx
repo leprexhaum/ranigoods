@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Eye, EyeOff, Copy, Check, ChevronDown, ChevronUp,
-  Zap, AlertCircle, CheckCircle2, Circle,
+  Zap, AlertCircle, CheckCircle2, Circle, Lock,
 } from 'lucide-react'
 import clsx from 'clsx'
 import type { PixelConfig, PixelPlatform } from '@/lib/types/pixel'
@@ -49,17 +49,17 @@ const PLATFORM_META: Record<PixelPlatform, {
 
 // ─── Status chip ──────────────────────────────────────────────────────────────
 
-function StatusChip({ config }: { config: PixelConfig }) {
-  if (!config.enabled)  return <span className="flex items-center gap-1 text-ep-muted text-xs"><Circle size={8} /> Inativo</span>
-  if (!config.pixelId)  return <span className="flex items-center gap-1 text-ep-warning text-xs"><AlertCircle size={10} /> Sem ID</span>
+function StatusChip({ enabled, pixelId }: { enabled: boolean; pixelId: string }) {
+  if (!enabled)  return <span className="flex items-center gap-1 text-ep-muted text-xs"><Circle size={8} /> Inativo</span>
+  if (!pixelId)  return <span className="flex items-center gap-1 text-ep-warning text-xs"><AlertCircle size={10} /> Sem ID</span>
   return <span className="flex items-center gap-1 text-ep-success text-xs"><CheckCircle2 size={10} /> Ativo</span>
 }
 
 // ─── Code snippet ─────────────────────────────────────────────────────────────
 
-function buildSnippet(config: PixelConfig): string {
-  const id = config.pixelId || 'SEU_ID_AQUI'
-  switch (config.platform) {
+function buildSnippet(platform: PixelPlatform, pixelId: string): string {
+  const id = pixelId || 'SEU_ID_AQUI'
+  switch (platform) {
     case 'meta': return `<!-- Meta Pixel -->
 <script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -141,34 +141,86 @@ interface Props {
 export default function PixelCard({ config, onSave, onTest }: Props) {
   const meta = PLATFORM_META[config.platform]
 
-  const [pixelId,        setPixelId]        = useState(config.pixelId)
-  const [accessToken,    setAccessToken]    = useState(config.accessToken)
-  const [testEventCode,  setTestEventCode]  = useState(config.testEventCode)
-  const [convLabel,      setConvLabel]      = useState(config.conversionLabel)
-  const [enabled,        setEnabled]        = useState(config.enabled)
-  const [showAdvanced,   setShowAdvanced]   = useState(false)
-  const [showSnippet,    setShowSnippet]    = useState(false)
-  const [testEvent,      setTestEvent]      = useState('Purchase')
-  const [testing,        setTesting]        = useState(false)
-  const [testResult,     setTestResult]     = useState<{ success: boolean; message: string } | null>(null)
-  const [saving,         setSaving]         = useState(false)
-  const [saved,          setSaved]          = useState(false)
-  const [snippetCopied,  setSnippetCopied]  = useState(false)
+  // Estado local — sincroniza sempre que o config vindo do banco muda
+  const [pixelId,       setPixelId]       = useState(config.pixelId)
+  const [accessToken,   setAccessToken]   = useState(config.accessToken)
+  const [testEventCode, setTestEventCode] = useState(config.testEventCode)
+  const [convLabel,     setConvLabel]     = useState(config.conversionLabel)
+  const [enabled,       setEnabled]       = useState(config.enabled)
 
-  const snippet = buildSnippet({ ...config, pixelId })
+  const [showAdvanced,  setShowAdvanced]  = useState(false)
+  const [showSnippet,   setShowSnippet]   = useState(false)
+  const [testEvent,     setTestEvent]     = useState('Purchase')
+  const [testing,       setTesting]       = useState(false)
+  const [testResult,    setTestResult]    = useState<{ success: boolean; message: string } | null>(null)
+  const [saving,        setSaving]        = useState(false)
+  const [saved,         setSaved]         = useState(false)
+  const [snippetCopied, setSnippetCopied] = useState(false)
+  const [toggleError,   setToggleError]   = useState('')
+
+  // Sincroniza estado local quando o banco atualiza (pai faz refetch)
+  useEffect(() => {
+    setPixelId(config.pixelId)
+    setAccessToken(config.accessToken)
+    setTestEventCode(config.testEventCode)
+    setConvLabel(config.conversionLabel)
+    setEnabled(config.enabled)
+  }, [config])
+
+  const pixelIdTrimmed = pixelId.trim()
+  // O toggle só pode ativar se tiver Pixel ID preenchido
+  const canEnable = !!pixelIdTrimmed
+
+  const snippet = buildSnippet(config.platform, pixelId)
 
   const handleToggle = async () => {
     const next = !enabled
+
+    // Bloqueia ativação sem Pixel ID
+    if (next && !canEnable) {
+      setToggleError(`Preencha o ${meta.idLabel} antes de ativar`)
+      setTimeout(() => setToggleError(''), 3500)
+      return
+    }
+
+    // Atualiza UI imediatamente (optimistic)
     setEnabled(next)
-    await onSave(config.id, { enabled: next, pixelId, accessToken, testEventCode, conversionLabel: convLabel })
+    setToggleError('')
+
+    try {
+      await onSave(config.id, {
+        enabled:          next,
+        pixelId:          pixelIdTrimmed,
+        accessToken,
+        testEventCode,
+        conversionLabel:  convLabel,
+      })
+    } catch {
+      // Reverte se o save falhar
+      setEnabled(!next)
+      setToggleError('Erro ao salvar. Tente novamente.')
+      setTimeout(() => setToggleError(''), 3500)
+    }
   }
 
   const handleSave = async () => {
+    // Se está ativado mas pixelId foi apagado, força desativar
+    const willBeEnabled = enabled && !!pixelIdTrimmed
+
     setSaving(true)
-    await onSave(config.id, { enabled, pixelId, accessToken, testEventCode, conversionLabel: convLabel })
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    try {
+      await onSave(config.id, {
+        enabled:         willBeEnabled,
+        pixelId:         pixelIdTrimmed,
+        accessToken,
+        testEventCode,
+        conversionLabel: convLabel,
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleTest = async () => {
@@ -189,37 +241,59 @@ export default function PixelCard({ config, onSave, onTest }: Props) {
   return (
     <div className={clsx(
       'bg-ep-surface border rounded-lg transition-colors flex flex-col',
-      enabled && pixelId ? 'border-ep-border-default' : 'border-ep-border-subtle',
+      enabled && pixelIdTrimmed ? 'border-ep-border-default' : 'border-ep-border-subtle',
     )}>
       {/* ── Header ── */}
       <div className="flex items-start justify-between p-4 md:p-5 gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className={clsx('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold', meta.bg, 'border', meta.border)}
-            style={{ color: meta.color }}>
+          <div
+            className={clsx('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold', meta.bg, 'border', meta.border)}
+            style={{ color: meta.color }}
+          >
             {meta.abbr}
           </div>
           <div className="min-w-0">
             <h3 className="text-ep-primary text-sm font-semibold">{meta.label}</h3>
-            <StatusChip config={{ ...config, enabled, pixelId }} />
+            <StatusChip enabled={enabled} pixelId={pixelIdTrimmed} />
           </div>
         </div>
 
-        {/* Toggle */}
-        <button
-          onClick={handleToggle}
-          className={clsx(
-            'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 border',
-            enabled ? 'bg-ep-accent/20 border-ep-accent/40' : 'bg-ep-raised border-ep-border-default',
+        {/* Toggle + bloqueio visual */}
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <button
+            onClick={handleToggle}
+            title={!canEnable && !enabled ? `Preencha o ${meta.idLabel} para ativar` : undefined}
+            className={clsx(
+              'relative w-11 h-6 rounded-full transition-colors duration-200 border',
+              enabled
+                ? 'bg-ep-accent/20 border-ep-accent/40'
+                : canEnable
+                  ? 'bg-ep-raised border-ep-border-default'
+                  : 'bg-ep-raised border-ep-border-subtle opacity-50 cursor-not-allowed',
+            )}
+          >
+            <span className={clsx(
+              'absolute top-0.5 w-5 h-5 rounded-full transition-transform duration-200',
+              enabled ? 'translate-x-5 bg-ep-accent' : 'translate-x-0.5 bg-ep-muted',
+            )} />
+          </button>
+
+          {/* Ícone de cadeado quando não pode ativar */}
+          {!canEnable && !enabled && (
+            <span className="flex items-center gap-1 text-ep-muted text-xs">
+              <Lock size={9} /> requer ID
+            </span>
           )}
-        >
-          <span className={clsx(
-            'absolute top-0.5 w-5 h-5 rounded-full transition-transform duration-200',
-            enabled
-              ? 'translate-x-5 bg-ep-accent'
-              : 'translate-x-0.5 bg-ep-muted',
-          )} />
-        </button>
+        </div>
       </div>
+
+      {/* ── Erro do toggle ── */}
+      {toggleError && (
+        <div className="mx-4 md:mx-5 -mt-1 mb-2 flex items-center gap-1.5 px-3 py-2 bg-ep-warning/10 border border-ep-warning/20 rounded-md">
+          <AlertCircle size={12} className="text-ep-warning flex-shrink-0" />
+          <p className="text-ep-warning text-xs">{toggleError}</p>
+        </div>
+      )}
 
       {/* ── Body ── */}
       <div className="px-4 md:px-5 pb-4 md:pb-5 space-y-3 flex-1">
@@ -292,7 +366,7 @@ export default function PixelCard({ config, onSave, onTest }: Props) {
           </select>
           <button
             onClick={handleTest}
-            disabled={testing || !pixelId}
+            disabled={testing || !pixelIdTrimmed}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-ep-raised border border-ep-border-default rounded-md text-ep-secondary hover:text-ep-accent hover:border-ep-accent text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <Zap size={11} className={testing ? 'animate-pulse' : ''} />
@@ -302,7 +376,9 @@ export default function PixelCard({ config, onSave, onTest }: Props) {
 
         {testResult && (
           <p className={clsx('text-xs flex items-start gap-1.5', testResult.success ? 'text-ep-success' : 'text-ep-danger')}>
-            {testResult.success ? <CheckCircle2 size={11} className="mt-0.5 flex-shrink-0" /> : <AlertCircle size={11} className="mt-0.5 flex-shrink-0" />}
+            {testResult.success
+              ? <CheckCircle2 size={11} className="mt-0.5 flex-shrink-0" />
+              : <AlertCircle  size={11} className="mt-0.5 flex-shrink-0" />}
             {testResult.message}
           </p>
         )}
