@@ -1,0 +1,72 @@
+export type PixelPlatform = 'meta' | 'ga4' | 'google_ads' | 'tiktok'
+
+export const STANDARD_EVENTS = [
+  'PageView',
+  'ViewContent',
+  'AddToCart',
+  'InitiateCheckout',
+  'AddPaymentInfo',
+  'Purchase',
+  'Lead',
+  'CompleteRegistration',
+  'Subscribe',
+  'StartTrial',
+  'Search',
+] as const
+
+export type StandardEvent = (typeof STANDARD_EVENTS)[number]
+
+export interface PixelEventConfig {
+  event: StandardEvent
+  enabled: boolean
+  valueParam: boolean
+}
+
+export interface PixelConfig {
+  id: string
+  platform: PixelPlatform
+  name: string
+  pixelId: string
+  accessToken: string
+  testEventCode: string
+  conversionLabel: string
+  enabled: boolean
+  events: PixelEventConfig[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PixelFireLog {
+  id: string
+  configId: string
+  platform: PixelPlatform
+  event: string
+  success: boolean
+  message: string
+  timestamp: string
+  data?: Record<string, unknown>
+  isTest?: boolean
+}
+
+export interface TrackEventPayload {
+  event: string
+  data?: {
+    value?: number
+    currency?: string
+    content_ids?: string[]
+    content_type?: string
+    num_items?: number
+    order_id?: string
+    [key: string]: unknown
+  }
+  userData?: {
+    email?: string
+    phone?: string
+    firstName?: string
+    lastName?: string
+    ip?: string
+    userAgent?: string
+    fbp?: string
+    fbc?: string
+  }
+}

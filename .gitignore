@@ -1,0 +1,19 @@
+node_modules/
+
+# Environment variables — NUNCA commitar
+.env
+.env.local
+.env*.local
+
+# Next.js build
+.next/
+out/
+
+# Prisma
+/lib/generated/prisma
+node_modules/.prisma/
+
+# Misc
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts

@@ -1,0 +1,89 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Payment {
+  id       String @id
+  customer String
+  email    String
+  amount   Int
+  status   String
+  date     String
+  product  String
+  method   String
+
+  @@map("payments")
+}
+
+model DailySale {
+  id       Int    @id @default(autoincrement())
+  date     String
+  isoDate  String @unique @map("iso_date")
+  receita  Int
+  vendas   Int
+  falhas   Int
+
+  @@map("daily_sales")
+}
+
+model Product {
+  id       String @id
+  name     String
+  price    Int
+  interval String
+  sales    Int
+  revenue  BigInt
+  status   String
+  stripeId String @map("stripe_id")
+
+  @@map("products")
+}
+
+model PixelConfig {
+  id              String       @id
+  platform        String
+  name            String
+  pixelId         String       @map("pixel_id")
+  accessToken     String       @map("access_token")
+  testEventCode   String       @map("test_event_code")
+  conversionLabel String       @map("conversion_label")
+  enabled         Boolean
+  events          Json
+  createdAt       DateTime     @map("created_at")
+  updatedAt       DateTime     @map("updated_at")
+  logs            PixelLog[]
+
+  @@map("pixel_configs")
+}
+
+model PixelLog {
+  id        String      @id
+  configId  String      @map("config_id")
+  platform  String
+  event     String
+  success   Boolean
+  message   String
+  timestamp DateTime
+  data      Json?
+  isTest    Boolean     @default(false) @map("is_test")
+  config    PixelConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@map("pixel_logs")
+}
