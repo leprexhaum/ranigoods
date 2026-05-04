@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Package, Plus, ExternalLink, MoreVertical, Loader2, Link2, Check } from 'lucide-react'
+import { Package, Plus, ExternalLink, MoreVertical, Loader2, Link2, Check, Pencil } from 'lucide-react'
 import clsx from 'clsx'
 import DateFilter from '@/components/ui/DateFilter'
 import type { DatePreset } from '@/components/ui/DateFilter'
 import type { Product } from '@/lib/services/product.service'
+import ProductFormModal from '@/components/products/ProductFormModal'
 
-function formatBRL(cents: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
+function formatCurrency(cents: number, currency = 'EUR') {
+  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency }).format(cents / 100)
 }
 
 function CopyLinkButton({ slug }: { slug: string }) {
@@ -41,6 +42,8 @@ export default function ProdutosPage() {
   const [products,    setProducts]    = useState<Product[]>([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
+  const [modalOpen,   setModalOpen]   = useState(false)
+  const [editProduct, setEditProduct] = useState<Product | null>(null)
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -83,6 +86,7 @@ export default function ProdutosPage() {
   }
 
   return (
+    <>
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
@@ -98,7 +102,9 @@ export default function ProdutosPage() {
             customEnd={customEnd}
             onChange={handleDateChange}
           />
-          <button className="flex items-center gap-2 px-4 py-2 bg-ep-accent text-ep-base rounded-md text-sm font-semibold hover:bg-ep-accent-dark transition-colors">
+          <button
+            onClick={() => { setEditProduct(null); setModalOpen(true) }}
+            className="flex items-center gap-2 px-4 py-2 bg-ep-accent text-ep-base rounded-md text-sm font-semibold hover:bg-ep-accent-dark transition-colors">
             <Plus size={14} strokeWidth={2.5} />
             Novo Produto
           </button>
@@ -165,6 +171,12 @@ export default function ProdutosPage() {
                   </button>
                   <div className="absolute right-0 top-6 z-10 hidden group-hover/menu:block bg-ep-surface border border-ep-border-default rounded-md shadow-lg min-w-[140px]">
                     <button
+                      onClick={() => { setEditProduct(product); setModalOpen(true) }}
+                      className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
+                    >
+                      <Pencil size={11} /> Editar
+                    </button>
+                    <button
                       onClick={() => handleArchive(product.id, product.status)}
                       className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors"
                     >
@@ -184,7 +196,7 @@ export default function ProdutosPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-ep-secondary text-xs">Preço</span>
                   <span className="text-ep-primary text-sm font-bold">
-                    {formatBRL(product.price)}<span className="text-ep-muted font-normal text-xs">/{product.interval}</span>
+                    {formatCurrency(product.price, product.currency)}<span className="text-ep-muted font-normal text-xs">/{product.interval}</span>
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -193,7 +205,7 @@ export default function ProdutosPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-ep-secondary text-xs">Receita total</span>
-                  <span className="text-ep-accent text-sm font-semibold">{formatBRL(product.revenue)}</span>
+                  <span className="text-ep-accent text-sm font-semibold">{formatCurrency(product.revenue, product.currency)}</span>
                 </div>
               </div>
 
@@ -228,5 +240,14 @@ export default function ProdutosPage() {
         </div>
       )}
     </div>
+
+    {modalOpen && (
+      <ProductFormModal
+        product={editProduct}
+        onClose={() => { setModalOpen(false); setEditProduct(null) }}
+        onSaved={() => { fetchProducts() }}
+      />
+    )}
+    </>
   )
 }

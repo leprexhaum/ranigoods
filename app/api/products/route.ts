@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { name, price, interval, stripeId, status } = body
+    const { name, price, interval } = body
 
     if (!name || !price || !interval) {
       return NextResponse.json({ error: 'name, price e interval são obrigatórios' }, { status: 400 })
@@ -32,14 +32,29 @@ export async function POST(req: NextRequest) {
 
     const product = await productService.create({
       name,
-      price:    Number(price),
+      price:            Number(price),
       interval,
-      stripeId: stripeId ?? '',
-      status:   status ?? 'active',
-      sales:    0,
-      revenue:  0,
-      slug:     body.slug ?? null,
-      currency: body.currency ?? 'EUR',
+      stripeId:         body.stripeId         ?? '',
+      status:           body.status           ?? 'active',
+      slug:             body.slug             ?? null,
+      currency:         body.currency         ?? 'EUR',
+      description:      body.description      ?? '',
+      imageUrl:         body.imageUrl         ?? '',
+      defaultShipping:  Number(body.defaultShipping ?? 0),
+      paymentMethods:   body.paymentMethods   ?? ['card'],
+      shippingOptions:  body.shippingOptions  ?? [],
+      orderBumps:       body.orderBumps       ?? [],
+      reviews:          body.reviews          ?? [],
+      showReviews:      body.showReviews      ?? false,
+      checkoutTemplate: body.checkoutTemplate ?? 'single_step',
+      checkoutLanguage: body.checkoutLanguage ?? 'pt',
+      requirePhone:     body.requirePhone     ?? false,
+      requireAddress:   body.requireAddress   ?? false,
+      logoUrl:          body.logoUrl          ?? '',
+      brandName:        body.brandName        ?? '',
+      successUrl:       body.successUrl       ?? '',
+      metaPixelId:      body.metaPixelId      ?? '',
+      utmfyApiToken:    body.utmfyApiToken    ?? '',
     })
 
     return NextResponse.json(product, { status: 201 })
@@ -48,4 +63,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
-
