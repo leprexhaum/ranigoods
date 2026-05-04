@@ -11,9 +11,12 @@ export interface DateRange {
   end: string
 }
 
-const DATA_TODAY = '2026-05-04'
+function today(): string {
+  return new Date().toISOString().split('T')[0]
+}
 
 export function getRange(preset: DatePreset, customStart?: string, customEnd?: string): DateRange {
+  const DATA_TODAY = today()
   const sub = (days: number) => {
     const d = new Date(DATA_TODAY)
     d.setDate(d.getDate() - days)
@@ -60,8 +63,8 @@ export interface DateFilterProps {
 
 export default function DateFilter({ preset, customStart, customEnd, onChange, compact = false }: DateFilterProps) {
   const [open,       setOpen]       = useState(false)
-  const [localStart, setLocalStart] = useState(customStart || '2026-04-04')
-  const [localEnd,   setLocalEnd]   = useState(customEnd   || DATA_TODAY)
+  const [localStart, setLocalStart] = useState(() => customStart || getRange('30d').start)
+  const [localEnd,   setLocalEnd]   = useState(() => customEnd   || today())
   const ref = useRef<HTMLDivElement>(null)
 
   const range = getRange(preset, customStart, customEnd)
@@ -135,7 +138,7 @@ export default function DateFilter({ preset, customStart, customEnd, onChange, c
               </div>
               <div>
                 <label className="text-ep-secondary text-xs block mb-1">Até</label>
-                <input type="date" value={localEnd} min={localStart} max={DATA_TODAY}
+                <input type="date" value={localEnd} min={localStart} max={today()}
                   onChange={(e) => setLocalEnd(e.target.value)}
                   className="w-full px-2.5 py-1.5 bg-ep-overlay border border-ep-border-default rounded text-ep-primary text-xs focus:outline-none focus:border-ep-accent"
                 />

@@ -66,7 +66,7 @@ export default function PixelProvider({ children }: { children: React.ReactNode 
   const didPageView = useRef(false)
 
   const loadPixels = useCallback(() => {
-    fetch('/api/pixels')
+    fetch('/api/pixels/config')
       .then(r => r.json())
       .then((data: PixelConfig[]) => { setPixels(data); setIsReady(true) })
       .catch(() => setIsReady(true))

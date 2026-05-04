@@ -87,3 +87,21 @@ model PixelLog {
 
   @@map("pixel_logs")
 }
+
+model Settings {
+  id           Int     @id @default(1)
+  companyName  String  @default("") @map("company_name")
+  nif          String  @default("") @map("nif")
+  email        String  @default("") @map("email")
+  timezone     String  @default("Europe/Lisbon") @map("timezone")
+  stripeKey    String  @default("") @map("stripe_key")
+  stripeSecret String  @default("") @map("stripe_secret")
+  webhookSecret String @default("") @map("webhook_secret")
+  notifyApproved  Boolean @default(true)  @map("notify_approved")
+  notifyFailed    Boolean @default(true)  @map("notify_failed")
+  notifyRefund    Boolean @default(false) @map("notify_refund")
+  notifyDaily     Boolean @default(false) @map("notify_daily")
+  notifyWeekly    Boolean @default(false) @map("notify_weekly")
+
+  @@map("settings")
+}

@@ -37,12 +37,22 @@ export default function PagamentosPage() {
   const [search,       setSearch]       = useState('')
   const [page,         setPage]         = useState(1)
   const [preset,       setPreset]       = useState<DatePreset>('30d')
-  const [customStart,  setCustomStart]  = useState('2026-04-04')
-  const [customEnd,    setCustomEnd]    = useState('2026-05-04')
+  const [customStart,  setCustomStart]  = useState('')
+  const [customEnd,    setCustomEnd]    = useState('')
   const [result,       setResult]       = useState<ApiResponse>({ data: [], total: 0, pages: 1, page: 1 })
   const [loading,      setLoading]      = useState(true)
 
   const range = getRange(preset, customStart, customEnd)
+
+  const handleExport = () => {
+    const params = new URLSearchParams({
+      status: activeFilter,
+      start:  range.start,
+      end:    range.end,
+    })
+    if (search) params.set('search', search)
+    window.open(`/api/payments/export?${params}`, '_blank')
+  }
 
   const fetchPayments = useCallback(async () => {
     setLoading(true)
@@ -96,7 +106,7 @@ export default function PagamentosPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DateFilter preset={preset} customStart={customStart} customEnd={customEnd} onChange={handleDateChange} compact />
-          <button className="flex items-center gap-2 px-3 py-2 bg-ep-raised border border-ep-border-default rounded-md text-ep-secondary text-sm hover:text-ep-primary transition-colors">
+          <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 bg-ep-raised border border-ep-border-default rounded-md text-ep-secondary text-sm hover:text-ep-primary transition-colors">
             <Download size={13} />
             <span className="hidden sm:inline">Exportar</span> CSV
           </button>

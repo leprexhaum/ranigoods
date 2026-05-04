@@ -3,7 +3,7 @@ import { jwtVerify } from 'jose'
 
 const COOKIE       = 'rg_session'
 const PUBLIC_PATHS = ['/login', '/cadastro']
-const PUBLIC_API   = ['/api/auth/', '/api/pixels/track']
+const PUBLIC_API   = ['/api/auth/', '/api/pixels/track', '/api/pixels/config', '/api/stripe/webhook']
 
 function getKey() {
   const secret = process.env.JWT_SECRET

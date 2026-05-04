@@ -1,5 +1,5 @@
 export type PaymentStatus = 'succeeded' | 'failed' | 'pending' | 'refunded'
-export type PaymentMethod = 'Cartão' | 'Pix' | 'Boleto'
+export type PaymentMethod = 'Cartão' | 'MB WAY' | 'Multibanco' | 'SEPA' | 'Pix' | 'Boleto'
 
 export interface Payment {
   id: string

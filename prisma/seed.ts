@@ -2,9 +2,11 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { recentPayments, dailySales } from '../lib/mock-data'
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL ?? 'postgresql://postgres:muieAihDtDgZjvFooFElIrqCxizmepJo@shinkansen.proxy.rlwy.net:45207/railway',
-})
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL não configurada')
+}
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
 
 const mockProducts = [

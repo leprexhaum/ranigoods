@@ -24,8 +24,8 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const [preset,      setPreset]      = useState<DatePreset>('30d')
-  const [customStart, setCustomStart] = useState('2026-04-04')
-  const [customEnd,   setCustomEnd]   = useState('2026-05-04')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd,   setCustomEnd]   = useState('')
   const [data,        setData]        = useState<DashboardData | null>(null)
   const [loading,     setLoading]     = useState(true)
 
