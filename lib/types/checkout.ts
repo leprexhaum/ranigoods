@@ -23,6 +23,8 @@ export interface CheckoutReview {
 export interface CheckoutProduct {
   id:               string
   name:             string
+  description:      string
+  imageUrl:         string
   price:            number
   currency:         string
   interval:         string
@@ -31,8 +33,13 @@ export interface CheckoutProduct {
   shippingOptions:  ShippingOption[]
   orderBumps:       OrderBump[]
   reviews:          CheckoutReview[]
+  showReviews:      boolean
   checkoutTemplate: CheckoutTemplate
   successUrl:       string
+  logoUrl:          string
+  brandName:        string
+  requirePhone:     boolean
+  requireAddress:   boolean
 }
 
 export interface CreatePaymentIntentRequest {

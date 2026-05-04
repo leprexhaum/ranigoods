@@ -1,6 +1,10 @@
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+
 export default function CheckoutLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-ep-base">
+    <div className={`${inter.variable} font-sans`}>
       {children}
     </div>
   )

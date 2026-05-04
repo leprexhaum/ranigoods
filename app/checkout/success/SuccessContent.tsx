@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import { CheckCircle2, XCircle, Loader2, ShieldCheck } from 'lucide-react'
 import type { CheckoutPaymentDetail } from '@/lib/types/checkout'
 
-function formatCurrency(cents: number, currency: string) {
-  return new Intl.NumberFormat('pt-PT', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(cents / 100)
+function fmt(cents: number, currency: string) {
+  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
 }
 
 export default function SuccessContent() {
@@ -29,9 +26,7 @@ export default function SuccessContent() {
         const res  = await fetch(`/api/checkout/payment/${paymentId}`)
         const data = await res.json() as CheckoutPaymentDetail
         if (!res.ok) { setError('Pagamento não encontrado'); setLoading(false); return }
-
         setPayment(data)
-
         if (data.status === 'pending' && attempts < 10) {
           attempts++
           setTimeout(poll, 3000)
@@ -46,70 +41,96 @@ export default function SuccessContent() {
         setLoading(false)
       }
     }
-
     poll()
   }, [paymentId])
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <Loader2 size={32} className="animate-spin text-ep-accent" />
-        <p className="text-ep-secondary text-sm">A verificar pagamento…</p>
+      <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center gap-4">
+        <Loader2 size={28} className="animate-spin text-[#635bff]" />
+        <p className="text-[#6b7280] text-sm">A verificar pagamento…</p>
       </div>
     )
   }
 
   if (error || !payment) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
-        <XCircle size={48} className="text-ep-danger" />
-        <h1 className="text-ep-primary text-xl font-bold">Erro</h1>
-        <p className="text-ep-secondary text-sm text-center">{error || 'Pagamento não encontrado'}</p>
+      <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center gap-5 px-4">
+        <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center">
+          <XCircle size={32} className="text-red-500" />
+        </div>
+        <div className="text-center space-y-1">
+          <h1 className="text-[#111827] text-xl font-bold">Erro</h1>
+          <p className="text-[#6b7280] text-sm">{error || 'Pagamento não encontrado'}</p>
+        </div>
       </div>
     )
   }
 
   if (payment.status === 'failed') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
-        <XCircle size={48} className="text-ep-danger" />
-        <h1 className="text-ep-primary text-xl font-bold">Pagamento recusado</h1>
-        <p className="text-ep-secondary text-sm text-center">
-          O seu pagamento não foi processado. Por favor tente novamente.
-        </p>
+      <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center gap-5 px-4">
+        <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center">
+          <XCircle size={32} className="text-red-500" />
+        </div>
+        <div className="text-center space-y-1">
+          <h1 className="text-[#111827] text-xl font-bold">Pagamento recusado</h1>
+          <p className="text-[#6b7280] text-sm">O seu pagamento não foi processado. Por favor tente novamente.</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4 py-12">
-      <div className="w-16 h-16 rounded-full bg-ep-success/10 border border-ep-success/20 flex items-center justify-center">
-        <CheckCircle2 size={32} className="text-ep-success" />
-      </div>
+    <div className="min-h-screen bg-[#f9fafb] font-sans flex flex-col items-center justify-center px-4 py-16">
+      <div className="w-full max-w-md space-y-8">
 
-      <div className="text-center space-y-1">
-        <h1 className="text-ep-primary text-2xl font-bold">Pagamento confirmado!</h1>
-        <p className="text-ep-secondary text-sm">Obrigado, {payment.customerName}.</p>
-      </div>
+        {/* Ícone de sucesso */}
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="w-20 h-20 rounded-full bg-[#f0fdf4] border-2 border-[#bbf7d0] flex items-center justify-center">
+            <CheckCircle2 size={40} className="text-[#16a34a]" />
+          </div>
+          <div>
+            <h1 className="text-[#111827] text-2xl font-bold">Pagamento confirmado!</h1>
+            <p className="text-[#6b7280] text-sm mt-1">Obrigado, {payment.customerName}. O seu pedido foi recebido.</p>
+          </div>
+        </div>
 
-      <div className="bg-ep-surface border border-ep-border-default rounded-xl p-6 w-full max-w-sm space-y-3">
-        <div className="flex justify-between text-sm">
-          <span className="text-ep-secondary">Produto</span>
-          <span className="text-ep-primary font-medium">{payment.productName}</span>
+        {/* Resumo do pedido */}
+        <div className="bg-white rounded-2xl border border-[#e5e7eb] overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-[#f3f4f6]">
+            <h2 className="text-[#111827] font-semibold text-sm">Resumo do pedido</h2>
+          </div>
+          <div className="px-6 py-5 space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-[#6b7280]">Produto</span>
+              <span className="text-[#111827] font-medium">{payment.productName}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-[#6b7280]">Valor pago</span>
+              <span className="text-[#111827] font-bold text-base">{fmt(payment.amount, payment.currency)}</span>
+            </div>
+            <div className="border-t border-[#f3f4f6] pt-3 flex justify-between text-xs">
+              <span className="text-[#9ca3af]">Referência</span>
+              <span className="text-[#9ca3af] font-mono">{payment.id.slice(0, 20)}…</span>
+            </div>
+          </div>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-ep-secondary">Valor pago</span>
-          <span className="text-ep-accent font-bold">{formatCurrency(payment.amount, payment.currency)}</span>
+
+        {/* Próximos passos */}
+        <div className="bg-[#f5f4ff] rounded-2xl border border-[#e0deff] px-6 py-5">
+          <p className="text-[#4338ca] text-sm font-medium mb-1">O que acontece a seguir?</p>
+          <p className="text-[#6b7280] text-sm leading-relaxed">
+            Receberá um email de confirmação em breve com os detalhes do seu pedido.
+          </p>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-ep-secondary">Referência</span>
-          <span className="text-ep-muted font-mono text-xs">{payment.id.slice(0, 16)}…</span>
+
+        {/* Segurança */}
+        <div className="flex items-center justify-center gap-2 text-[#9ca3af] text-xs">
+          <ShieldCheck size={13} className="text-[#635bff]" />
+          <span>Pagamento processado com segurança via Stripe</span>
         </div>
       </div>
-
-      <p className="text-ep-muted text-xs text-center">
-        Receberá um email de confirmação em breve.
-      </p>
     </div>
   )
 }

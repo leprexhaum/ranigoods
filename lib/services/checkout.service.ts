@@ -5,13 +5,18 @@ import type {
 } from '@/lib/types/checkout'
 
 function toCheckoutProduct(r: {
-  id: string; name: string; price: number; currency: string; interval: string;
+  id: string; name: string; description: string; imageUrl: string;
+  price: number; currency: string; interval: string;
   slug: string | null; paymentMethods: unknown; shippingOptions: unknown;
-  orderBumps: unknown; reviews: unknown; checkoutTemplate: string; successUrl: string;
+  orderBumps: unknown; reviews: unknown; showReviews: boolean;
+  checkoutTemplate: string; successUrl: string;
+  logoUrl: string; brandName: string; requirePhone: boolean; requireAddress: boolean;
 }): CheckoutProduct {
   return {
     id:               r.id,
     name:             r.name,
+    description:      r.description ?? '',
+    imageUrl:         r.imageUrl ?? '',
     price:            r.price,
     currency:         r.currency,
     interval:         r.interval,
@@ -20,8 +25,13 @@ function toCheckoutProduct(r: {
     shippingOptions:  (r.shippingOptions as ShippingOption[]) ?? [],
     orderBumps:       (r.orderBumps as OrderBump[]) ?? [],
     reviews:          (r.reviews as CheckoutReview[]) ?? [],
+    showReviews:      r.showReviews ?? false,
     checkoutTemplate: (r.checkoutTemplate as CheckoutProduct['checkoutTemplate']) ?? 'single_step',
     successUrl:       r.successUrl ?? '',
+    logoUrl:          r.logoUrl ?? '',
+    brandName:        r.brandName ?? '',
+    requirePhone:     r.requirePhone ?? false,
+    requireAddress:   r.requireAddress ?? false,
   }
 }
 
@@ -30,9 +40,12 @@ export const checkoutService = {
     const r = await prisma.product.findUnique({
       where: { slug },
       select: {
-        id: true, name: true, price: true, currency: true, interval: true,
+        id: true, name: true, description: true, imageUrl: true,
+        price: true, currency: true, interval: true,
         slug: true, paymentMethods: true, shippingOptions: true,
-        orderBumps: true, reviews: true, checkoutTemplate: true, successUrl: true,
+        orderBumps: true, reviews: true, showReviews: true,
+        checkoutTemplate: true, successUrl: true,
+        logoUrl: true, brandName: true, requirePhone: true, requireAddress: true,
       },
     })
     return r ? toCheckoutProduct(r) : null
