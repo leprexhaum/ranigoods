@@ -9,20 +9,72 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { Lock, ShieldCheck, Star, Loader2, Check, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, ChevronDown, ChevronUp, Mail, User, Phone, CreditCard, Info } from 'lucide-react'
 import clsx from 'clsx'
-import type { CheckoutProduct, OrderBump, ShippingOption } from '@/lib/types/checkout'
+import type { CheckoutProduct, ShippingOption } from '@/lib/types/checkout'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(cents: number, currency: string) {
-  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
+}
+
+// ─── Stripe SVG Logo ──────────────────────────────────────────────────────────
+
+function StripeLogo() {
+  return (
+    <svg viewBox="0 0 60 25" className="h-[15px] inline-block" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M59.64 14.28h-8.06c.19 1.93 1.6 2.55 3.2 2.55 1.64 0 2.96-.37 4.05-.95v3.32a10.7 10.7 0 01-4.56.95c-4.01 0-6.83-2.5-6.83-7.48 0-4.19 2.39-7.52 6.3-7.52 3.92 0 5.96 3.28 5.96 7.5 0 .4-.04 1.26-.06 1.63zm-5.92-5.62c-1.03 0-2.17.73-2.17 2.58h4.25c0-1.85-1.07-2.58-2.08-2.58zM40.95 20.3c-1.44 0-2.32-.6-2.9-1.04l-.02 4.63-4.12.87V5.57h3.76l.08 1.02a4.7 4.7 0 013.23-1.29c2.9 0 5.62 2.6 5.62 7.4 0 5.23-2.7 7.6-5.65 7.6zM40 8.95c-.95 0-1.54.34-1.97.81l.03 6.26c.4.44.98.78 1.94.78 1.52 0 2.54-1.65 2.54-3.9 0-2.18-1.04-3.95-2.54-3.95zM28.24 5.57h4.13V20h-4.13V5.57zm0-4.7L32.37 0v3.36l-4.13.88V.87zm-4.32 9.35v9.78H19.8V5.57h3.7l.12 1.22c.86-1.75 2.6-1.5 3.1-1.32v3.8c-.49-.16-2.29-.43-2.8.95zm-9.55 4.62c0 2.18 2.3 1.5 2.76 1.32V20c-.52.26-1.5.3-2.4.3-2.47 0-4.36-1.62-4.36-4.08V8.88H8.2V5.57h2.17V2.44l4.12-.88v4.01h2.76v3.31h-2.76v5.96zM4.2 12.13c0 .73.57 1 1.48 1.37 1.57.62 3.89 1.54 3.9 4.44C9.58 20.8 7.27 22 4.14 22c-1.42 0-2.96-.3-4.14-.86v-3.76c1.13.6 2.7 1.06 4.14 1.06.94 0 1.62-.19 1.62-.9 0-.76-.7-1.07-1.7-1.5C2.4 15.4 0 14.48 0 11.53 0 8.3 2.46 7.3 5.02 7.3c1.29 0 2.6.24 3.7.7v3.7c-.9-.47-2.28-.87-3.7-.87-.8 0-1.52.17-1.52.8-.01.5.3.77.7.5z" fill="#6772E5"/>
+    </svg>
+  )
+}
+
+// ─── Grouped Fieldset Input ───────────────────────────────────────────────────
+
+type FieldPosition = 'top' | 'middle' | 'bottom' | 'only'
+
+function GroupedInput({
+  position,
+  icon,
+  rightSlot,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  position: FieldPosition
+  icon?: React.ReactNode
+  rightSlot?: React.ReactNode
+}) {
+  const radiusClass = {
+    top:    'rounded-t-[6px] rounded-b-none',
+    middle: 'rounded-none',
+    bottom: 'rounded-b-[6px] rounded-t-none',
+    only:   'rounded-[6px]',
+  }[position]
+
+  const borderClass = position === 'top' || position === 'only'
+    ? 'border border-[#E0E0E0]'
+    : 'border-l border-r border-b border-[#E0E0E0]'
+
+  return (
+    <div className={clsx('relative flex items-center bg-white h-12', radiusClass, borderClass, 'focus-within:border-[#1A56DB] focus-within:shadow-[0_0_0_3px_rgba(26,86,219,0.15)] focus-within:z-10 transition-all')}>
+      {icon && (
+        <span className="pl-3 pr-2 text-[#9E9E9E] flex-shrink-0">{icon}</span>
+      )}
+      <input
+        {...props}
+        className="flex-1 h-full bg-transparent text-[14px] text-[#1A1A1A] placeholder-[#9E9E9E] focus:outline-none px-3"
+        style={{ paddingLeft: icon ? 0 : undefined }}
+      />
+      {rightSlot && (
+        <span className="pr-3 flex-shrink-0 flex items-center gap-1">{rightSlot}</span>
+      )}
+    </div>
+  )
 }
 
 // ─── Stripe Payment Form ──────────────────────────────────────────────────────
 
-function PaymentForm({ paymentId, successUrl, amount, currency }: {
-  paymentId: string; successUrl: string; amount: number; currency: string
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
+  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -43,82 +95,43 @@ function PaymentForm({ paymentId, successUrl, amount, currency }: {
     <form onSubmit={handleSubmit} className="space-y-5">
       <PaymentElement options={{ layout: 'tabs' }} />
       {error && (
-        <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-[6px] p-3 text-red-600 text-sm">
           <span className="mt-0.5">⚠</span> {error}
         </div>
       )}
-      <button
-        type="submit"
-        disabled={!stripe || loading}
-        className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#635bff] hover:bg-[#5851db] text-white rounded-lg text-[15px] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-      >
-        {loading
-          ? <><Loader2 size={16} className="animate-spin" /> A processar…</>
-          : <><Lock size={14} /> Pagar {fmt(amount, currency)}</>
-        }
-      </button>
-      <div className="flex items-center justify-center gap-1.5 text-[#6b7280] text-xs">
-        <ShieldCheck size={12} className="text-[#635bff]" />
-        <span>Pagamento seguro via</span>
-        <span className="font-semibold text-[#635bff]">Stripe</span>
+
+      {/* Submit button with shimmer */}
+      <div className="relative overflow-hidden rounded-[6px]">
+        <button
+          type="submit"
+          disabled={!stripe || loading}
+          className="relative w-full h-[52px] flex items-center justify-center gap-2 bg-[#1A56DB] hover:bg-[#1648c0] text-white text-[15px] font-medium rounded-[6px] transition-colors disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
+        >
+          {!loading && (
+            <span className="absolute inset-0 pointer-events-none shimmer-overlay" />
+          )}
+          {loading
+            ? <><Loader2 size={16} className="animate-spin" /> A processar…</>
+            : <>Pagar {fmt(amount, currency)}</>
+          }
+        </button>
+      </div>
+
+      {/* Legal */}
+      <p className="text-[13px] text-[#6B7280] leading-relaxed">
+        Ao confirmar a inscrição, o senhor concede permissão à <strong className="font-medium">{brandName}</strong> para efetuar cobranças conforme as condições estipuladas, até que ocorra o cancelamento.
+      </p>
+
+      {/* Footer */}
+      <div className="flex items-center justify-center gap-4 pt-2">
+        <span className="text-[12px] text-[#9CA3AF] flex items-center gap-1">
+          Powered by <StripeLogo />
+        </span>
+        <span className="text-[#E5E7EB]">·</span>
+        <a href="#" className="text-[12px] text-[#9CA3AF] hover:text-[#6B7280]">Termos</a>
+        <a href="#" className="text-[12px] text-[#9CA3AF] hover:text-[#6B7280]">Privacidade</a>
       </div>
     </form>
-  )
-}
-
-// ─── Order Bump ───────────────────────────────────────────────────────────────
-
-function OrderBumpCard({ bump, selected, onToggle, currency }: {
-  bump: OrderBump; selected: boolean; onToggle: () => void; currency: string
-}) {
-  return (
-    <div
-      onClick={onToggle}
-      className={clsx(
-        'flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all',
-        selected ? 'border-[#635bff] bg-[#f5f4ff]' : 'border-[#e5e7eb] hover:border-[#c7c4ff] bg-white',
-      )}
-    >
-      <div className={clsx(
-        'w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-all',
-        selected ? 'bg-[#635bff] border-[#635bff]' : 'border-[#d1d5db] bg-white',
-      )}>
-        {selected && <Check size={11} className="text-white" strokeWidth={3} />}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[#111827] text-sm font-semibold">{bump.name}</p>
-        <p className="text-[#6b7280] text-xs mt-0.5 leading-relaxed">{bump.description}</p>
-      </div>
-      <span className="text-[#635bff] text-sm font-bold flex-shrink-0">+{fmt(bump.price, currency)}</span>
-    </div>
-  )
-}
-
-// ─── Star Rating ──────────────────────────────────────────────────────────────
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="flex gap-0.5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star key={i} size={12} className={i < rating ? 'text-[#f59e0b] fill-[#f59e0b]' : 'text-[#d1d5db]'} />
-      ))}
-    </div>
-  )
-}
-
-// ─── Input ────────────────────────────────────────────────────────────────────
-
-function Input({ label, required, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string; required?: boolean }) {
-  return (
-    <div>
-      <label className="block text-[13px] font-medium text-[#374151] mb-1.5">
-        {label}{required && <span className="text-[#635bff] ml-0.5">*</span>}
-      </label>
-      <input
-        {...props}
-        className="w-full px-3.5 py-2.5 bg-white border border-[#d1d5db] rounded-lg text-[#111827] text-sm placeholder-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#635bff]/30 focus:border-[#635bff] transition-all"
-      />
-    </div>
   )
 }
 
@@ -140,7 +153,11 @@ export default function CheckoutPage() {
   const [selectedShip,   setSelectedShip]   = useState('')
   const [formError,      setFormError]      = useState('')
   const [submitting,     setSubmitting]     = useState(false)
-  const [showAllReviews, setShowAllReviews] = useState(false)
+  const [promoCode,      setPromoCode]      = useState('')
+  const [descExpanded,   setDescExpanded]   = useState(false)
+  const [summaryOpen,    setSummaryOpen]    = useState(false)
+  const [saveInfo,       setSaveInfo]       = useState(false)
+  const [payMethod,      setPayMethod]      = useState<'card' | 'googlepay'>('card')
 
   // Payment
   const [clientSecret,   setClientSecret]   = useState('')
@@ -193,11 +210,18 @@ export default function CheckoutPage() {
     }
   }
 
+  const intervalLabel = product?.interval && product.interval !== 'unit'
+    ? product.interval === 'month' ? 'por mês'
+    : product.interval === 'year' ? 'por ano'
+    : product.interval === 'week' ? 'por semana'
+    : `por ${product.interval}`
+    : null
+
   // ── Loading ──
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-[#635bff]" />
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-[#1A56DB]" />
       </div>
     )
   }
@@ -205,65 +229,72 @@ export default function CheckoutPage() {
   // ── Error ──
   if (pageError || !product) {
     return (
-      <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center px-4">
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
         <div className="text-center space-y-2">
-          <p className="text-[#111827] font-semibold text-lg">Produto não encontrado</p>
-          <p className="text-[#6b7280] text-sm">Verifique o link e tente novamente.</p>
+          <p className="text-[#1A1A1A] font-medium text-lg">Produto não encontrado</p>
+          <p className="text-[#6B7280] text-sm">Verifique o link e tente novamente.</p>
         </div>
       </div>
     )
   }
 
   const stripePromise = publishableKey ? loadStripe(publishableKey) : null
-  const visibleReviews = showAllReviews ? product.reviews : product.reviews.slice(0, 3)
+  const brandName = product.brandName || product.name
 
-  // ── Painel esquerdo: resumo do produto ──
-  const SummaryPanel = () => (
-    <div className="space-y-6">
-      {/* Branding */}
-      <div className="flex items-center gap-3">
-        {product.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={product.logoUrl} alt={product.brandName || product.name} className="h-8 object-contain" />
-        ) : (
-          <span className="text-[#111827] font-bold text-lg">{product.brandName || product.name}</span>
-        )}
-      </div>
-
-      {/* Produto */}
-      <div className="flex items-start gap-4">
-        {product.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={product.imageUrl} alt={product.name} className="w-16 h-16 rounded-xl object-cover border border-[#e5e7eb] flex-shrink-0" />
-        ) : (
-          <div className="w-16 h-16 rounded-xl bg-[#f3f4f6] border border-[#e5e7eb] flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl">🛍️</span>
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-[#111827] font-semibold text-base leading-snug">{product.name}</p>
-          {product.description && (
-            <p className="text-[#6b7280] text-sm mt-1 leading-relaxed">{product.description}</p>
+  // ── Order Summary (left column) ──
+  const OrderSummary = () => (
+    <div className="space-y-5">
+      {/* Product name + price */}
+      <div>
+        <p className="text-[16px] font-medium text-[#424242]">{product.name}</p>
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="text-[28px] lg:text-[32px] font-bold text-[#1A1A1A]">{fmt(product.price, product.currency)}</span>
+          {intervalLabel && (
+            <span className="text-[14px] text-[#757575]">{intervalLabel}</span>
           )}
         </div>
       </div>
 
-      {/* Linha divisória */}
-      <div className="border-t border-[#e5e7eb]" />
+      {/* Description with expand */}
+      {product.description && (
+        <div>
+          <p className={clsx('text-[13px] text-[#757575] leading-relaxed', !descExpanded && 'line-clamp-2')}>
+            {product.description}
+          </p>
+          <button
+            type="button"
+            onClick={() => setDescExpanded(v => !v)}
+            className="mt-1 flex items-center gap-1 text-[13px] text-[#6B7280] hover:text-[#1A1A1A]"
+          >
+            {descExpanded ? <><ChevronUp size={13} /> Menos</> : <><ChevronDown size={13} /> Mais</>}
+          </button>
+        </div>
+      )}
 
-      {/* Resumo de preços */}
-      <div className="space-y-2.5">
-        <div className="flex justify-between text-sm">
-          <span className="text-[#6b7280]">{product.name}</span>
-          <span className="text-[#111827] font-medium">{fmt(product.price, product.currency)}</span>
+      {/* Promo code toggle */}
+      <button
+        type="button"
+        className="text-[13px] text-[#374151] border border-[#D1D5DB] bg-[#F5F5F5] rounded-[6px] px-3 py-1.5 hover:bg-[#EBEBEB] transition-colors"
+      >
+        Adicionar código
+      </button>
+
+      {/* Divider */}
+      <div className="border-t border-[#E5E7EB]" />
+
+      {/* Line items */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-[14px]">
+          <span className="text-[#6B7280]">{product.name}</span>
+          <span className="text-[#1A1A1A]">{fmt(product.price, product.currency)}</span>
         </div>
         {selectedBumps.map(id => {
           const b = product.orderBumps.find(b => b.id === id)
           if (!b) return null
           return (
-            <div key={id} className="flex justify-between text-sm">
-              <span className="text-[#6b7280]">{b.name}</span>
-              <span className="text-[#111827] font-medium">+{fmt(b.price, product.currency)}</span>
+            <div key={id} className="flex justify-between text-[14px]">
+              <span className="text-[#6B7280]">{b.name}</span>
+              <span className="text-[#1A1A1A]">+{fmt(b.price, product.currency)}</span>
             </div>
           )
         })}
@@ -271,94 +302,255 @@ export default function CheckoutPage() {
           const s = product.shippingOptions.find(s => s.id === selectedShip)
           if (!s || s.price === 0) return null
           return (
-            <div className="flex justify-between text-sm">
-              <span className="text-[#6b7280]">{s.label}</span>
-              <span className="text-[#111827] font-medium">+{fmt(s.price, product.currency)}</span>
+            <div className="flex justify-between text-[14px]">
+              <span className="text-[#6B7280]">{s.label}</span>
+              <span className="text-[#1A1A1A]">+{fmt(s.price, product.currency)}</span>
             </div>
           )
         })()}
-        <div className="border-t border-[#e5e7eb] pt-2.5 flex justify-between">
-          <span className="text-[#111827] font-semibold text-base">Total</span>
-          <span className="text-[#111827] font-bold text-xl">{fmt(total, product.currency)}</span>
+        <div className="flex justify-between text-[14px] font-medium pt-1">
+          <span className="text-[#1A1A1A]">Subtotal</span>
+          <span className="text-[#1A1A1A]">{fmt(total, product.currency)}</span>
         </div>
-        {product.interval !== 'unit' && (
-          <p className="text-[#9ca3af] text-xs text-right">por {product.interval}</p>
-        )}
       </div>
 
-      {/* Reviews */}
-      {product.showReviews && product.reviews.length > 0 && (
-        <>
-          <div className="border-t border-[#e5e7eb]" />
-          <div className="space-y-4">
-            <h3 className="text-[#111827] font-semibold text-sm">O que dizem os clientes</h3>
-            {visibleReviews.map((r, i) => (
-              <div key={i} className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <StarRating rating={r.rating} />
-                  <span className="text-[#374151] text-xs font-semibold">{r.author}</span>
-                </div>
-                <p className="text-[#6b7280] text-xs leading-relaxed">{r.comment}</p>
-              </div>
-            ))}
-            {product.reviews.length > 3 && (
-              <button
-                onClick={() => setShowAllReviews(s => !s)}
-                className="flex items-center gap-1 text-[#635bff] text-xs font-medium hover:underline"
-              >
-                {showAllReviews ? <><ChevronUp size={12} /> Ver menos</> : <><ChevronDown size={12} /> Ver todas ({product.reviews.length})</>}
-              </button>
-            )}
-          </div>
-        </>
-      )}
+      {/* Promo code input */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={promoCode}
+          onChange={e => setPromoCode(e.target.value)}
+          placeholder="Código promocional"
+          className="flex-1 h-10 px-3 text-[14px] border border-[#E0E0E0] rounded-[6px] bg-white placeholder-[#9E9E9E] focus:outline-none focus:border-[#1A56DB] focus:shadow-[0_0_0_3px_rgba(26,86,219,0.15)] transition-all"
+        />
+        <button
+          type="button"
+          className="h-10 px-4 text-[13px] font-medium text-[#374151] bg-[#F5F5F5] border border-[#D1D5DB] rounded-[6px] hover:bg-[#EBEBEB] transition-colors"
+        >
+          Aplicar
+        </button>
+      </div>
 
-      {/* Segurança */}
-      <div className="border-t border-[#e5e7eb] pt-4 flex items-center gap-2 text-[#9ca3af] text-xs">
-        <ShieldCheck size={14} className="text-[#635bff] flex-shrink-0" />
-        <span>Pagamento seguro com encriptação SSL de 256 bits</span>
+      {/* Divider */}
+      <div className="border-t border-[#E5E7EB]" />
+
+      {/* Total */}
+      <div className="flex justify-between items-center">
+        <span className="text-[14px] text-[#6B7280]">Total devido hoje</span>
+        <span className="text-[16px] font-bold text-[#1A1A1A]">{fmt(total, product.currency)}</span>
       </div>
     </div>
   )
 
-  // ── Painel direito: formulário ──
-  const FormPanel = () => (
+  // ── Right column: contact + payment form ──
+  const CheckoutForm = () => (
     <div className="space-y-6">
       {step === 'form' ? (
         <form onSubmit={handleProceed} className="space-y-6">
-          {/* Dados do cliente */}
-          <div className="space-y-4">
-            <h2 className="text-[#111827] font-semibold text-base">Informações de contacto</h2>
-            <Input label="Nome completo" required value={name} onChange={e => setName(e.target.value)} placeholder="João Silva" />
-            <Input label="Email" required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="joao@exemplo.pt" />
-            {product.requirePhone && (
-              <Input label="Telefone" required type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+351 912 345 678" />
-            )}
-            {!product.requirePhone && (
-              <Input label="Telefone (opcional)" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+351 912 345 678" />
-            )}
+
+          {/* Section 1: Contact */}
+          <div>
+            <p className="text-[13px] text-[#6B7280] mb-2">Dados de contato</p>
+            <div>
+              <GroupedInput
+                position="top"
+                icon={<Mail size={15} />}
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Email"
+                required
+              />
+              <GroupedInput
+                position="middle"
+                icon={<User size={15} />}
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Nome completo"
+                required
+              />
+              <GroupedInput
+                position="bottom"
+                icon={<Phone size={15} />}
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="+55 (11) 99999-9999"
+                required={product.requirePhone}
+                rightSlot={
+                  <Info size={14} className="text-[#9E9E9E] cursor-pointer hover:text-[#6B7280]" />
+                }
+              />
+            </div>
           </div>
 
-          {/* Envio */}
+          {/* Section 2: Payment method */}
+          <div>
+            <h2 className="text-[16px] font-medium text-[#1A1A1A] mb-3">Forma de pagamento</h2>
+            <div className="border border-[#E5E7EB] rounded-[6px] overflow-hidden">
+
+              {/* Card option */}
+              <div
+                className={clsx(
+                  'cursor-pointer',
+                  payMethod === 'card' && 'border-l-2 border-l-[#1A56DB]',
+                )}
+                onClick={() => setPayMethod('card')}
+              >
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className={clsx(
+                    'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all',
+                    payMethod === 'card' ? 'border-[#1A56DB]' : 'border-[#D1D5DB]',
+                  )}>
+                    {payMethod === 'card' && <div className="w-2 h-2 rounded-full bg-[#1A56DB]" />}
+                  </div>
+                  <CreditCard size={16} className="text-[#6B7280]" />
+                  <span className="text-[14px] text-[#1A1A1A] font-medium flex-1">Cartão</span>
+                  <div className="flex gap-1">
+                    {/* Visa */}
+                    <svg viewBox="0 0 38 24" className="h-5 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="38" height="24" rx="4" fill="#1A1F71"/>
+                      <path d="M16 7l-2.5 10h-2L14 7h2zm8.5 6.5c0-2-2.8-2.1-2.8-3 0-.3.3-.6.9-.7.6-.1 1.3 0 1.9.3l.3-1.6c-.5-.2-1.2-.4-2-.4-2.1 0-3.6 1.1-3.6 2.7 0 1.2 1.1 1.8 1.9 2.2.8.4 1.1.7 1.1 1.1 0 .6-.7.9-1.3.9-.9 0-1.7-.2-2.2-.5l-.4 1.7c.5.2 1.4.4 2.3.4 2.2 0 3.7-1.1 3.7-2.8l.2-.3zm5.5 3.5h1.8L30 7h-1.7c-.4 0-.7.2-.9.6L24.5 17h2l.4-1.1h2.4l.2 1.1zm-2.1-2.6l1-2.7.6 2.7h-1.6zM19 7l-3.1 10h1.9L21 7h-2z" fill="white"/>
+                    </svg>
+                    {/* Mastercard */}
+                    <svg viewBox="0 0 38 24" className="h-5 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="38" height="24" rx="4" fill="#252525"/>
+                      <circle cx="15" cy="12" r="6" fill="#EB001B"/>
+                      <circle cx="23" cy="12" r="6" fill="#F79E1B"/>
+                      <path d="M19 7.8a6 6 0 010 8.4A6 6 0 0119 7.8z" fill="#FF5F00"/>
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Card fields — expanded when selected */}
+                {payMethod === 'card' && (
+                  <div className="px-4 pb-4 space-y-3 border-t border-[#E5E7EB]">
+                    <div className="mt-3">
+                      <p className="text-[13px] text-[#6B7280] mb-2">Dados do cartão</p>
+                      <div>
+                        <GroupedInput
+                          position="top"
+                          type="text"
+                          placeholder="Número do cartão"
+                          inputMode="numeric"
+                          rightSlot={
+                            <div className="flex gap-1">
+                              <svg viewBox="0 0 38 24" className="h-4 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="38" height="24" rx="4" fill="#1A1F71"/>
+                                <path d="M16 7l-2.5 10h-2L14 7h2zm8.5 6.5c0-2-2.8-2.1-2.8-3 0-.3.3-.6.9-.7.6-.1 1.3 0 1.9.3l.3-1.6c-.5-.2-1.2-.4-2-.4-2.1 0-3.6 1.1-3.6 2.7 0 1.2 1.1 1.8 1.9 2.2.8.4 1.1.7 1.1 1.1 0 .6-.7.9-1.3.9-.9 0-1.7-.2-2.2-.5l-.4 1.7c.5.2 1.4.4 2.3.4 2.2 0 3.7-1.1 3.7-2.8l.2-.3zm5.5 3.5h1.8L30 7h-1.7c-.4 0-.7.2-.9.6L24.5 17h2l.4-1.1h2.4l.2 1.1zm-2.1-2.6l1-2.7.6 2.7h-1.6zM19 7l-3.1 10h1.9L21 7h-2z" fill="white"/>
+                              </svg>
+                            </div>
+                          }
+                        />
+                        <div className="flex">
+                          <div className="flex-1">
+                            <GroupedInput position="bottom" type="text" placeholder="MM / AA" />
+                          </div>
+                          <div className="flex-1 border-l border-[#E0E0E0]">
+                            <GroupedInput
+                              position="bottom"
+                              type="text"
+                              placeholder="CVC"
+                              rightSlot={<CreditCard size={14} className="text-[#9E9E9E]" />}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[13px] text-[#6B7280] mb-2">Nome do titular do cartão</p>
+                      <GroupedInput position="only" type="text" placeholder="Nome como no cartão" />
+                    </div>
+
+                    <div>
+                      <p className="text-[13px] text-[#6B7280] mb-2">País ou região</p>
+                      <div className="relative">
+                        <select className="w-full h-12 px-3 text-[14px] text-[#1A1A1A] border border-[#E0E0E0] rounded-[6px] bg-white appearance-none focus:outline-none focus:border-[#1A56DB] focus:shadow-[0_0_0_3px_rgba(26,86,219,0.15)] transition-all">
+                          <option value="BR">Brasil</option>
+                          <option value="PT">Portugal</option>
+                          <option value="US">Estados Unidos</option>
+                        </select>
+                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9E9E9E] pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-[#E5E7EB]" />
+
+              {/* Google Pay option */}
+              <div
+                className={clsx(
+                  'flex items-center gap-3 px-4 py-3 cursor-pointer',
+                  payMethod === 'googlepay' && 'border-l-2 border-l-[#1A56DB]',
+                )}
+                onClick={() => setPayMethod('googlepay')}
+              >
+                <div className={clsx(
+                  'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all',
+                  payMethod === 'googlepay' ? 'border-[#1A56DB]' : 'border-[#D1D5DB]',
+                )}>
+                  {payMethod === 'googlepay' && <div className="w-2 h-2 rounded-full bg-[#1A56DB]" />}
+                </div>
+                {/* Google Pay wordmark */}
+                <svg viewBox="0 0 41 17" className="h-4 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M19.2 8.5v5h-1.6V1h4.2c1 0 1.9.3 2.6 1 .7.6 1 1.4 1 2.3 0 .9-.3 1.7-1 2.3-.7.6-1.6 1-2.6.9h-2.6zm0-6v4.5h2.7c.6 0 1.1-.2 1.5-.6.4-.4.6-.9.6-1.4 0-.6-.2-1-.6-1.4-.4-.4-.9-.6-1.5-.6h-2.7v1.5z" fill="#5F6368"/>
+                  <path d="M29.3 5.5c1.1 0 2 .3 2.6.9.6.6.9 1.4.9 2.4v4.7h-1.5v-1.1h-.1c-.6.9-1.4 1.3-2.4 1.3-.9 0-1.6-.3-2.2-.8-.6-.5-.9-1.2-.9-2 0-.8.3-1.5.9-2 .6-.5 1.4-.7 2.4-.7.9 0 1.6.2 2.2.5v-.4c0-.6-.2-1.1-.7-1.5-.4-.4-1-.6-1.6-.6-.9 0-1.6.4-2.1 1.1l-1.4-.9c.8-1.2 2-1.9 3.9-1.9zm-2.3 6.1c0 .4.2.7.5.9.3.2.7.4 1.1.4.6 0 1.2-.2 1.6-.7.5-.4.7-1 .7-1.6-.4-.3-1-.5-1.8-.5-.6 0-1 .1-1.4.4-.4.3-.7.7-.7 1.1z" fill="#5F6368"/>
+                  <path d="M40.7 5.7l-5.3 12.2h-1.6l2-4.3-3.5-7.9h1.7l2.5 6.1h.1l2.4-6.1h1.7z" fill="#5F6368"/>
+                  <path d="M13.4 7.3c0-.5 0-.9-.1-1.4H6.8v2.6h3.7c-.2.8-.6 1.5-1.3 2v1.7h2.1c1.2-1.1 1.9-2.8 1.9-4.9h.2z" fill="#4285F4"/>
+                  <path d="M6.8 14c1.8 0 3.4-.6 4.5-1.7l-2.1-1.7c-.6.4-1.4.7-2.4.7-1.8 0-3.4-1.2-3.9-2.9H.7v1.7C1.8 12.5 4.1 14 6.8 14z" fill="#34A853"/>
+                  <path d="M2.9 8.4c-.1-.4-.2-.8-.2-1.2 0-.4.1-.8.2-1.2V4.3H.7C.3 5.1 0 6 0 7.2c0 1.2.3 2.1.7 2.9l2.2-1.7z" fill="#FBBC05"/>
+                  <path d="M6.8 2.7c1 0 1.9.4 2.6 1l1.9-1.9C10.2.7 8.6 0 6.8 0 4.1 0 1.8 1.5.7 3.7l2.2 1.7c.5-1.7 2.1-2.7 3.9-2.7z" fill="#EA4335"/>
+                </svg>
+                <span className="text-[14px] text-[#1A1A1A] font-medium">Google Pay</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Save info */}
+          <div className="bg-[#F9FAFB] rounded-[8px] p-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={saveInfo}
+                onChange={e => setSaveInfo(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-[#D1D5DB] text-[#1A56DB] focus:ring-[#1A56DB] cursor-pointer"
+              />
+              <div>
+                <p className="text-[14px] text-[#1A1A1A] font-medium leading-snug">
+                  Salve minhas informações para um checkout mais rápido
+                </p>
+                <p className="text-[13px] text-[#6B7280] mt-0.5 leading-relaxed">
+                  Pague com segurança em <strong className="font-medium">{brandName}</strong> e em qualquer lugar onde a Link é aceita.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Shipping options */}
           {product.shippingOptions.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-[#111827] font-semibold text-base">Método de envio</h2>
-              <div className="space-y-2">
+            <div className="space-y-2">
+              <h2 className="text-[16px] font-medium text-[#1A1A1A]">Método de envio</h2>
+              <div className="border border-[#E5E7EB] rounded-[6px] overflow-hidden divide-y divide-[#E5E7EB]">
                 {product.shippingOptions.map((opt: ShippingOption) => (
                   <label key={opt.id} className={clsx(
-                    'flex items-center justify-between gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all',
-                    selectedShip === opt.id ? 'border-[#635bff] bg-[#f5f4ff]' : 'border-[#e5e7eb] hover:border-[#c7c4ff]',
+                    'flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-colors',
+                    selectedShip === opt.id ? 'border-l-2 border-l-[#1A56DB]' : 'hover:bg-[#F9FAFB]',
                   )}>
                     <div className="flex items-center gap-3">
                       <div className={clsx(
-                        'w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all',
-                        selectedShip === opt.id ? 'border-[#635bff]' : 'border-[#d1d5db]',
+                        'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all',
+                        selectedShip === opt.id ? 'border-[#1A56DB]' : 'border-[#D1D5DB]',
                       )}>
-                        {selectedShip === opt.id && <div className="w-2 h-2 rounded-full bg-[#635bff]" />}
+                        {selectedShip === opt.id && <div className="w-2 h-2 rounded-full bg-[#1A56DB]" />}
                       </div>
-                      <span className="text-[#111827] text-sm font-medium">{opt.label}</span>
+                      <span className="text-[14px] text-[#1A1A1A]">{opt.label}</span>
                     </div>
-                    <span className="text-[#374151] text-sm font-semibold">
+                    <span className="text-[14px] text-[#1A1A1A] font-medium">
                       {opt.price === 0 ? 'Grátis' : fmt(opt.price, product.currency)}
                     </span>
                     <input type="radio" name="shipping" value={opt.id} checked={selectedShip === opt.id}
@@ -369,44 +561,47 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* Order Bumps */}
-          {product.orderBumps.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-[#111827] font-semibold text-base">Adicionar ao pedido</h2>
-              {product.orderBumps.map(bump => (
-                <OrderBumpCard
-                  key={bump.id} bump={bump} currency={product.currency}
-                  selected={selectedBumps.includes(bump.id)}
-                  onToggle={() => setSelectedBumps(prev =>
-                    prev.includes(bump.id) ? prev.filter(id => id !== bump.id) : [...prev, bump.id]
-                  )}
-                />
-              ))}
-            </div>
-          )}
-
           {formError && (
-            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-[6px] p-3 text-red-600 text-sm">
               <span>⚠</span> {formError}
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#635bff] hover:bg-[#5851db] text-white rounded-lg text-[15px] font-semibold transition-colors disabled:opacity-50 shadow-sm"
-          >
-            {submitting
-              ? <><Loader2 size={16} className="animate-spin" /> A preparar…</>
-              : <><Lock size={14} /> Continuar para pagamento</>
-            }
-          </button>
+          {/* Submit */}
+          <div className="relative overflow-hidden rounded-[6px]">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="relative w-full h-[52px] flex items-center justify-center gap-2 bg-[#1A56DB] hover:bg-[#1648c0] text-white text-[15px] font-medium rounded-[6px] transition-colors disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
+            >
+              {!submitting && <span className="absolute inset-0 pointer-events-none shimmer-overlay" />}
+              {submitting
+                ? <><Loader2 size={16} className="animate-spin" /> A preparar…</>
+                : <>Assinar</>
+              }
+            </button>
+          </div>
+
+          {/* Legal */}
+          <p className="text-[13px] text-[#6B7280] leading-relaxed">
+            Ao confirmar a inscrição, o senhor concede permissão à <strong className="font-medium">{brandName}</strong> para efetuar cobranças conforme as condições estipuladas, até que ocorra o cancelamento.
+          </p>
+
+          {/* Footer */}
+          <div className="flex items-center justify-center gap-4 pt-1">
+            <span className="text-[12px] text-[#9CA3AF] flex items-center gap-1">
+              Powered by <StripeLogo />
+            </span>
+            <span className="text-[#E5E7EB]">·</span>
+            <a href="#" className="text-[12px] text-[#9CA3AF] hover:text-[#6B7280]">Termos</a>
+            <a href="#" className="text-[12px] text-[#9CA3AF] hover:text-[#6B7280]">Privacidade</a>
+          </div>
         </form>
       ) : (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-[#111827] font-semibold text-base">Pagamento</h2>
-            <button onClick={() => setStep('form')} className="text-[#635bff] text-sm hover:underline">
+            <h2 className="text-[16px] font-medium text-[#1A1A1A]">Pagamento</h2>
+            <button onClick={() => setStep('form')} className="text-[#1A56DB] text-sm hover:underline">
               ← Voltar
             </button>
           </div>
@@ -418,20 +613,20 @@ export default function CheckoutPage() {
                 appearance: {
                   theme: 'stripe',
                   variables: {
-                    colorPrimary:    '#635bff',
+                    colorPrimary:    '#1A56DB',
                     colorBackground: '#ffffff',
-                    colorText:       '#111827',
+                    colorText:       '#1A1A1A',
                     colorDanger:     '#ef4444',
                     fontFamily:      'Inter, system-ui, sans-serif',
-                    borderRadius:    '8px',
+                    borderRadius:    '6px',
                     spacingUnit:     '4px',
                   },
                   rules: {
-                    '.Input': { border: '1px solid #d1d5db', boxShadow: 'none', padding: '10px 14px' },
-                    '.Input:focus': { border: '1px solid #635bff', boxShadow: '0 0 0 3px rgba(99,91,255,0.15)' },
-                    '.Label': { fontSize: '13px', fontWeight: '500', color: '#374151' },
-                    '.Tab': { border: '1px solid #e5e7eb', boxShadow: 'none' },
-                    '.Tab--selected': { border: '1px solid #635bff', boxShadow: '0 0 0 1px #635bff' },
+                    '.Input': { border: '1px solid #E0E0E0', boxShadow: 'none', padding: '12px' },
+                    '.Input:focus': { border: '1px solid #1A56DB', boxShadow: '0 0 0 3px rgba(26,86,219,0.15)' },
+                    '.Label': { fontSize: '13px', fontWeight: '400', color: '#6B7280' },
+                    '.Tab': { border: '1px solid #E5E7EB', boxShadow: 'none' },
+                    '.Tab--selected': { border: '1px solid #1A56DB', boxShadow: '0 0 0 1px #1A56DB' },
                   },
                 },
               }}
@@ -441,6 +636,7 @@ export default function CheckoutPage() {
                 successUrl={product.successUrl}
                 amount={paymentAmount}
                 currency={product.currency}
+                brandName={brandName}
               />
             </Elements>
           )}
@@ -450,53 +646,82 @@ export default function CheckoutPage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] font-sans">
-      {/* Mobile: coluna única */}
-      <div className="lg:hidden">
-        {/* Header mobile */}
-        <div className="bg-white border-b border-[#e5e7eb] px-5 py-4 flex items-center gap-3">
-          {product.logoUrl
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={product.logoUrl} alt={product.brandName || product.name} className="h-7 object-contain" />
-            : <span className="text-[#111827] font-bold text-base">{product.brandName || product.name}</span>
-          }
-        </div>
+    <>
+      {/* Shimmer keyframe */}
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .shimmer-overlay::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+          animation: shimmer 2.5s infinite;
+        }
+      `}</style>
 
-        {/* Resumo colapsável mobile */}
-        <details className="bg-[#f5f4ff] border-b border-[#e5e7eb]">
-          <summary className="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
-            <div className="flex items-center gap-2 text-[#635bff] text-sm font-medium">
-              <ChevronDown size={14} />
-              <span>Ver resumo do pedido</span>
+      <div className="min-h-screen bg-white font-sans">
+
+        {/* Sticky header */}
+        <header className="sticky top-0 z-20 bg-white border-b border-[#E5E7EB] h-14 flex items-center px-4 lg:px-0">
+          <div className="w-full lg:flex lg:items-center">
+            {/* Left: brand */}
+            <div className="lg:w-[47%] lg:flex lg:justify-end">
+              <div className="lg:w-full lg:max-w-[calc(50vw-24px)] lg:px-12 flex items-center gap-2">
+                {product.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={product.logoUrl} alt={brandName} className="h-4 w-4 object-contain rounded" />
+                ) : (
+                  <div className="w-4 h-4 bg-[#1A56DB] rounded flex items-center justify-center">
+                    <span className="text-white text-[8px] font-bold">{brandName.charAt(0)}</span>
+                  </div>
+                )}
+                <span className="text-[14px] font-medium text-[#1A1A1A]">{brandName}</span>
+              </div>
             </div>
-            <span className="text-[#111827] font-bold text-base">{fmt(total, product.currency)}</span>
-          </summary>
-          <div className="px-5 pb-5 bg-white">
-            <SummaryPanel />
-          </div>
-        </details>
 
-        <div className="px-5 py-6">
-          <FormPanel />
+            {/* Right: toggle on mobile/tablet */}
+            <div className="lg:hidden absolute right-4 top-1/2 -translate-y-1/2">
+              <button
+                type="button"
+                onClick={() => setSummaryOpen(v => !v)}
+                className="flex items-center gap-1 text-[13px] text-[#374151] hover:text-[#1A1A1A]"
+              >
+                Detalhes {summaryOpen ? '↑' : '↓'}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Mobile/tablet collapsible summary */}
+        {summaryOpen && (
+          <div className="lg:hidden border-b border-[#E5E7EB] bg-white">
+            <div className="max-w-[576px] mx-auto px-4 md:px-24 py-6">
+              <OrderSummary />
+            </div>
+          </div>
+        )}
+
+        {/* Main layout */}
+        <div className="lg:flex lg:min-h-[calc(100vh-56px)]">
+
+          {/* Left column — order summary, desktop only */}
+          <div className="hidden lg:flex lg:w-[47%] justify-end border-r border-[#E5E7EB]">
+            <div className="w-full max-w-[calc(50vw-24px)] px-12 py-12">
+              <OrderSummary />
+            </div>
+          </div>
+
+          {/* Right column — form */}
+          <div className="lg:flex-1 lg:flex lg:justify-start">
+            <div className="w-full lg:max-w-[calc(50vw-24px)] px-4 md:px-24 lg:px-12 py-8 lg:py-12">
+              <CheckoutForm />
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Desktop: duas colunas */}
-      <div className="hidden lg:flex min-h-screen">
-        {/* Coluna esquerda — resumo */}
-        <div className="w-[45%] xl:w-[42%] bg-white border-r border-[#e5e7eb] flex justify-end">
-          <div className="w-full max-w-md px-12 py-12">
-            <SummaryPanel />
-          </div>
-        </div>
-
-        {/* Coluna direita — formulário */}
-        <div className="flex-1 bg-[#f9fafb] flex justify-start">
-          <div className="w-full max-w-md px-12 py-12">
-            <FormPanel />
-          </div>
-        </div>
-      </div>
-    </div>
+    </>
   )
 }
