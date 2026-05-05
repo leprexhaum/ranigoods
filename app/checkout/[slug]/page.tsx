@@ -334,13 +334,7 @@ function CheckoutForm({
                 <path fillRule="evenodd" clipRule="evenodd" d="M8 6.4C9.32548 6.4 10.4 5.32548 10.4 4C10.4 2.67452 9.32548 1.6 8 1.6C6.67452 1.6 5.6 2.67452 5.6 4C5.6 5.32548 6.67452 6.4 8 6.4ZM8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="#1A1A1A" fillOpacity="0.5"/>
               </svg>
             </span>
-            <input className={inputBase} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" required autoComplete="name"
-              onBlur={e => {
-                if (!clientSecret && !submitting && !product.requirePhone && name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                  handleProceed(e as unknown as React.FormEvent)
-                }
-              }}
-            />
+            <input className={inputBase} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" required autoComplete="name" />
           </div>
           {/* Telefone com bandeira PT */}
           <div className={fieldWrapBottom}>
@@ -348,13 +342,7 @@ function CheckoutForm({
               <img src="https://js.stripe.com/v3/fingerprinted/img/FlagIcon-PT-06923ff565a419d109f1f09ade4e9bd3.svg" alt="PT" className="w-5 h-auto" />
               <span className="text-[13px] text-[#30313D]">+351</span>
             </span>
-            <input className={inputBase} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="912 345 678" required={product.requirePhone} autoComplete="tel"
-              onBlur={e => {
-                if (!clientSecret && !submitting && name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                  handleProceed(e as unknown as React.FormEvent)
-                }
-              }}
-            />
+            <input className={inputBase} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="912 345 678" required={product.requirePhone} autoComplete="tel" />
           </div>
         </div>
       </div>
@@ -400,13 +388,8 @@ function CheckoutForm({
       <div>
         <p className="text-[12px] font-medium text-[#30313D] uppercase tracking-wide mb-3">Forma de pagamento</p>
         {!clientSecret ? (
-          <div className="space-y-4">
-            <div className="w-full h-12 flex items-center justify-center border border-dashed border-[#E0E6EB] rounded-[5px] text-[13px] text-[#8792A2]">
-              {submitting
-                ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> A preparar pagamento…</span>
-                : <span>Preencha os dados acima para continuar</span>
-              }
-            </div>
+          <div className="w-full h-12 flex items-center justify-center rounded-[5px] text-[13px] text-[#8792A2]">
+            <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> A preparar pagamento…</span>
           </div>
         ) : (
           stripePromise && (
@@ -494,10 +477,13 @@ export default function CheckoutPage() {
       .then(r => r.json())
       .then((d: CheckoutProduct) => {
         setProduct(d)
-        if (d.shippingOptions?.length > 0) setSelectedShip(d.shippingOptions[0].id)
+        const ship = d.shippingOptions?.length > 0 ? d.shippingOptions[0].id : ''
+        if (ship) setSelectedShip(ship)
+        createPaymentIntent(d, ship)
       })
       .catch(() => setPageError('Produto não encontrado'))
       .finally(() => setPageLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug])
 
   const total = product
@@ -506,24 +492,18 @@ export default function CheckoutPage() {
       + (product.shippingOptions.find(s => s.id === selectedShip)?.price ?? 0)
     : 0
 
-  const handleProceed = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!product) return
-    setFormError('')
-    if (!name.trim()) { setFormError('Nome é obrigatório'); return }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setFormError('Email inválido'); return }
-
+  const createPaymentIntent = async (prod: CheckoutProduct, ship: string) => {
     setSubmitting(true)
     try {
-      const res = await fetch(`/api/checkout/${slug}/payment-intent`, {
+      const res = await fetch(`/api/checkout/${prod.slug}/payment-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName:  name,
-          customerEmail: email,
+          customerName:  name || 'Anónimo',
+          customerEmail: email || 'pending@checkout.local',
           customerPhone: phone,
           bumpIds:       selectedBumps,
-          shippingId:    selectedShip || undefined,
+          shippingId:    ship || undefined,
         }),
       })
       const data = await res.json()
@@ -537,6 +517,13 @@ export default function CheckoutPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleProceed = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!product) return
+    setFormError('')
+    await createPaymentIntent(product, selectedShip)
   }
 
   const intervalLabel = product?.interval && product.interval !== 'unit'
