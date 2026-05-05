@@ -1,22 +1,37 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Loader2, ShoppingCart, AlertCircle } from 'lucide-react'
 import type { CartDetail } from '@/lib/services/cart.service'
 import { formatCurrency } from '@/lib/utils/currency'
+import { useCheckoutPixels } from '@/lib/hooks/useCheckoutPixels'
 
 export default function CartCheckout({ cart }: { cart: CartDetail }) {
+  const productIds = cart.items.map(i => i.productId)
+  const { trackEvent } = useCheckoutPixels(productIds)
+
   const [name,      setName]      = useState('')
   const [email,     setEmail]     = useState('')
   const [phone,     setPhone]     = useState('')
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
 
+  useEffect(() => {
+    trackEvent('InitiateCheckout', {
+      value:        cart.total,
+      currency:     cart.currency,
+      content_ids:  productIds,
+      num_items:    cart.items.reduce((s, i) => s + i.quantity, 0),
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function handlePay(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
+    trackEvent('AddPaymentInfo', { value: cart.total, currency: cart.currency, content_ids: productIds })
 
     try {
       const res  = await fetch(`/api/checkout/cart/${cart.id}/session`, {

@@ -30,6 +30,7 @@ export interface Product {
   metaPixelId:      string
   utmfyApiToken:    string
   stock:            number
+  pixelIds:         string[]
 }
 
 type ProductRow = {
@@ -41,7 +42,7 @@ type ProductRow = {
   checkoutTemplate: string; checkoutLanguage: string;
   requirePhone: boolean; requireAddress: boolean;
   logoUrl: string; brandName: string; successUrl: string;
-  metaPixelId: string; utmfyApiToken: string; stock: number;
+  metaPixelId: string; utmfyApiToken: string; stock: number; pixelIds: unknown;
 }
 
 function toProduct(r: ProductRow): Product {
@@ -74,6 +75,7 @@ function toProduct(r: ProductRow): Product {
     metaPixelId:      r.metaPixelId,
     utmfyApiToken:    r.utmfyApiToken,
     stock:            r.stock,
+    pixelIds:         (r.pixelIds as string[]) ?? [],
   }
 }
 
@@ -126,6 +128,8 @@ export const productService = {
         metaPixelId:      data.metaPixelId ?? '',
         utmfyApiToken:    data.utmfyApiToken ?? '',
         stock:            data.stock ?? -1,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        pixelIds:         (data.pixelIds ?? []) as any,
       },
     })
     return toProduct(r)

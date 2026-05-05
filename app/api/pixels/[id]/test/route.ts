@@ -9,8 +9,8 @@ export async function POST(
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
 
-  const body = await req.json().catch(() => ({})) as { event?: string }
+  const body      = await req.json().catch(() => ({})) as { event?: string }
   const eventName = body.event ?? 'Purchase'
-  const result = await pixelService.testEvent(params.id, eventName)
+  const result    = await pixelService.testEvent(params.id, auth.session.userId, eventName)
   return NextResponse.json(result)
 }

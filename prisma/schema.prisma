@@ -75,6 +75,7 @@ model Product {
   active           Boolean  @default(true)
   countdownMinutes Int      @default(15) @map("countdown_minutes")
   stock            Int      @default(-1)
+  pixelIds         Json     @default("[]") @map("pixel_ids")
   checkoutPayments CheckoutPayment[]
   cartItems        CartItem[]
 
@@ -115,30 +116,32 @@ model CheckoutPayment {
 }
 
 model PixelConfig {
-  id              String       @id
+  id              String     @id @default(cuid())
+  userId          String     @default("") @map("user_id")
   platform        String
-  name            String
-  pixelId         String       @map("pixel_id")
-  accessToken     String       @map("access_token")
-  testEventCode   String       @map("test_event_code")
-  conversionLabel String       @map("conversion_label")
-  enabled         Boolean
-  events          Json
-  createdAt       DateTime     @map("created_at")
-  updatedAt       DateTime     @map("updated_at")
+  name            String     @default("")
+  pixelId         String     @default("") @map("pixel_id")
+  accessToken     String     @default("") @map("access_token")
+  testEventCode   String     @default("") @map("test_event_code")
+  conversionLabel String     @default("") @map("conversion_label")
+  enabled         Boolean    @default(true)
+  events          Json       @default("[]")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
   logs            PixelLog[]
 
   @@map("pixel_configs")
 }
 
 model PixelLog {
-  id        String      @id
+  id        String      @id @default(cuid())
+  userId    String      @default("") @map("user_id")
   configId  String      @map("config_id")
   platform  String
   event     String
   success   Boolean
   message   String
-  timestamp DateTime
+  timestamp DateTime    @default(now())
   data      Json?
   isTest    Boolean     @default(false) @map("is_test")
   config    PixelConfig @relation(fields: [configId], references: [id], onDelete: Cascade)

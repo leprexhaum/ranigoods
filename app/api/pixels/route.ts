@@ -4,8 +4,32 @@ import { requireAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
-  return NextResponse.json(await pixelService.getAll())
+  return NextResponse.json(await pixelService.getAll(auth.session.userId))
+}
+
+export async function POST(req: NextRequest) {
+  const auth = await requireAuth()
+  if (auth instanceof NextResponse) return auth
+
+  try {
+    const body = await req.json()
+    if (!body.platform) return NextResponse.json({ error: 'platform é obrigatório' }, { status: 400 })
+
+    const pixel = await pixelService.create(auth.session.userId, {
+      platform:        body.platform,
+      name:            body.name            ?? '',
+      pixelId:         body.pixelId         ?? '',
+      accessToken:     body.accessToken     ?? '',
+      testEventCode:   body.testEventCode   ?? '',
+      conversionLabel: body.conversionLabel ?? '',
+      enabled:         body.enabled         ?? true,
+    })
+    return NextResponse.json(pixel, { status: 201 })
+  } catch (err) {
+    console.error('[pixels POST]', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
 }

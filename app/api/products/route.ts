@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
       metaPixelId:      body.metaPixelId      ?? '',
       utmfyApiToken:    body.utmfyApiToken    ?? '',
       stock:            body.stock !== undefined ? Number(body.stock) : -1,
+      pixelIds:         body.pixelIds ?? [],
     })
 
     return NextResponse.json(product, { status: 201 })

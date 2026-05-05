@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { captureUrlParams, getStoredUrlParams } from '@/lib/url-params'
+import { useCheckoutPixels } from '@/lib/hooks/useCheckoutPixels'
 import {
   Elements,
   PaymentElement,
@@ -126,8 +127,8 @@ function CheckoutSkeleton() {
 
 // ─── Payment Form (dentro de Elements) ───────────────────────────────────────
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
-  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, onAddPaymentInfo }: {
+  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; onAddPaymentInfo?: () => void
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -139,6 +140,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
     if (!stripe || !elements) return
     setLoading(true)
     setError('')
+    onAddPaymentInfo?.()
     const returnUrl = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
     const { error: err } = await stripe.confirmPayment({ elements, confirmParams: { return_url: returnUrl } })
     if (err) { setError(err.message ?? 'Erro ao processar pagamento'); setLoading(false) }
@@ -309,6 +311,7 @@ interface CheckoutFormProps {
   stripePromise: ReturnType<typeof loadStripe> | null
   paymentId: string
   paymentAmount: number
+  onAddPaymentInfo?: () => void
 }
 
 function CheckoutForm({
@@ -317,6 +320,7 @@ function CheckoutForm({
   selectedShip, setSelectedShip,
   formError, submitting, handleProceed,
   clientSecret, stripePromise, paymentId, paymentAmount,
+  onAddPaymentInfo,
 }: CheckoutFormProps) {
 
   const updatePayment = (fields: { customerName?: string; customerEmail?: string; customerPhone?: string }) => {
@@ -454,6 +458,7 @@ function CheckoutForm({
                 amount={paymentAmount}
                 currency={product.currency}
                 brandName={brandName}
+                onAddPaymentInfo={onAddPaymentInfo}
               />
             </Elements>
           )
@@ -481,6 +486,7 @@ function CheckoutForm({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SingleStepCheckout({ product }: { product: CheckoutProduct }) {
+  const { trackEvent } = useCheckoutPixels(product.id)
 
   const [name,          setName]          = useState('')
   const [email,         setEmail]         = useState('')
@@ -502,6 +508,7 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
     const ship = product.shippingOptions?.length > 0 ? product.shippingOptions[0].id : ''
     if (ship) setSelectedShip(ship)
     createPaymentIntent(product, ship)
+    trackEvent('InitiateCheckout', { value: product.price, currency: product.currency, content_ids: [product.id] })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -660,6 +667,7 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
               handleProceed={handleProceed}
               clientSecret={clientSecret} stripePromise={stripePromise}
               paymentId={paymentId} paymentAmount={paymentAmount}
+              onAddPaymentInfo={() => trackEvent('AddPaymentInfo', { value: total, currency: product.currency, content_ids: [product.id] })}
             />
           </div>
         </div>

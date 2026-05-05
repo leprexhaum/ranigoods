@@ -3,16 +3,18 @@ import { prisma } from '@/lib/prisma'
 import type {
   PixelConfig, PixelFireLog, TrackEventPayload, PixelEventConfig,
 } from '@/lib/types/pixel'
+import { STANDARD_EVENTS } from '@/lib/types/pixel'
 
 // ─── DB helpers ─────────────────────────────────────────────────────────────
 
 function rowToConfig(r: {
-  id: string; platform: string; name: string; pixelId: string; accessToken: string;
+  id: string; userId: string; platform: string; name: string; pixelId: string; accessToken: string;
   testEventCode: string; conversionLabel: string; enabled: boolean; events: unknown;
   createdAt: Date; updatedAt: Date;
 }): PixelConfig {
   return {
     id:              r.id,
+    userId:          r.userId,
     platform:        r.platform as PixelConfig['platform'],
     name:            r.name,
     pixelId:         r.pixelId,
@@ -43,9 +45,7 @@ function rowToLog(r: {
   }
 }
 
-function newLogId(): string {
-  return `log_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-}
+
 
 // ─── Hashing helpers ─────────────────────────────────────────────────────────
 
@@ -277,27 +277,62 @@ async function fireTikTokAPI(
 
 // ─── Public service ──────────────────────────────────────────────────────────
 
+const DEFAULT_EVENTS = () => STANDARD_EVENTS.map(e => ({
+  event:      e,
+  enabled:    e === 'Purchase' || e === 'PageView',
+  valueParam: e === 'Purchase',
+}))
+
 export const pixelService = {
-  async getAll(): Promise<PixelConfig[]> {
-    const rows = await prisma.pixelConfig.findMany({ orderBy: { createdAt: 'asc' } })
+  async getAll(userId: string): Promise<PixelConfig[]> {
+    const rows = await prisma.pixelConfig.findMany({
+      where:   { userId },
+      orderBy: { createdAt: 'asc' },
+    })
     return rows.map(rowToConfig)
   },
 
-  async getById(id: string): Promise<PixelConfig | null> {
+  async getById(id: string, userId?: string): Promise<PixelConfig | null> {
     const r = await prisma.pixelConfig.findUnique({ where: { id } })
-    return r ? rowToConfig(r) : null
+    if (!r) return null
+    if (userId && r.userId !== userId) return null
+    return rowToConfig(r)
+  },
+
+  async create(
+    userId: string,
+    data: { platform: string; name?: string; pixelId?: string; accessToken?: string; testEventCode?: string; conversionLabel?: string; enabled?: boolean },
+  ): Promise<PixelConfig> {
+    const r = await prisma.pixelConfig.create({
+      data: {
+        userId,
+        platform:        data.platform,
+        name:            data.name            ?? '',
+        pixelId:         data.pixelId         ?? '',
+        accessToken:     data.accessToken     ?? '',
+        testEventCode:   data.testEventCode   ?? '',
+        conversionLabel: data.conversionLabel ?? '',
+        enabled:         data.enabled         ?? true,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        events:          DEFAULT_EVENTS() as any,
+      },
+    })
+    return rowToConfig(r)
   },
 
   async update(
     id: string,
-    data: Partial<Omit<PixelConfig, 'id' | 'platform' | 'createdAt'>>,
+    userId: string,
+    data: Partial<Omit<PixelConfig, 'id' | 'platform' | 'createdAt' | 'userId'>>,
   ): Promise<PixelConfig | null> {
     try {
+      const existing = await prisma.pixelConfig.findUnique({ where: { id } })
+      if (!existing || existing.userId !== userId) return null
       const { events, ...rest } = data
       const r = await prisma.pixelConfig.update({
         where: { id },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data:  { ...rest, ...(events !== undefined ? { events: events as any } : {}), updatedAt: new Date() },
+        data:  { ...rest, ...(events !== undefined ? { events: events as any } : {}) },
       })
       return rowToConfig(r)
     } catch {
@@ -305,22 +340,48 @@ export const pixelService = {
     }
   },
 
-  async getLogs(limit = 100): Promise<PixelFireLog[]> {
+  async delete(id: string, userId: string): Promise<boolean> {
+    try {
+      const existing = await prisma.pixelConfig.findUnique({ where: { id } })
+      if (!existing || existing.userId !== userId) return false
+
+      // Remover pixelId de todos os produtos do userId
+      const products = await prisma.product.findMany({
+        where: { userId },
+        select: { id: true, pixelIds: true },
+      })
+      for (const p of products) {
+        const ids = (p.pixelIds as string[]).filter(pid => pid !== id)
+        if (ids.length !== (p.pixelIds as string[]).length) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await prisma.product.update({ where: { id: p.id }, data: { pixelIds: ids as any } })
+        }
+      }
+
+      await prisma.pixelConfig.delete({ where: { id } })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async getLogs(userId: string, limit = 100): Promise<PixelFireLog[]> {
     const rows = await prisma.pixelLog.findMany({
+      where:   { userId },
       orderBy: { timestamp: 'desc' },
       take:    limit,
     })
     return rows.map(rowToLog)
   },
 
-  async clearLogs(): Promise<void> {
-    await prisma.pixelLog.deleteMany()
+  async clearLogs(userId: string): Promise<void> {
+    await prisma.pixelLog.deleteMany({ where: { userId } })
   },
 
-  async addLog(entry: Omit<PixelFireLog, 'id' | 'timestamp'>): Promise<PixelFireLog> {
+  async addLog(entry: Omit<PixelFireLog, 'id' | 'timestamp'> & { userId?: string }): Promise<PixelFireLog> {
     const r = await prisma.pixelLog.create({
       data: {
-        id:        newLogId(),
+        userId:    entry.userId    ?? '',
         configId:  entry.configId,
         platform:  entry.platform,
         event:     entry.event,
@@ -335,8 +396,11 @@ export const pixelService = {
     return rowToLog(r)
   },
 
-  async trackEvent(eventName: string, payload: TrackEventPayload, _userId?: string): Promise<PixelFireLog[]> {
-    const allConfigs = await prisma.pixelConfig.findMany({ where: { enabled: true } })
+  async trackEvent(eventName: string, payload: TrackEventPayload, userId?: string): Promise<PixelFireLog[]> {
+    const where: Record<string, unknown> = { enabled: true }
+    if (userId) where.userId = userId
+
+    const allConfigs = await prisma.pixelConfig.findMany({ where })
     const configs = allConfigs
       .map(rowToConfig)
       .filter(c => c.events.some(e => e.event === eventName && e.enabled))
@@ -369,6 +433,7 @@ export const pixelService = {
         }
 
         return this.addLog({
+          userId:   config.userId,
           configId: config.id,
           platform: config.platform,
           event:    eventName,
@@ -384,9 +449,10 @@ export const pixelService = {
 
   async testEvent(
     configId: string,
+    userId: string,
     eventName = 'Purchase',
   ): Promise<{ success: boolean; message: string }> {
-    const config = await this.getById(configId)
+    const config = await this.getById(configId, userId)
     if (!config) return { success: false, message: 'Pixel não encontrado' }
     if (!config.pixelId) return { success: false, message: 'Pixel ID não configurado' }
 
@@ -402,9 +468,9 @@ export const pixelService = {
         items:        [{ id: 'produto-teste', name: 'Produto Teste', quantity: 1, price: 9990 }],
       },
       userData: {
-        email:     'teste@ranigoods.com',
-        clientId:  'GA1.1.000000000.000000000',
-        pageUrl:   'https://ranigoods.com/checkout/teste',
+        email:    'teste@ranigoods.com',
+        clientId: 'GA1.1.000000000.000000000',
+        pageUrl:  'https://ranigoods.com/checkout/teste',
       },
     }
 
@@ -425,6 +491,7 @@ export const pixelService = {
     }
 
     await this.addLog({
+      userId:   userId,
       configId,
       platform: config.platform,
       event:    eventName,

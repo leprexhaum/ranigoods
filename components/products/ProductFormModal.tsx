@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Plus, Trash2, ChevronDown, ChevronUp, Star } from 'lucide-react'
+import { X, Plus, Trash2, ChevronDown, ChevronUp, Star, CheckCircle2 } from 'lucide-react'
 import clsx from 'clsx'
 import type { Product } from '@/lib/services/product.service'
 import type { ShippingOption, OrderBump, CheckoutReview } from '@/lib/types/checkout'
+import type { PixelConfig } from '@/lib/types/pixel'
+import { PlatformIcon, PLATFORM_CONFIG, type Platform } from '@/components/pixels/PlatformIcon'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +35,7 @@ type FormData = {
   metaPixelId:      string
   status:           'active' | 'archived'
   stock:            string
+  pixelIds:         string[]
 }
 
 const PAYMENT_METHODS = [
@@ -170,7 +173,74 @@ function toForm(p?: Product | null): FormData {
     metaPixelId:      p?.metaPixelId      ?? '',
     status:           p?.status           ?? 'active',
     stock:            String(p?.stock     ?? -1),
+    pixelIds:         (p?.pixelIds        ?? []) as string[],
   }
+}
+
+// ─── PixelSelector ────────────────────────────────────────────────────────────
+
+function PixelSelector({ selected, onChange }: { selected: string[]; onChange: (ids: string[]) => void }) {
+  const [pixels,  setPixels]  = useState<PixelConfig[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/pixels')
+      .then(r => r.json())
+      .then((data: PixelConfig[]) => { setPixels(data); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter(s => s !== id) : [...selected, id])
+  }
+
+  if (loading) return <p className="text-ep-muted text-xs">Carregando pixels…</p>
+
+  if (pixels.length === 0) {
+    return (
+      <p className="text-ep-muted text-xs">
+        Nenhum pixel criado.{' '}
+        <a href="/pixels" target="_blank" className="text-ep-accent hover:underline">Criar pixels →</a>
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-ep-secondary text-xs">Selecione os pixels que devem disparar no checkout deste produto</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {pixels.map(p => {
+          const cfg      = PLATFORM_CONFIG[p.platform as Platform]
+          const isActive = selected.includes(p.id)
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => toggle(p.id)}
+              className={clsx(
+                'flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all',
+                isActive
+                  ? `${cfg?.bg ?? 'bg-ep-accent/10'} ${cfg?.border ?? 'border-ep-accent'} border-opacity-100`
+                  : 'bg-ep-raised border-ep-border-default hover:border-ep-border-subtle',
+              )}
+            >
+              <div className={clsx('w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0', cfg?.bg, 'border', cfg?.border)}>
+                {cfg && <PlatformIcon platform={p.platform as Platform} size={16} className={cfg.iconColor} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-ep-primary text-xs font-medium truncate">{p.name || cfg?.label || p.platform}</p>
+                <p className="text-ep-muted text-xs truncate">{cfg?.label ?? p.platform}</p>
+              </div>
+              {isActive && <CheckCircle2 size={14} className="text-ep-accent flex-shrink-0" />}
+            </button>
+          )
+        })}
+      </div>
+      {selected.length > 0 && (
+        <p className="text-ep-muted text-xs">{selected.length} pixel{selected.length !== 1 ? 's' : ''} selecionado{selected.length !== 1 ? 's' : ''}</p>
+      )}
+    </div>
+  )
 }
 
 export default function ProductFormModal({ product, onClose, onSaved }: Props) {
@@ -277,6 +347,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         metaPixelId:      form.metaPixelId.trim(),
         status:           form.status,
         stock:            parseInt(form.stock) || -1,
+        pixelIds:         form.pixelIds,
         stripeId:         product?.stripeId ?? '',
       }
 
@@ -544,6 +615,14 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
               hint="Ao configurar, cada venda paga será enviada automaticamente para a UTMFY como pagamento via Pix.">
               <Input value={form.utmfyApiToken} onChange={v => set('utmfyApiToken', v)} placeholder="Cole aqui sua credencial de API" />
             </Field>
+          </Section>
+
+          {/* Pixels */}
+          <Section title="Pixels de Rastreamento" collapsible>
+            <PixelSelector
+              selected={form.pixelIds}
+              onChange={ids => set('pixelIds', ids)}
+            />
           </Section>
 
           {/* Avançado */}

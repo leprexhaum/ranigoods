@@ -4,8 +4,8 @@ import type { TrackEventPayload } from '@/lib/types/pixel'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json() as TrackEventPayload & { event: string }
-    const { event, ...payload } = body
+    const body = await req.json() as TrackEventPayload & { event: string; userId?: string }
+    const { event, userId, ...payload } = body
 
     if (!event) {
       return NextResponse.json({ error: 'Campo "event" é obrigatório' }, { status: 400 })
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       userData: { ip, userAgent, ...((payload as TrackEventPayload).userData ?? {}) },
     }
 
-    const logs = await pixelService.trackEvent(event, enriched)
+    const logs = await pixelService.trackEvent(event, enriched, userId)
     return NextResponse.json({ fired: logs.length, logs })
   } catch (err) {
     console.error('[pixels/track]', err)

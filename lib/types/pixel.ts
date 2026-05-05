@@ -24,6 +24,7 @@ export interface PixelEventConfig {
 
 export interface PixelConfig {
   id: string
+  userId: string
   platform: PixelPlatform
   name: string
   pixelId: string

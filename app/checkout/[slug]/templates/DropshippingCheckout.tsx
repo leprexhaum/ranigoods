@@ -12,6 +12,7 @@ import { Loader2, ShieldCheck, Truck } from 'lucide-react'
 import clsx from 'clsx'
 import type { CheckoutProduct, ShippingOption } from '@/lib/types/checkout'
 import { captureUrlParams, getStoredUrlParams } from '@/lib/url-params'
+import { useCheckoutPixels } from '@/lib/hooks/useCheckoutPixels'
 
 function fmt(cents: number, currency: string) {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
@@ -63,6 +64,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
 
 export default function DropshippingCheckout({ product }: { product: CheckoutProduct }) {
   const brandName = product.brandName || product.name
+  const { trackEvent } = useCheckoutPixels(product.id)
 
   const [name,          setName]          = useState('')
   const [email,         setEmail]         = useState('')
@@ -85,6 +87,7 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
     const ship = product.shippingOptions?.length > 0 ? product.shippingOptions[0].id : ''
     if (ship) setSelectedShip(ship)
     createPaymentIntent(ship)
+    trackEvent('InitiateCheckout', { value: product.price, currency: product.currency, content_ids: [product.id] })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

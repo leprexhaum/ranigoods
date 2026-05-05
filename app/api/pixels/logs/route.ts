@@ -9,13 +9,13 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   const limit = parseInt(new URL(req.url).searchParams.get('limit') ?? '50')
-  return NextResponse.json(await pixelService.getLogs(limit))
+  return NextResponse.json(await pixelService.getLogs(auth.session.userId, limit))
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE() {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
 
-  await pixelService.clearLogs()
+  await pixelService.clearLogs(auth.session.userId)
   return NextResponse.json({ cleared: true })
 }
