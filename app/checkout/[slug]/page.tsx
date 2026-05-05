@@ -510,15 +510,27 @@ export default function CheckoutPage() {
   const createPaymentIntent = async (prod: CheckoutProduct, ship: string) => {
     setSubmitting(true)
     try {
+      // Capturar UTM params e outros tracking params da URL
+      const urlParams: Record<string, string> = {}
+      if (typeof window !== 'undefined') {
+        const sp = new URLSearchParams(window.location.search)
+        const keys = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','fbclid','gclid','sck','src','ref']
+        for (const k of keys) {
+          const v = sp.get(k)
+          if (v) urlParams[k] = v
+        }
+      }
+
       const res = await fetch(`/api/checkout/${prod.slug}/payment-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName:  name || 'Anónimo',
-          customerEmail: email || 'pending@checkout.local',
+          customerName:  name || '',
+          customerEmail: email || '',
           customerPhone: phone,
           bumpIds:       selectedBumps,
           shippingId:    ship || undefined,
+          urlParams,
         }),
       })
       const data = await res.json()

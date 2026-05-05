@@ -59,6 +59,7 @@ export const checkoutService = {
     customerName:         string
     customerEmail:        string
     customerPhone:        string
+    urlParams:            Record<string, string>
     metadata:             Record<string, unknown>
   }) {
     return prisma.checkoutPayment.create({
@@ -71,6 +72,8 @@ export const checkoutService = {
         customerEmail:         data.customerEmail,
         customerPhone:         data.customerPhone,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        urlParams:             data.urlParams as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         metadata:              data.metadata as any,
         status:                'pending',
       },
@@ -80,10 +83,14 @@ export const checkoutService = {
   async updatePaymentStatus(
     stripePaymentIntentId: string,
     status: 'paid' | 'failed' | 'processing',
+    paymentMethod?: string,
   ) {
     return prisma.checkoutPayment.updateMany({
       where: { stripePaymentIntentId },
-      data:  { status },
+      data:  {
+        status,
+        ...(paymentMethod ? { paymentMethod } : {}),
+      },
     })
   },
 

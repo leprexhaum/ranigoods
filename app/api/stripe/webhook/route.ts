@@ -5,83 +5,86 @@ import { pixelService } from '@/lib/services/pixel.service'
 import { productService } from '@/lib/services/product.service'
 import { checkoutService } from '@/lib/services/checkout.service'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20',
-})
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function resolveMethod(charge: Stripe.Charge | null): string {
+  const type = charge?.payment_method_details?.type ?? ''
+  const map: Record<string, string> = {
+    card:       'Cartão',
+    mb_way:     'MB WAY',
+    multibanco: 'Multibanco',
+    sepa_debit: 'SEPA',
+    paypal:     'PayPal',
+    pix:        'Pix',
+    boleto:     'Boleto',
+  }
+  return map[type] ?? 'Cartão'
+}
+
+function resolveMethodRaw(charge: Stripe.Charge | null): string {
+  return charge?.payment_method_details?.type ?? 'card'
+}
+
+async function getCharge(pi: Stripe.PaymentIntent): Promise<Stripe.Charge | null> {
+  if (!pi.latest_charge) return null
+  return typeof pi.latest_charge === 'string'
+    ? await stripe.charges.retrieve(pi.latest_charge)
+    : pi.latest_charge
+}
+
+// ─── Persist helpers ──────────────────────────────────────────────────────────
 
 async function persistPayment(pi: Stripe.PaymentIntent): Promise<void> {
-  const charge = pi.latest_charge
-    ? (typeof pi.latest_charge === 'string'
-        ? await stripe.charges.retrieve(pi.latest_charge)
-        : pi.latest_charge)
-    : null
-
-  const customer = charge?.billing_details?.name
-    ?? pi.metadata?.customer_name
-    ?? 'Cliente'
-  const email = charge?.billing_details?.email
-    ?? pi.metadata?.customer_email
-    ?? ''
-  const product = pi.metadata?.product_name ?? pi.description ?? 'Produto'
-  const stripeProductId = pi.metadata?.stripe_product_id ?? ''
-
-  const method: 'Cartão' | 'Pix' | 'Boleto' = (() => {
-    const pm = charge?.payment_method_details?.type ?? ''
-    if (pm === 'pix')   return 'Pix'
-    if (pm === 'boleto') return 'Boleto'
-    return 'Cartão'
-  })()
-
-  const isoDate = new Date().toISOString().slice(0, 10)
+  const charge    = await getCharge(pi)
+  const customer  = charge?.billing_details?.name  ?? pi.metadata?.customerName  ?? 'Cliente'
+  const email     = charge?.billing_details?.email ?? pi.metadata?.customerEmail ?? ''
+  const productName = pi.metadata?.productName ?? pi.description ?? 'Produto'
+  const method    = resolveMethod(charge)
+  const isoDate   = new Date().toISOString().slice(0, 10)
   const dateLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 
   await prisma.payment.upsert({
-    where: { id: pi.id },
-    create: {
-      id:       pi.id,
-      customer,
-      email,
-      amount:   pi.amount,
-      status:   'succeeded',
-      date:     isoDate,
-      product,
-      method,
-    },
-    update: { status: 'succeeded' },
+    where:  { id: pi.id },
+    create: { id: pi.id, customer, email, amount: pi.amount, status: 'succeeded', date: isoDate, product: productName, method },
+    update: { status: 'succeeded', method },
   })
 
   await prisma.dailySale.upsert({
-    where: { isoDate },
+    where:  { isoDate },
     create: { date: dateLabel, isoDate, receita: pi.amount, vendas: 1, falhas: 0 },
     update: { receita: { increment: pi.amount }, vendas: { increment: 1 } },
   })
 
+  // Incrementar vendas no produto se tiver stripeId
+  const stripeProductId = pi.metadata?.stripe_product_id ?? ''
   if (stripeProductId) {
     await productService.incrementSales(stripeProductId, pi.amount)
   }
 }
 
 async function persistFailedPayment(pi: Stripe.PaymentIntent): Promise<void> {
-  const isoDate = new Date().toISOString().slice(0, 10)
+  const isoDate   = new Date().toISOString().slice(0, 10)
   const dateLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 
   await prisma.payment.upsert({
-    where: { id: pi.id },
+    where:  { id: pi.id },
     create: {
       id:       pi.id,
-      customer: pi.metadata?.customer_name ?? 'Cliente',
-      email:    pi.metadata?.customer_email ?? '',
+      customer: pi.metadata?.customerName  ?? 'Cliente',
+      email:    pi.metadata?.customerEmail ?? '',
       amount:   pi.amount,
       status:   'failed',
       date:     isoDate,
-      product:  pi.metadata?.product_name ?? pi.description ?? 'Produto',
+      product:  pi.metadata?.productName ?? pi.description ?? 'Produto',
       method:   'Cartão',
     },
     update: { status: 'failed' },
   })
 
   await prisma.dailySale.upsert({
-    where: { isoDate },
+    where:  { isoDate },
     create: { date: dateLabel, isoDate, receita: 0, vendas: 0, falhas: 1 },
     update: { falhas: { increment: 1 } },
   })
@@ -91,14 +94,12 @@ async function persistRefund(charge: Stripe.Charge): Promise<void> {
   const piId = typeof charge.payment_intent === 'string'
     ? charge.payment_intent
     : charge.payment_intent?.id
-
   if (piId) {
-    await prisma.payment.updateMany({
-      where: { id: piId },
-      data:  { status: 'refunded' },
-    })
+    await prisma.payment.updateMany({ where: { id: piId }, data: { status: 'refunded' } })
   }
 }
+
+// ─── Webhook handler ──────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -118,14 +119,9 @@ export async function POST(req: NextRequest) {
   }
 
   let event: Stripe.Event | undefined
-
   for (const secret of secrets) {
-    try {
-      event = stripe.webhooks.constructEvent(body, sig, secret)
-      break
-    } catch {
-      // try next secret
-    }
+    try { event = stripe.webhooks.constructEvent(body, sig, secret); break }
+    catch { /* try next */ }
   }
 
   if (!event) {
@@ -136,11 +132,12 @@ export async function POST(req: NextRequest) {
   const userAgent = req.headers.get('user-agent') ?? undefined
 
   switch (event.type) {
+
     case 'payment_intent.succeeded': {
-      const pi = event.data.object as Stripe.PaymentIntent
+      const pi     = event.data.object as Stripe.PaymentIntent
+      const charge = await getCharge(pi)
       await persistPayment(pi)
-      // Atualizar CheckoutPayment se existir
-      await checkoutService.updatePaymentStatus(pi.id, 'paid')
+      await checkoutService.updatePaymentStatus(pi.id, 'paid', resolveMethodRaw(charge))
       await pixelService.trackEvent('Purchase', {
         event: 'Purchase',
         data: {
@@ -163,26 +160,26 @@ export async function POST(req: NextRequest) {
     }
 
     case 'payment_intent.processing': {
-      const pi = event.data.object as Stripe.PaymentIntent
-      await checkoutService.updatePaymentStatus(pi.id, 'processing')
-      const isoDate   = new Date().toISOString().slice(0, 10)
+      const pi      = event.data.object as Stripe.PaymentIntent
+      const isoDate = new Date().toISOString().slice(0, 10)
       const dateLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+      await checkoutService.updatePaymentStatus(pi.id, 'processing')
       await prisma.payment.upsert({
-        where: { id: pi.id },
+        where:  { id: pi.id },
         create: {
           id:       pi.id,
-          customer: pi.metadata?.customerName ?? 'Cliente',
+          customer: pi.metadata?.customerName  ?? 'Cliente',
           email:    pi.metadata?.customerEmail ?? '',
           amount:   pi.amount,
           status:   'processing',
           date:     isoDate,
-          product:  pi.metadata?.productSlug ?? pi.description ?? 'Produto',
-          method:   'Cartão',
+          product:  pi.metadata?.productName ?? pi.description ?? 'Produto',
+          method:   'Multibanco',
         },
         update: { status: 'processing' },
       })
       await prisma.dailySale.upsert({
-        where: { isoDate },
+        where:  { isoDate },
         create: { date: dateLabel, isoDate, receita: 0, vendas: 0, falhas: 0 },
         update: {},
       })
@@ -192,17 +189,29 @@ export async function POST(req: NextRequest) {
     case 'payment_intent.canceled': {
       const pi = event.data.object as Stripe.PaymentIntent
       await checkoutService.updatePaymentStatus(pi.id, 'failed')
-      await prisma.payment.updateMany({
-        where: { id: pi.id },
-        data:  { status: 'failed' },
-      })
+      await prisma.payment.updateMany({ where: { id: pi.id }, data: { status: 'failed' } })
       break
     }
-
 
     case 'charge.refunded': {
       const charge = event.data.object as Stripe.Charge
       await persistRefund(charge)
+      break
+    }
+
+    case 'charge.dispute.created':
+    case 'charge.dispute.updated':
+    case 'charge.dispute.closed': {
+      const dispute = event.data.object as Stripe.Dispute
+      const piId = typeof dispute.payment_intent === 'string'
+        ? dispute.payment_intent
+        : dispute.payment_intent?.id
+      if (piId) {
+        const newStatus = event.type === 'charge.dispute.closed' ? 'refunded' : 'disputed'
+        await prisma.payment.updateMany({ where: { id: piId }, data: { status: newStatus } })
+        await checkoutService.updatePaymentStatus(piId, 'failed')
+      }
+      console.log(`[webhook] dispute ${event.type}: ${dispute.id} reason=${dispute.reason} status=${dispute.status}`)
       break
     }
 
@@ -211,7 +220,7 @@ export async function POST(req: NextRequest) {
       console.log(`Assinatura criada: ${sub.id}`)
       await pixelService.trackEvent('Subscribe', {
         event: 'Subscribe',
-        data: { currency: 'BRL', content_type: 'product' },
+        data: { currency: 'EUR', content_type: 'product' },
         userData: { ip, userAgent },
       })
       break

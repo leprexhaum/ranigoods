@@ -87,6 +87,8 @@ model CheckoutPayment {
   customerName          String   @default("") @map("customer_name")
   customerEmail         String   @default("") @map("customer_email")
   customerPhone         String   @default("") @map("customer_phone")
+  paymentMethod         String   @default("") @map("payment_method")
+  urlParams             Json     @default("{}") @map("url_params")
   metadata              Json     @default("{}")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")

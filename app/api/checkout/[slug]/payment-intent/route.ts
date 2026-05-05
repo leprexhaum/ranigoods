@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic'
 
 // ─── Rate limiter (sliding window, por IP) ────────────────────────────────────
 const rateLimitMap = new Map<string, number[]>()
-const RATE_LIMIT    = 10
-const WINDOW_MS     = 60_000
+const RATE_LIMIT   = 10
+const WINDOW_MS    = 60_000
 
 function isRateLimited(ip: string): boolean {
   const now  = Date.now()
@@ -30,14 +30,17 @@ export async function POST(
   }
 
   try {
-    const body = await req.json() as CreatePaymentIntentRequest & { bumpIds?: string[]; shippingId?: string }
+    const body = await req.json() as CreatePaymentIntentRequest & {
+      bumpIds?:    string[]
+      shippingId?: string
+      urlParams?:  Record<string, string>
+    }
 
     const product = await checkoutService.getProductBySlug(params.slug)
     if (!product) {
       return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 })
     }
 
-    // Calcular total
     let total = product.price
 
     if (body.bumpIds?.length) {
@@ -52,7 +55,6 @@ export async function POST(
       if (shipping) total += shipping.price
     }
 
-    // Mapear métodos de pagamento para Stripe
     const stripeMethodMap: Record<string, string> = {
       card:       'card',
       mbway:      'mb_way',
@@ -68,16 +70,25 @@ export async function POST(
 
     const customerName  = body.customerName?.trim()  || ''
     const customerEmail = body.customerEmail?.trim() || ''
+    const urlParams     = body.urlParams ?? {}
+
+    // Prefixar url_params com up_ no metadata do PI (espelho de segurança)
+    const upMeta: Record<string, string> = {}
+    for (const [k, v] of Object.entries(urlParams)) {
+      upMeta[`up_${k}`] = String(v).slice(0, 500)
+    }
 
     const pi = await stripe.paymentIntents.create({
       amount:               total,
       currency:             product.currency.toLowerCase(),
       payment_method_types: paymentMethodTypes,
       metadata: {
-        productId:     product.id,
-        productSlug:   product.slug,
+        productId:    product.id,
+        productSlug:  product.slug,
+        productName:  product.name,
         customerName,
         customerEmail,
+        ...upMeta,
       },
     })
 
@@ -89,6 +100,7 @@ export async function POST(
       customerName,
       customerEmail,
       customerPhone:         body.customerPhone ?? '',
+      urlParams,
       metadata: {
         bumpIds:    body.bumpIds    ?? [],
         shippingId: body.shippingId ?? null,
