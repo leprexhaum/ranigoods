@@ -8,6 +8,7 @@ import {
 import clsx from 'clsx'
 import type { PixelConfig, PixelPlatform } from '@/lib/types/pixel'
 import { STANDARD_EVENTS } from '@/lib/types/pixel'
+import { Toggle } from '@/components/ui/Toggle'
 
 // ─── Platform meta ────────────────────────────────────────────────────────────
 
@@ -260,23 +261,16 @@ export default function PixelCard({ config, onSave, onTest }: Props) {
 
         {/* Toggle + bloqueio visual */}
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <label
-            className={clsx(
-              'relative inline-flex items-center flex-shrink-0',
-              canEnable || enabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-50',
-            )}
+          <div
             title={!canEnable && !enabled ? `Preencha o ${meta.idLabel} para ativar` : undefined}
           >
-            <input
-              type="checkbox"
-              className="sr-only peer"
+            <Toggle
               checked={enabled}
+              onChange={() => handleToggle()}
               disabled={!canEnable && !enabled}
-              onChange={handleToggle}
+              label="Pixel ativo"
             />
-            <div className="w-9 h-5 bg-ep-overlay rounded-full peer peer-checked:bg-ep-accent transition-colors" />
-            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-ep-base rounded-full transition-all peer-checked:translate-x-4" />
-          </label>
+          </div>
 
           {/* Ícone de cadeado quando não pode ativar */}
           {!canEnable && !enabled && (

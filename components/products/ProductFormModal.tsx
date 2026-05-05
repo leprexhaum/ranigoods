@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Plus, Trash2, ChevronDown, ChevronUp, Star, CheckCircle2 } from 'lucide-react'
 import clsx from 'clsx'
+import { Toggle } from '@/components/ui/Toggle'
 import type { Product } from '@/lib/services/product.service'
 import type { ShippingOption, OrderBump, CheckoutReview } from '@/lib/types/checkout'
 import type { PixelConfig } from '@/lib/types/pixel'
@@ -121,7 +122,7 @@ function Input({ value, onChange, placeholder, type = 'text', className }: {
   )
 }
 
-function Toggle({ checked, onChange, label, desc }: {
+function ToggleRow({ checked, onChange, label, desc }: {
   checked: boolean; onChange: (v: boolean) => void; label: string; desc?: string
 }) {
   return (
@@ -130,11 +131,7 @@ function Toggle({ checked, onChange, label, desc }: {
         <p className="text-ep-primary text-sm">{label}</p>
         {desc && <p className="text-ep-muted text-xs">{desc}</p>}
       </div>
-      <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-        <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="sr-only peer" />
-        <div className="w-9 h-5 bg-ep-overlay rounded-full peer peer-checked:bg-ep-accent transition-colors" />
-        <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-ep-base rounded-full transition-all peer-checked:translate-x-4" />
-      </label>
+      <Toggle checked={checked} onChange={onChange} label={label} />
     </div>
   )
 }
@@ -519,7 +516,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
 
           {/* Avaliações */}
           <Section title="Avaliações / Depoimentos" collapsible>
-            <Toggle
+            <ToggleRow
               checked={form.showReviews}
               onChange={v => set('showReviews', v)}
               label="Exibir avaliações no checkout"
@@ -603,9 +600,9 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
                 </select>
               </Field>
             </div>
-            <Toggle checked={form.requirePhone} onChange={v => set('requirePhone', v)}
+            <ToggleRow checked={form.requirePhone} onChange={v => set('requirePhone', v)}
               label="Exigir Telefone" desc="Solicitar número de telefone no checkout" />
-            <Toggle checked={form.requireAddress} onChange={v => set('requireAddress', v)}
+            <ToggleRow checked={form.requireAddress} onChange={v => set('requireAddress', v)}
               label="Exigir Endereço" desc="Solicitar endereço completo no checkout" />
           </Section>
 
@@ -641,7 +638,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             <Field label="Meta Pixel ID (opcional)" hint="Para rastreamento de conversões do Facebook/Meta">
               <Input value={form.metaPixelId} onChange={v => set('metaPixelId', v)} placeholder="123456789012345" />
             </Field>
-            <Toggle checked={form.status === 'active'} onChange={v => set('status', v ? 'active' : 'archived')}
+            <ToggleRow checked={form.status === 'active'} onChange={v => set('status', v ? 'active' : 'archived')}
               label="Ativo" desc="Produtos inativos não aparecem no checkout" />
           </Section>
 

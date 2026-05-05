@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Eye, EyeOff, Save, Copy, Check, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
+import { Toggle } from '@/components/ui/Toggle'
 
 type Tab = 'geral' | 'stripe' | 'notificacoes' | 'seguranca'
 
@@ -321,11 +322,11 @@ export default function ConfiguracoesPage() {
                     <p className="text-ep-primary text-sm">{item.label}</p>
                     <p className="text-ep-muted text-xs">{item.desc}</p>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                    <input type="checkbox" checked={item.value} onChange={e => item.set(e.target.checked)} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-ep-overlay rounded-full peer peer-checked:bg-ep-accent transition-colors" />
-                    <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-ep-base rounded-full transition-all peer-checked:translate-x-4" />
-                  </label>
+                  <Toggle
+                    checked={item.value}
+                    onChange={item.set}
+                    label={item.label}
+                  />
                 </div>
               ))}
             </div>
