@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Image from 'next/image'
 import {
   DollarSign, CreditCard, CheckCircle,
   XCircle, Percent, Receipt,
@@ -68,9 +67,7 @@ export default function DashboardPage() {
           <p className="text-ep-secondary text-xs md:text-sm mt-0.5">
             {loading
               ? 'Carregando…'
-              : sales.length > 0
-              ? `${sales.length} dia${sales.length > 1 ? 's' : ''} de dados`
-              : 'Nenhum dado no período'}
+              : `${sales.length} dia${sales.length !== 1 ? 's' : ''} no período`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -86,78 +83,60 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 md:gap-4">
         <StatsCard
           title="Receita Total"
-          value={stats ? formatEUR(stats.receitaTotal) : '—'}
-          subValue={stats ? eurToBrlStr(stats.receitaTotal) : undefined}
+          value={loading ? '—' : formatEUR(stats?.receitaTotal ?? 0)}
+          subValue={loading ? undefined : eurToBrlStr(stats?.receitaTotal ?? 0)}
           change={stats?.receitaChange} changeLabel="vs período ant."
           icon={DollarSign} accent="default"
         />
         <StatsCard
           title="Total Pagamentos"
-          value={stats ? stats.totalPagamentos.toLocaleString('pt-PT') : '—'}
+          value={loading ? '—' : (stats?.totalPagamentos ?? 0).toLocaleString('pt-PT')}
           change={stats?.vendasChange} changeLabel="vs período ant."
           icon={CreditCard} accent="info"
         />
         <StatsCard
           title="Vendas Aprovadas"
-          value={stats ? stats.vendas.toLocaleString('pt-PT') : '—'}
+          value={loading ? '—' : (stats?.vendas ?? 0).toLocaleString('pt-PT')}
           change={stats?.vendasChange} changeLabel="vs período ant."
           icon={CheckCircle} accent="success"
         />
         <StatsCard
           title="Falhas"
-          value={stats ? stats.falhas.toLocaleString('pt-PT') : '—'}
+          value={loading ? '—' : (stats?.falhas ?? 0).toLocaleString('pt-PT')}
           change={stats?.falhasChange} changeLabel="vs período ant."
           icon={XCircle} accent="danger"
         />
         <StatsCard
           title="Taxa de Conversão"
-          value={stats ? `${stats.taxaConversao}%` : '—'}
+          value={loading ? '—' : `${stats?.taxaConversao ?? 0}%`}
           change={stats?.conversaoChange} changeLabel="vs período ant."
           icon={Percent} accent="warning"
         />
         <StatsCard
           title="Ticket Médio"
-          value={stats ? formatEUR(stats.ticketMedio) : '—'}
-          subValue={stats ? eurToBrlStr(stats.ticketMedio) : undefined}
+          value={loading ? '—' : formatEUR(stats?.ticketMedio ?? 0)}
+          subValue={loading ? undefined : eurToBrlStr(stats?.ticketMedio ?? 0)}
           change={stats?.ticketChange} changeLabel="vs período ant."
           icon={Receipt} accent="default"
         />
       </div>
 
-      {!loading && sales.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 bg-ep-surface border border-ep-border-subtle rounded-lg gap-4">
-          <Image
-            src="/cartaoflutuante.png"
-            alt="Sem dados"
-            width={180}
-            height={135}
-            className="opacity-90"
-          />
-          <div className="text-center">
-            <p className="text-ep-primary text-sm font-medium">Nenhum dado encontrado</p>
-            <p className="text-ep-muted text-xs mt-1">Tente selecionar outro período no filtro de datas</p>
-          </div>
+      {/* Charts — sempre visíveis, com zeros se não houver dados */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 md:gap-4">
+        <div className="xl:col-span-2">
+          <SalesChart data={sales} />
         </div>
-      ) : (
-        <>
-          {/* Charts */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 md:gap-4">
-            <div className="xl:col-span-2">
-              <SalesChart data={sales} />
-            </div>
-            <div>
-              <StatusChart
-                vendas={stats?.vendas ?? 0}
-                falhas={stats?.falhas ?? 0}
-                pendentes={pendentes}
-                reembolsos={reembolsos}
-              />
-            </div>
-          </div>
+        <div>
+          <StatusChart
+            vendas={stats?.vendas ?? 0}
+            falhas={stats?.falhas ?? 0}
+            pendentes={pendentes}
+            reembolsos={reembolsos}
+          />
+        </div>
+      </div>
 
-          <RecentPayments payments={payments.slice(0, 15)} />
-        </>
-      )}
+      <RecentPayments payments={payments.slice(0, 15)} />
     </div>
   )
 }

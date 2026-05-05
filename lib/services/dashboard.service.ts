@@ -43,6 +43,43 @@ function previousPeriod(start?: string, end?: string): { start?: string; end?: s
   }
 }
 
+/** Gera todos os dias entre start e end com zeros */
+function generateEmptyDays(start?: string, end?: string): DailySale[] {
+  if (!start || !end) {
+    // Sem range: gerar os últimos 30 dias
+    const days: DailySale[] = []
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const iso = d.toISOString().slice(0, 10)
+      days.push({
+        date:    d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }),
+        isoDate: iso,
+        receita: 0,
+        vendas:  0,
+        falhas:  0,
+      })
+    }
+    return days
+  }
+
+  const days: DailySale[] = []
+  const cur = new Date(start)
+  const fin = new Date(end)
+  while (cur <= fin) {
+    const iso = cur.toISOString().slice(0, 10)
+    days.push({
+      date:    cur.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }),
+      isoDate: iso,
+      receita: 0,
+      vendas:  0,
+      falhas:  0,
+    })
+    cur.setDate(cur.getDate() + 1)
+  }
+  return days
+}
+
 async function calcStats(start?: string, end?: string) {
   const salesWhere   = buildDateRange(start, end)
   const payWhere     = buildPaymentDateRange(start, end)
@@ -104,13 +141,22 @@ export const dashboardService = {
   async getSales(start?: string, end?: string): Promise<DailySale[]> {
     const where = buildDateRange(start, end)
     const rows  = await prisma.dailySale.findMany({ where, orderBy: { isoDate: 'asc' } })
-    return rows.map(r => ({
-      date:    r.date,
-      isoDate: r.isoDate,
-      receita: r.receita,
-      vendas:  r.vendas,
-      falhas:  r.falhas,
-    }))
+
+    // Gerar todos os dias do período com zeros e sobrepor com dados reais
+    const emptyDays = generateEmptyDays(start, end)
+    const dataMap   = new Map(rows.map(r => [r.isoDate, r]))
+
+    return emptyDays.map(day => {
+      const real = dataMap.get(day.isoDate)
+      if (!real) return day
+      return {
+        date:    real.date,
+        isoDate: real.isoDate,
+        receita: real.receita,
+        vendas:  real.vendas,
+        falhas:  real.falhas,
+      }
+    })
   },
 
   async getRecentPayments(start?: string, end?: string, limit = 15): Promise<Payment[]> {
