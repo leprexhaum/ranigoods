@@ -304,11 +304,10 @@ function CheckoutForm({
   clientSecret, stripePromise, paymentId, paymentAmount,
 }: CheckoutFormProps) {
 
-  const inputBase = 'w-full bg-white text-[15px] text-[#30313D] placeholder-[#8792A2] px-3 h-12 focus:outline-none transition-all'
-  const borderTop    = 'border border-[#E0E6EB] rounded-t-[5px] focus:border-[#0570DE] focus:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] focus:z-10 relative'
-  const borderMid    = 'border-l border-r border-b border-[#E0E6EB] focus:border-[#0570DE] focus:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] focus:z-10 relative'
-  const borderBottom = 'border-l border-r border-b border-[#E0E6EB] rounded-b-[5px] focus:border-[#0570DE] focus:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] focus:z-10 relative'
-  const borderOnly   = 'border border-[#E0E6EB] rounded-[5px] focus:border-[#0570DE] focus:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] relative'
+  const fieldWrapTop    = 'relative flex items-center bg-white border border-[#E0E6EB] rounded-t-[5px] focus-within:border-[#0570DE] focus-within:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] focus-within:z-10 transition-all'
+  const fieldWrapMid    = 'relative flex items-center bg-white border-l border-r border-b border-[#E0E6EB] focus-within:border-[#0570DE] focus-within:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] focus-within:z-10 transition-all'
+  const fieldWrapBottom = 'relative flex items-center bg-white border-l border-r border-b border-[#E0E6EB] rounded-b-[5px] focus-within:border-[#0570DE] focus-within:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] focus-within:z-10 transition-all'
+  const inputBase = 'flex-1 h-12 bg-transparent text-[15px] text-[#30313D] placeholder-[#8792A2] pl-2 pr-3 focus:outline-none'
 
   return (
     <div className="space-y-6">
@@ -317,21 +316,46 @@ function CheckoutForm({
       <div>
         <p className="text-[12px] font-medium text-[#30313D] uppercase tracking-wide mb-2">Informações de contacto</p>
         <div>
-          <input
-            className={clsx(inputBase, borderTop)}
-            type="email" value={email} onChange={e => setEmail(e.target.value)}
-            placeholder="Email" required autoComplete="email"
-          />
-          <input
-            className={clsx(inputBase, borderMid)}
-            type="text" value={name} onChange={e => setName(e.target.value)}
-            placeholder="Nome completo" required autoComplete="name"
-          />
-          <input
-            className={clsx(inputBase, borderBottom)}
-            type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-            placeholder="Telefone" required={product.requirePhone} autoComplete="tel"
-          />
+          {/* Email */}
+          <div className={fieldWrapTop}>
+            <span className="pl-3 flex-shrink-0">
+              <svg focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8.75 10.7622C8.75 10.348 9.08579 10.0122 9.5 10.0122H12.5C12.9142 10.0122 13.25 10.348 13.25 10.7622C13.25 11.1764 12.9142 11.5122 12.5 11.5122H9.5C9.08579 11.5122 8.75 11.1764 8.75 10.7622Z" fill="#1A1A1A" fillOpacity="0.5"/>
+                <path fillRule="evenodd" clipRule="evenodd" d="M3 1.51221C1.34315 1.51221 0 2.85535 0 4.51221V11.5122C0 13.1691 1.34315 14.5122 3 14.5122H13C14.6569 14.5122 16 13.1691 16 11.5122V4.51221C16 2.85535 14.6569 1.51221 13 1.51221H3ZM13 3.01221H3C2.43944 3.01221 1.9507 3.31969 1.69325 3.7752C1.7485 3.78999 1.80292 3.81137 1.85548 3.83967L7.88138 7.08439C7.95537 7.12423 8.04443 7.12423 8.11843 7.08439L14.1443 3.83967C14.1969 3.81134 14.2514 3.78994 14.3067 3.77515C14.0493 3.31967 13.5605 3.01221 13 3.01221ZM14.5 5.35179L8.82958 8.40509C8.31162 8.68399 7.68819 8.68399 7.17023 8.40509L1.5 5.35189V11.5122C1.5 12.3406 2.17157 13.0122 3 13.0122H13C13.8284 13.0122 14.5 12.3406 14.5 11.5122V5.35179Z" fill="#1A1A1A" fillOpacity="0.5"/>
+              </svg>
+            </span>
+            <input className={inputBase} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required autoComplete="email" />
+          </div>
+          {/* Nome */}
+          <div className={fieldWrapMid}>
+            <span className="pl-3 flex-shrink-0">
+              <svg focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path fillRule="evenodd" clipRule="evenodd" d="M2.5 14.4H13.5C13.7209 14.4 13.9 14.2209 13.9 14C13.9 12.1222 12.3778 10.6 10.5 10.6H5.5C3.62223 10.6 2.1 12.1222 2.1 14C2.1 14.2209 2.27909 14.4 2.5 14.4ZM2.5 16H13.5C14.6046 16 15.5 15.1046 15.5 14C15.5 11.2386 13.2614 9 10.5 9H5.5C2.73858 9 0.5 11.2386 0.5 14C0.5 15.1046 1.39543 16 2.5 16Z" fill="#1A1A1A" fillOpacity="0.5"/>
+                <path fillRule="evenodd" clipRule="evenodd" d="M8 6.4C9.32548 6.4 10.4 5.32548 10.4 4C10.4 2.67452 9.32548 1.6 8 1.6C6.67452 1.6 5.6 2.67452 5.6 4C5.6 5.32548 6.67452 6.4 8 6.4ZM8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="#1A1A1A" fillOpacity="0.5"/>
+              </svg>
+            </span>
+            <input className={inputBase} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" required autoComplete="name"
+              onBlur={e => {
+                if (!clientSecret && !submitting && !product.requirePhone && name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                  handleProceed(e as unknown as React.FormEvent)
+                }
+              }}
+            />
+          </div>
+          {/* Telefone com bandeira PT */}
+          <div className={fieldWrapBottom}>
+            <span className="pl-3 flex-shrink-0 flex items-center gap-1.5">
+              <img src="https://js.stripe.com/v3/fingerprinted/img/FlagIcon-PT-06923ff565a419d109f1f09ade4e9bd3.svg" alt="PT" className="w-5 h-auto" />
+              <span className="text-[13px] text-[#30313D]">+351</span>
+            </span>
+            <input className={inputBase} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="912 345 678" required={product.requirePhone} autoComplete="tel"
+              onBlur={e => {
+                if (!clientSecret && !submitting && name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                  handleProceed(e as unknown as React.FormEvent)
+                }
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -373,31 +397,19 @@ function CheckoutForm({
       )}
 
       {/* Pagamento */}
-      {!clientSecret ? (
-        <div>
-          <p className="text-[12px] font-medium text-[#30313D] uppercase tracking-wide mb-3">Forma de pagamento</p>
-          <form onSubmit={handleProceed}>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full h-12 flex items-center justify-center gap-2 bg-[#0570DE] hover:bg-[#0461c4] text-white text-[15px] font-semibold rounded-[5px] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
+      <div>
+        <p className="text-[12px] font-medium text-[#30313D] uppercase tracking-wide mb-3">Forma de pagamento</p>
+        {!clientSecret ? (
+          <div className="space-y-4">
+            <div className="w-full h-12 flex items-center justify-center border border-dashed border-[#E0E6EB] rounded-[5px] text-[13px] text-[#8792A2]">
               {submitting
-                ? <><Loader2 size={16} className="animate-spin" /> A preparar…</>
-                : <>Continuar para pagamento</>
+                ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> A preparar pagamento…</span>
+                : <span>Preencha os dados acima para continuar</span>
               }
-            </button>
-          </form>
-          <div className="flex items-center justify-center gap-1.5 text-[12px] text-[#8792A2] mt-3">
-            <ShieldCheck size={13} />
-            <span>Pagamento seguro via</span>
-            <StripeLogo />
+            </div>
           </div>
-        </div>
-      ) : (
-        <div>
-          <p className="text-[12px] font-medium text-[#30313D] uppercase tracking-wide mb-3">Forma de pagamento</p>
-          {stripePromise && (
+        ) : (
+          stripePromise && (
             <Elements
               stripe={stripePromise}
               options={{
@@ -431,9 +443,24 @@ function CheckoutForm({
                 brandName={brandName}
               />
             </Elements>
-          )}
-        </div>
-      )}
+          )
+        )}
+      </div>
+
+      {/* Footer idêntico ao Stripe */}
+      <footer className="flex items-center justify-center gap-4 pt-2">
+        <a href="https://stripe.com" target="_blank" rel="noopener" className="flex items-center gap-1 text-[12px] text-[#8792A2] hover:text-[#6D6E78]">
+          Powered by&nbsp;
+          <svg focusable="false" width="33" height="15" role="img" aria-labelledby="stripe-title" viewBox="0 0 32.956 12">
+            <title id="stripe-title">Stripe</title>
+            <g fillRule="evenodd" fill="#8792A2">
+              <path d="M32.956 7.925c0-2.313-1.12-4.138-3.261-4.138-2.15 0-3.451 1.825-3.451 4.12 0 2.719 1.535 4.092 3.74 4.092 1.075 0 1.888-.244 2.502-.587V9.605c-.614.307-1.319.497-2.213.497-.876 0-1.653-.307-1.753-1.373h4.418c0-.118.018-.588.018-.804zm-4.463-.859c0-1.02.624-1.445 1.193-1.445.55 0 1.138.424 1.138 1.445h-2.33zM22.756 3.787c-.885 0-1.454.415-1.77.704l-.118-.56H18.88v10.535l2.259-.48.009-2.556c.325.235.804.57 1.6.57 1.616 0 3.089-1.302 3.089-4.166-.01-2.62-1.5-4.047-3.08-4.047zm-.542 6.225c-.533 0-.85-.19-1.066-.425l-.009-3.352c.235-.262.56-.443 1.075-.443.822 0 1.391.922 1.391 2.105 0 1.211-.56 2.115-1.39 2.115zM18.04 2.766V.932l-2.268.479v1.843zM15.772 3.94h2.268v7.905h-2.268zM13.342 4.609l-.144-.669h-1.952v7.906h2.259V6.488c.533-.696 1.436-.57 1.716-.47V3.94c-.289-.108-1.346-.307-1.879.669zM8.825 1.98l-2.205.47-.009 7.236c0 1.337 1.003 2.322 2.34 2.322.741 0 1.283-.135 1.581-.298V9.876c-.289.117-1.716.533-1.716-.804V5.865h1.716V3.94H8.816l.009-1.96zM2.718 6.235c0-.352.289-.488.767-.488.687 0 1.554.208 2.241.578V4.202a5.958 5.958 0 0 0-2.24-.415c-1.835 0-3.054.957-3.054 2.557 0 2.493 3.433 2.096 3.433 3.17 0 .416-.361.552-.867.552-.75 0-1.708-.307-2.467-.723v2.15c.84.362 1.69.515 2.467.515 1.879 0 3.17-.93 3.17-2.548-.008-2.692-3.45-2.213-3.45-3.225z"/>
+            </g>
+          </svg>
+        </a>
+        <a href="https://stripe.com/legal/end-users" target="_blank" rel="noopener" className="text-[12px] text-[#8792A2] hover:text-[#6D6E78]">Termos</a>
+        <a href="https://stripe.com/privacy" target="_blank" rel="noopener" className="text-[12px] text-[#8792A2] hover:text-[#6D6E78]">Privacidade</a>
+      </footer>
     </div>
   )
 }
