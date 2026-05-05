@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Package, Plus, ExternalLink, MoreVertical, Loader2, Link2, Check, Pencil } from 'lucide-react'
+import { Package, Plus, ExternalLink, MoreVertical, Link2, Check, Pencil } from 'lucide-react'
 import clsx from 'clsx'
 import DateFilter from '@/components/ui/DateFilter'
 import type { DatePreset } from '@/components/ui/DateFilter'
 import type { Product } from '@/lib/services/product.service'
 import ProductFormModal from '@/components/products/ProductFormModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/lib/hooks/useConfirm'
+import { ProductCardSkeleton } from '@/components/ui/Skeleton'
 
 function formatCurrency(cents: number, currency = 'EUR') {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency }).format(cents / 100)
@@ -44,6 +47,7 @@ export default function ProdutosPage() {
   const [error,       setError]       = useState('')
   const [modalOpen,   setModalOpen]   = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
+  const { confirmProps, confirm }     = useConfirm()
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -80,9 +84,16 @@ export default function ProdutosPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este produto?')) return
-    await fetch(`/api/products/${id}`, { method: 'DELETE' })
-    fetchProducts()
+    confirm({
+      title:       'Excluir produto',
+      message:     'Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.',
+      confirmText: 'Excluir',
+      variant:     'danger',
+      onConfirm:   async () => {
+        await fetch(`/api/products/${id}`, { method: 'DELETE' })
+        fetchProducts()
+      },
+    })
   }
 
   return (
@@ -130,8 +141,8 @@ export default function ProdutosPage() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 size={24} className="animate-spin text-ep-accent" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <ProductCardSkeleton key={i} />)}
         </div>
       )}
 
@@ -248,6 +259,7 @@ export default function ProdutosPage() {
         onSaved={() => { fetchProducts() }}
       />
     )}
+    <ConfirmDialog {...confirmProps} />
     </>
   )
 }

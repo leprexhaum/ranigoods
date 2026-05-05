@@ -7,6 +7,7 @@ import type { Payment, PaymentStatus } from '@/lib/types/payment'
 import DateFilter, { getRange } from '@/components/ui/DateFilter'
 import type { DatePreset } from '@/components/ui/DateFilter'
 import { formatEUR, eurToBrlStr, formatCurrency } from '@/lib/utils/currency'
+import { TableSkeleton } from '@/components/ui/Skeleton'
 
 const statusFilters: { label: string; value: PaymentStatus | 'all' }[] = [
   { label: 'Todos',        value: 'all'        },
@@ -225,7 +226,15 @@ export default function PagamentosPage() {
       {source === 'checkout' && (
       <div className="md:hidden bg-ep-surface border border-ep-border-default rounded-lg overflow-hidden divide-y divide-ep-border-subtle">
         {loading ? (
-          <div className="px-4 py-10 text-center text-ep-muted text-sm">Carregando…</div>
+          <div className="px-4 py-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 py-2">
+                <div className="h-3 bg-ep-raised rounded animate-pulse w-1/3" />
+                <div className="h-3 bg-ep-raised rounded animate-pulse w-1/4" />
+                <div className="h-3 bg-ep-raised rounded animate-pulse w-1/5 ml-auto" />
+              </div>
+            ))}
+          </div>
         ) : paginated.length === 0 ? (
           <div className="px-4 py-10 text-center text-ep-muted text-sm">Nenhum pagamento no período</div>
         ) : paginated.map((p) => {
@@ -266,7 +275,7 @@ export default function PagamentosPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-ep-muted text-sm">Carregando…</td></tr>
+                <TableSkeleton rows={7} cols={7} />
               ) : paginated.length === 0 ? (
                 <tr><td colSpan={7} className="px-5 py-12 text-center text-ep-muted text-sm">Nenhum pagamento no período selecionado</td></tr>
               ) : paginated.map((p) => {
@@ -344,7 +353,7 @@ export default function PagamentosPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="px-5 py-12 text-center text-ep-muted text-sm">Carregando…</td></tr>
+                  <TableSkeleton rows={5} cols={6} />
                 ) : orderData.length === 0 ? (
                   <tr><td colSpan={6} className="px-5 py-12 text-center text-ep-muted text-sm">Nenhum pedido no período</td></tr>
                 ) : orderData.map(o => {

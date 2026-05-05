@@ -11,6 +11,9 @@ import EventsMatrix  from '@/components/pixels/EventsMatrix'
 import PixelLogs     from '@/components/pixels/PixelLogs'
 import PixelModal    from '@/components/pixels/PixelModal'
 import { PlatformIcon, PLATFORM_CONFIG, type Platform } from '@/components/pixels/PlatformIcon'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/lib/hooks/useConfirm'
+import { TableSkeleton } from '@/components/ui/Skeleton'
 import type { PixelConfig } from '@/lib/types/pixel'
 
 type Tab = 'pixels' | 'events' | 'advanced' | 'logs'
@@ -129,6 +132,7 @@ export default function PixelsPage() {
   const [modalOpen,    setModalOpen]    = useState(false)
   const [editingPixel, setEditingPixel] = useState<PixelConfig | null>(null)
   const [deleting,     setDeleting]     = useState<string | null>(null)
+  const { confirmProps, confirm }       = useConfirm()
 
   const fetchPixels = useCallback(async () => {
     setLoading(true)
@@ -170,11 +174,18 @@ export default function PixelsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apagar este pixel? Será removido de todos os produtos associados.')) return
-    setDeleting(id)
-    await fetch(`/api/pixels/${id}`, { method: 'DELETE' })
-    await fetchPixels()
-    setDeleting(null)
+    confirm({
+      title:       'Apagar pixel',
+      message:     'Este pixel será removido de todos os produtos associados. Esta ação não pode ser desfeita.',
+      confirmText: 'Apagar',
+      variant:     'danger',
+      onConfirm:   async () => {
+        setDeleting(id)
+        await fetch(`/api/pixels/${id}`, { method: 'DELETE' })
+        await fetchPixels()
+        setDeleting(null)
+      },
+    })
   }
 
   const handleEventsave = async (id: string, data: Partial<PixelConfig>) => {
@@ -232,7 +243,11 @@ export default function PixelsPage() {
       {activeTab === 'pixels' && (
         <div className="bg-ep-surface border border-ep-border-default rounded-lg overflow-hidden">
           {loading ? (
-            <div className="px-5 py-12 text-center text-ep-muted text-sm">Carregando…</div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <tbody><TableSkeleton rows={4} cols={6} widths={['120px','140px','120px','100px','80px','60px']} /></tbody>
+              </table>
+            </div>
           ) : pixels.length === 0 ? (
             <div className="px-5 py-14 text-center space-y-3">
               <div className="w-12 h-12 rounded-xl bg-ep-raised border border-ep-border-default flex items-center justify-center mx-auto">
@@ -326,6 +341,7 @@ export default function PixelsPage() {
         onSave={handleSave}
         onTest={handleTest}
       />
+      <ConfirmDialog {...confirmProps} />
     </div>
   )
 }

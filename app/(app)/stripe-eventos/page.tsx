@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Search, ChevronDown, ChevronRight, CheckCircle2, XCircle, Zap } from 'lucide-react'
 import clsx from 'clsx'
+import { TableSkeleton } from '@/components/ui/Skeleton'
 
 interface StripeEventRow {
   id:         string
@@ -127,7 +128,7 @@ export default function StripeEventosPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-ep-muted text-sm">Carregando…</td></tr>
+                <TableSkeleton rows={6} cols={6} />
               ) : data.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-12 text-center">

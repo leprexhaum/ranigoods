@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { RefreshCw, Trash2, CheckCircle2, XCircle, FlaskConical } from 'lucide-react'
 import clsx from 'clsx'
 import type { PixelFireLog, PixelPlatform } from '@/lib/types/pixel'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 const PLATFORM_LABELS: Record<PixelPlatform, string> = {
   meta:       'Meta',
@@ -78,8 +79,20 @@ export default function PixelLogs() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <RefreshCw size={16} className="animate-spin text-ep-muted" />
+        <div className="divide-y divide-ep-border-subtle">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 px-4 py-3">
+              <Skeleton className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-3 w-16 rounded" />
+                  <Skeleton className="h-3 w-24 rounded" />
+                  <Skeleton className="h-3 w-20 rounded ml-auto" />
+                </div>
+                <Skeleton className="h-3 w-3/4 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">

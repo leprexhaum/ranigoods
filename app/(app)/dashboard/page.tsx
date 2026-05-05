@@ -83,41 +83,41 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 md:gap-4">
         <StatsCard
           title="Receita Total"
-          value={loading ? '—' : formatEUR(stats?.receitaTotal ?? 0)}
-          subValue={loading ? undefined : eurToBrlStr(stats?.receitaTotal ?? 0)}
+          value={formatEUR(stats?.receitaTotal ?? 0)}
+          subValue={eurToBrlStr(stats?.receitaTotal ?? 0)}
           change={stats?.receitaChange} changeLabel="vs período ant."
-          icon={DollarSign} accent="default"
+          icon={DollarSign} accent="default" loading={loading}
         />
         <StatsCard
           title="Total Pagamentos"
-          value={loading ? '—' : (stats?.totalPagamentos ?? 0).toLocaleString('pt-PT')}
+          value={(stats?.totalPagamentos ?? 0).toLocaleString('pt-PT')}
           change={stats?.vendasChange} changeLabel="vs período ant."
-          icon={CreditCard} accent="info"
+          icon={CreditCard} accent="info" loading={loading}
         />
         <StatsCard
           title="Vendas Aprovadas"
-          value={loading ? '—' : (stats?.vendas ?? 0).toLocaleString('pt-PT')}
+          value={(stats?.vendas ?? 0).toLocaleString('pt-PT')}
           change={stats?.vendasChange} changeLabel="vs período ant."
-          icon={CheckCircle} accent="success"
+          icon={CheckCircle} accent="success" loading={loading}
         />
         <StatsCard
           title="Falhas"
-          value={loading ? '—' : (stats?.falhas ?? 0).toLocaleString('pt-PT')}
+          value={(stats?.falhas ?? 0).toLocaleString('pt-PT')}
           change={stats?.falhasChange} changeLabel="vs período ant."
-          icon={XCircle} accent="danger"
+          icon={XCircle} accent="danger" loading={loading}
         />
         <StatsCard
           title="Taxa de Conversão"
-          value={loading ? '—' : `${stats?.taxaConversao ?? 0}%`}
+          value={`${stats?.taxaConversao ?? 0}%`}
           change={stats?.conversaoChange} changeLabel="vs período ant."
-          icon={Percent} accent="warning"
+          icon={Percent} accent="warning" loading={loading}
         />
         <StatsCard
           title="Ticket Médio"
-          value={loading ? '—' : formatEUR(stats?.ticketMedio ?? 0)}
-          subValue={loading ? undefined : eurToBrlStr(stats?.ticketMedio ?? 0)}
+          value={formatEUR(stats?.ticketMedio ?? 0)}
+          subValue={eurToBrlStr(stats?.ticketMedio ?? 0)}
           change={stats?.ticketChange} changeLabel="vs período ant."
-          icon={Receipt} accent="default"
+          icon={Receipt} accent="default" loading={loading}
         />
       </div>
 

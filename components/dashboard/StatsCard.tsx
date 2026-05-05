@@ -5,11 +5,12 @@ import type { LucideIcon } from 'lucide-react'
 interface StatsCardProps {
   title: string
   value: string
-  subValue?: string       // valor secundário (ex: equivalente em BRL)
+  subValue?: string
   change?: number
   changeLabel?: string
   icon: LucideIcon
   accent?: 'default' | 'success' | 'danger' | 'warning' | 'info'
+  loading?: boolean
 }
 
 const accentMap = {
@@ -27,7 +28,8 @@ export default function StatsCard({
   change,
   changeLabel,
   icon: Icon,
-  accent = 'default',
+  accent  = 'default',
+  loading = false,
 }: StatsCardProps) {
   const colors     = accentMap[accent]
   const isPositive = change !== undefined && change >= 0
@@ -44,34 +46,43 @@ export default function StatsCard({
         </div>
       </div>
 
-      <p
-        className="text-ep-primary font-bold tracking-tight leading-tight min-w-0 truncate"
-        style={{ fontSize: 'clamp(0.9rem, 1.4vw, 1.75rem)' }}
-        title={value}
-      >
-        {value}
-      </p>
-
-      {subValue && (
-        <p className="text-ep-muted text-xs mt-0.5 truncate" title={subValue}>
-          ≈ {subValue}
-        </p>
-      )}
-
-      {change !== undefined && (
-        <div className="flex items-center gap-1.5 flex-wrap mt-2">
-          {isPositive ? (
-            <TrendingUp size={12} className="text-ep-success flex-shrink-0" />
-          ) : (
-            <TrendingDown size={12} className="text-ep-danger flex-shrink-0" />
-          )}
-          <span className={clsx('text-xs font-medium', isPositive ? 'text-ep-success' : 'text-ep-danger')}>
-            {isPositive ? '+' : ''}{change}%
-          </span>
-          {changeLabel && (
-            <span className="text-ep-muted text-xs hidden sm:inline">{changeLabel}</span>
-          )}
+      {loading ? (
+        <div className="space-y-2 mt-1">
+          <div className="h-6 bg-ep-raised rounded animate-pulse w-3/4" />
+          <div className="h-3 bg-ep-raised rounded animate-pulse w-1/2" />
         </div>
+      ) : (
+        <>
+          <p
+            className="text-ep-primary font-bold tracking-tight leading-tight min-w-0 truncate"
+            style={{ fontSize: 'clamp(0.9rem, 1.4vw, 1.75rem)' }}
+            title={value}
+          >
+            {value}
+          </p>
+
+          {subValue && (
+            <p className="text-ep-muted text-xs mt-0.5 truncate" title={subValue}>
+              ≈ {subValue}
+            </p>
+          )}
+
+          {change !== undefined && (
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              {isPositive ? (
+                <TrendingUp size={12} className="text-ep-success flex-shrink-0" />
+              ) : (
+                <TrendingDown size={12} className="text-ep-danger flex-shrink-0" />
+              )}
+              <span className={clsx('text-xs font-medium', isPositive ? 'text-ep-success' : 'text-ep-danger')}>
+                {isPositive ? '+' : ''}{change}%
+              </span>
+              {changeLabel && (
+                <span className="text-ep-muted text-xs hidden sm:inline">{changeLabel}</span>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Key, Plus, Trash2, Copy, Check, Eye, EyeOff } from 'lucide-react'
 import clsx from 'clsx'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/lib/hooks/useConfirm'
+import { ListRowSkeleton } from '@/components/ui/Skeleton'
 
 interface ApiKeyRecord {
   id:        string
@@ -23,6 +26,7 @@ export default function ApiKeysPage() {
   const [copied,      setCopied]      = useState(false)
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({})
   const [revoking,    setRevoking]    = useState<string | null>(null)
+  const { confirmProps, confirm }     = useConfirm()
 
   const fetchKeys = useCallback(async () => {
     setLoading(true)
@@ -56,14 +60,21 @@ export default function ApiKeysPage() {
   }
 
   async function handleRevoke(id: string) {
-    if (!confirm('Revogar esta API key? Esta ação não pode ser desfeita.')) return
-    setRevoking(id)
-    try {
-      await fetch(`/api/api-keys/${id}`, { method: 'DELETE' })
-      await fetchKeys()
-    } finally {
-      setRevoking(null)
-    }
+    confirm({
+      title:       'Revogar API key',
+      message:     'Esta API key será revogada imediatamente. Integrações que a usam vão parar de funcionar. Esta ação não pode ser desfeita.',
+      confirmText: 'Revogar',
+      variant:     'danger',
+      onConfirm:   async () => {
+        setRevoking(id)
+        try {
+          await fetch(`/api/api-keys/${id}`, { method: 'DELETE' })
+          await fetchKeys()
+        } finally {
+          setRevoking(null)
+        }
+      },
+    })
   }
 
   function copyKey(key: string) {
@@ -118,7 +129,9 @@ export default function ApiKeysPage() {
       {/* Lista de keys */}
       <div className="bg-ep-surface border border-ep-border-default rounded-lg overflow-hidden">
         {loading ? (
-          <div className="px-5 py-10 text-center text-ep-muted text-sm">Carregando…</div>
+          <div className="divide-y divide-ep-border-subtle">
+            {Array.from({ length: 3 }).map((_, i) => <ListRowSkeleton key={i} cols={3} />)}
+          </div>
         ) : keys.length === 0 ? (
           <div className="px-5 py-10 text-center space-y-2">
             <Key size={28} className="mx-auto text-ep-muted" />
@@ -204,6 +217,7 @@ export default function ApiKeysPage() {
           </div>
         </div>
       )}
+      <ConfirmDialog {...confirmProps} />
     </div>
   )
 }

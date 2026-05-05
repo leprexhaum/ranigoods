@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, Edit2, Check, X, Copy, Eye, EyeOff, Webhook } from 'lucide-react'
 import clsx from 'clsx'
+import { ListRowSkeleton } from '@/components/ui/Skeleton'
 
 interface OutboundWebhook {
   id:         string
@@ -195,7 +196,9 @@ export default function WebhooksPage() {
 
       {/* Lista */}
       {loading ? (
-        <div className="text-ep-muted text-sm py-8 text-center">Carregando…</div>
+        <div className="bg-ep-surface border border-ep-border-default rounded-lg overflow-hidden divide-y divide-ep-border-subtle">
+          {Array.from({ length: 3 }).map((_, i) => <ListRowSkeleton key={i} cols={3} />)}
+        </div>
       ) : webhooks.length === 0 ? (
         <div className="bg-ep-surface border border-ep-border-default rounded-lg py-12 flex flex-col items-center gap-3">
           <Webhook size={28} className="text-ep-muted" />
