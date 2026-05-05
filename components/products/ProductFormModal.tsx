@@ -225,7 +225,7 @@ function PixelSelector({ selected, onChange }: { selected: string[]; onChange: (
               )}
             >
               <div className={clsx('w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0', cfg?.bg, 'border', cfg?.border)}>
-                {cfg && <PlatformIcon platform={p.platform as Platform} size={16} className={cfg.iconColor} />}
+                {cfg && <PlatformIcon platform={p.platform as Platform} size={16} />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-ep-primary text-xs font-medium truncate">{p.name || cfg?.label || p.platform}</p>

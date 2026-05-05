@@ -97,7 +97,7 @@ export default function PixelModal({ open, pixel, onClose, onSave, onTest }: Pro
             )}
             {platform && meta && (
               <div className={clsx('w-7 h-7 rounded-md flex items-center justify-center', meta.bg, meta.border, 'border')}>
-                <PlatformIcon platform={platform} size={14} className={meta.iconColor} />
+                <PlatformIcon platform={platform} size={14} />
               </div>
             )}
             <h2 className="text-ep-primary font-semibold text-sm">
@@ -125,7 +125,7 @@ export default function PixelModal({ open, pixel, onClose, onSave, onTest }: Pro
                     )}
                   >
                     <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center', cfg.bg, 'border', cfg.border)}>
-                      <PlatformIcon platform={p} size={22} className={cfg.iconColor} />
+                      <PlatformIcon platform={p} size={22} />
                     </div>
                     <span className="text-ep-primary text-xs font-semibold text-center leading-tight">{cfg.label}</span>
                   </button>

@@ -65,7 +65,7 @@ function AdvancedTab({ pixels }: { pixels: PixelConfig[] }) {
             return (
               <div key={p.id} className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  {cfg && <PlatformIcon platform={p.platform as Platform} size={14} className={cfg.iconColor} />}
+                  {cfg && <PlatformIcon platform={p.platform as Platform} size={14} />}
                   <span className="text-ep-primary text-sm">{p.name || cfg?.label || p.platform}</span>
                 </div>
                 <span className={clsx('text-xs flex items-center gap-1', hasToken ? 'text-ep-success' : 'text-ep-muted')}>
@@ -280,7 +280,7 @@ export default function PixelsPage() {
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2">
                             <div className={clsx('w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0', cfg?.bg, 'border', cfg?.border)}>
-                              {cfg && <PlatformIcon platform={p.platform as Platform} size={14} className={cfg.iconColor} />}
+                              {cfg && <PlatformIcon platform={p.platform as Platform} size={14} />}
                             </div>
                             <span className="text-ep-secondary text-xs font-medium whitespace-nowrap">{cfg?.label ?? p.platform}</span>
                           </div>
