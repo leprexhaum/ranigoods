@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { checkoutService } from '@/lib/services/checkout.service'
+import { stripeLogger } from '@/lib/services/stripe-logger.service'
+import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
 import type { CreatePaymentIntentRequest } from '@/lib/types/checkout'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 
 export const dynamic = 'force-dynamic'
 
-// ─── Rate limiter (sliding window, por IP) ────────────────────────────────────
 const rateLimitMap = new Map<string, number[]>()
 const RATE_LIMIT   = 10
 const WINDOW_MS    = 60_000
@@ -56,12 +57,8 @@ export async function POST(
     }
 
     const stripeMethodMap: Record<string, string> = {
-      card:       'card',
-      mbway:      'mb_way',
-      multibanco: 'multibanco',
-      apple_pay:  'card',
-      google_pay: 'card',
-      sepa:       'sepa_debit',
+      card: 'card', mbway: 'mb_way', multibanco: 'multibanco',
+      apple_pay: 'card', google_pay: 'card', sepa: 'sepa_debit',
     }
 
     const paymentMethodTypes = product.paymentMethods.length > 0
@@ -72,25 +69,28 @@ export async function POST(
     const customerEmail = body.customerEmail?.trim() || ''
     const urlParams     = body.urlParams ?? {}
 
-    // Prefixar url_params com up_ no metadata do PI (espelho de segurança)
     const upMeta: Record<string, string> = {}
     for (const [k, v] of Object.entries(urlParams)) {
       upMeta[`up_${k}`] = String(v).slice(0, 500)
     }
 
-    const pi = await stripe.paymentIntents.create({
+    const piParams = {
       amount:               total,
       currency:             product.currency.toLowerCase(),
       payment_method_types: paymentMethodTypes,
       metadata: {
-        productId:    product.id,
-        productSlug:  product.slug,
-        productName:  product.name,
-        customerName,
-        customerEmail,
-        ...upMeta,
+        productId: product.id, productSlug: product.slug, productName: product.name,
+        customerName, customerEmail, ...upMeta,
       },
-    })
+    }
+
+    // Criar PI com logging
+    const pi = await stripeLogger.logApiCall(
+      'createPaymentIntent',
+      '',
+      piParams,
+      () => stripe.paymentIntents.create(piParams),
+    )
 
     const payment = await checkoutService.createPayment({
       productId:             product.id,
@@ -101,10 +101,25 @@ export async function POST(
       customerEmail,
       customerPhone:         body.customerPhone ?? '',
       urlParams,
+      address:               body.address,
       metadata: {
         bumpIds:    body.bumpIds    ?? [],
         shippingId: body.shippingId ?? null,
       },
+    })
+
+    // Criar registo de carrinho abandonado
+    await abandonedCartService.create({
+      productId:             product.id,
+      stripePaymentIntentId: pi.id,
+      customerName,
+      customerEmail,
+      customerPhone:         body.customerPhone ?? '',
+      amount:                total,
+      currency:              product.currency,
+      urlParams,
+      bumpIds:               body.bumpIds    ?? [],
+      shippingId:            body.shippingId ?? '',
     })
 
     const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!

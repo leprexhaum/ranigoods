@@ -10,16 +10,22 @@ import {
   Calculator,
   Settings,
   Zap,
+  Webhook,
+  ShoppingCart,
+  Activity,
 } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/produtos', label: 'Produtos', icon: Package },
-  { href: '/pagamentos', label: 'Pagamentos', icon: CreditCard },
-  { href: '/pixels', label: 'Pixels', icon: Cpu },
-  { href: '/calculadora', label: 'Calculadora', icon: Calculator },
-  { href: '/configuracoes', label: 'Configurações', icon: Settings },
+  { href: '/dashboard',             label: 'Dashboard',           icon: LayoutDashboard },
+  { href: '/produtos',              label: 'Produtos',            icon: Package         },
+  { href: '/pagamentos',            label: 'Pagamentos',          icon: CreditCard      },
+  { href: '/pixels',                label: 'Pixels',              icon: Cpu             },
+  { href: '/carrinhos-abandonados', label: 'Carrinhos',           icon: ShoppingCart    },
+  { href: '/webhooks',              label: 'Webhooks',            icon: Webhook         },
+  { href: '/stripe-eventos',        label: 'Eventos Stripe',      icon: Activity        },
+  { href: '/calculadora',           label: 'Calculadora',         icon: Calculator      },
+  { href: '/configuracoes',         label: 'Configurações',       icon: Settings        },
 ]
 
 export default function Sidebar() {

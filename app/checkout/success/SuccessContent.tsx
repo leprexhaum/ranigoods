@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, XCircle, Loader2, ShieldCheck } from 'lucide-react'
 import type { CheckoutPaymentDetail } from '@/lib/types/checkout'
+import { usePixels } from '@/components/providers/PixelProvider'
 
 function fmt(cents: number, currency: string) {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
@@ -12,10 +13,12 @@ function fmt(cents: number, currency: string) {
 export default function SuccessContent() {
   const searchParams = useSearchParams()
   const paymentId    = searchParams.get('payment_id')
+  const { trackEvent } = usePixels()
 
   const [payment, setPayment] = useState<CheckoutPaymentDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
+  const firedRef = useRef(false)
 
   useEffect(() => {
     if (!paymentId) { setError('ID de pagamento não encontrado'); setLoading(false); return }
@@ -27,7 +30,18 @@ export default function SuccessContent() {
         const data = await res.json() as CheckoutPaymentDetail
         if (!res.ok) { setError('Pagamento não encontrado'); setLoading(false); return }
         setPayment(data)
-        // Continua a fazer polling enquanto pending ou processing (Multibanco)
+
+        if (data.status === 'paid' && !firedRef.current) {
+          firedRef.current = true
+          trackEvent('Purchase', {
+            value:        data.amount,
+            currency:     data.currency,
+            order_id:     data.id,
+            content_type: 'product',
+            num_items:    1,
+          })
+        }
+
         if ((data.status === 'pending' || data.status === 'processing') && attempts < 20) {
           attempts++
           setTimeout(poll, 3000)
@@ -43,7 +57,7 @@ export default function SuccessContent() {
       }
     }
     poll()
-  }, [paymentId])
+  }, [paymentId, trackEvent])
 
   if (loading) {
     return (
@@ -99,8 +113,6 @@ export default function SuccessContent() {
   return (
     <div className="min-h-screen bg-[#f9fafb] font-sans flex flex-col items-center justify-center px-4 py-16">
       <div className="w-full max-w-md space-y-8">
-
-        {/* Ícone de sucesso */}
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="w-20 h-20 rounded-full bg-[#f0fdf4] border-2 border-[#bbf7d0] flex items-center justify-center">
             <CheckCircle2 size={40} className="text-[#16a34a]" />
@@ -111,7 +123,6 @@ export default function SuccessContent() {
           </div>
         </div>
 
-        {/* Resumo do pedido */}
         <div className="bg-white rounded-2xl border border-[#e5e7eb] overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-[#f3f4f6]">
             <h2 className="text-[#111827] font-semibold text-sm">Resumo do pedido</h2>
@@ -132,7 +143,6 @@ export default function SuccessContent() {
           </div>
         </div>
 
-        {/* Próximos passos */}
         <div className="bg-[#f5f4ff] rounded-2xl border border-[#e0deff] px-6 py-5">
           <p className="text-[#4338ca] text-sm font-medium mb-1">O que acontece a seguir?</p>
           <p className="text-[#6b7280] text-sm leading-relaxed">
@@ -140,7 +150,6 @@ export default function SuccessContent() {
           </p>
         </div>
 
-        {/* Segurança */}
         <div className="flex items-center justify-center gap-2 text-[#9ca3af] text-xs">
           <ShieldCheck size={13} className="text-[#635bff]" />
           <span>Pagamento processado com segurança via Stripe</span>

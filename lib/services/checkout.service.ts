@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import type {
   CheckoutProduct, CheckoutPaymentDetail,
-  OrderBump, ShippingOption, CheckoutReview,
+  OrderBump, ShippingOption, CheckoutReview, CheckoutAddress,
 } from '@/lib/types/checkout'
 
 function toCheckoutProduct(r: {
@@ -9,7 +9,8 @@ function toCheckoutProduct(r: {
   price: number; currency: string; interval: string;
   slug: string | null; paymentMethods: unknown; shippingOptions: unknown;
   orderBumps: unknown; reviews: unknown; showReviews: boolean;
-  checkoutTemplate: string; successUrl: string;
+  checkoutTemplate: string; checkoutLanguage: string; countdownMinutes: number;
+  active: boolean; successUrl: string;
   logoUrl: string; brandName: string; requirePhone: boolean; requireAddress: boolean;
 }): CheckoutProduct {
   return {
@@ -27,6 +28,9 @@ function toCheckoutProduct(r: {
     reviews:          (r.reviews as CheckoutReview[]) ?? [],
     showReviews:      r.showReviews ?? false,
     checkoutTemplate: (r.checkoutTemplate as CheckoutProduct['checkoutTemplate']) ?? 'single_step',
+    checkoutLanguage: r.checkoutLanguage ?? 'pt',
+    countdownMinutes: r.countdownMinutes ?? 15,
+    active:           r.active ?? true,
     successUrl:       r.successUrl ?? '',
     logoUrl:          r.logoUrl ?? '',
     brandName:        r.brandName ?? '',
@@ -38,13 +42,14 @@ function toCheckoutProduct(r: {
 export const checkoutService = {
   async getProductBySlug(slug: string): Promise<CheckoutProduct | null> {
     const r = await prisma.product.findUnique({
-      where: { slug },
+      where: { slug, active: true },
       select: {
         id: true, name: true, description: true, imageUrl: true,
         price: true, currency: true, interval: true,
         slug: true, paymentMethods: true, shippingOptions: true,
         orderBumps: true, reviews: true, showReviews: true,
-        checkoutTemplate: true, successUrl: true,
+        checkoutTemplate: true, checkoutLanguage: true, countdownMinutes: true,
+        active: true, successUrl: true,
         logoUrl: true, brandName: true, requirePhone: true, requireAddress: true,
       },
     })
@@ -52,15 +57,16 @@ export const checkoutService = {
   },
 
   async createPayment(data: {
-    productId:            string
-    amount:               number
-    currency:             string
+    productId:             string
+    amount:                number
+    currency:              string
     stripePaymentIntentId: string
-    customerName:         string
-    customerEmail:        string
-    customerPhone:        string
-    urlParams:            Record<string, string>
-    metadata:             Record<string, unknown>
+    customerName:          string
+    customerEmail:         string
+    customerPhone:         string
+    urlParams:             Record<string, string>
+    metadata:              Record<string, unknown>
+    address?:              CheckoutAddress
   }) {
     return prisma.checkoutPayment.create({
       data: {
@@ -71,6 +77,11 @@ export const checkoutService = {
         customerName:          data.customerName,
         customerEmail:         data.customerEmail,
         customerPhone:         data.customerPhone,
+        addressLine1:          data.address?.line1      ?? '',
+        addressLine2:          data.address?.line2      ?? '',
+        addressCity:           data.address?.city       ?? '',
+        addressPostalCode:     data.address?.postalCode ?? '',
+        addressCountry:        data.address?.country    ?? '',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         urlParams:             data.urlParams as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

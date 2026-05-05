@@ -78,7 +78,9 @@ export default function ConfiguracoesPage() {
   const [activeTab, setActiveTab] = useState<Tab>('geral')
   const [saving,    setSaving]    = useState(false)
   const [loadError, setLoadError] = useState('')
-  const webhookUrl = 'https://ranigoods.pt/api/stripe/webhook'
+  const webhookUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/stripe/webhook`
+    : '/api/stripe/webhook'
 
   // Geral
   const [companyName, setCompanyName] = useState('')

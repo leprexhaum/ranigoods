@@ -72,6 +72,8 @@ model Product {
   metaPixelId      String   @default("") @map("meta_pixel_id")
   utmfyApiToken    String   @default("") @map("utmfy_api_token")
   userId           String   @default("") @map("user_id")
+  active           Boolean  @default(true)
+  countdownMinutes Int      @default(15) @map("countdown_minutes")
   checkoutPayments CheckoutPayment[]
 
   @@map("products")
@@ -84,10 +86,23 @@ model CheckoutPayment {
   amount                Int
   currency              String   @default("EUR")
   stripePaymentIntentId String?  @unique @map("stripe_payment_intent_id")
+  stripeChargeId        String   @default("") @map("stripe_charge_id")
+  stripeErrorCode       String   @default("") @map("stripe_error_code")
+  stripeErrorMsg        String   @default("") @map("stripe_error_msg")
+  refundedAmount        Int      @default(0) @map("refunded_amount")
+  disputeId             String   @default("") @map("dispute_id")
+  disputeStatus         String   @default("") @map("dispute_status")
+  lastStripeEventId     String   @default("") @map("last_stripe_event_id")
+  isAbandoned           Boolean  @default(false) @map("is_abandoned")
   customerName          String   @default("") @map("customer_name")
   customerEmail         String   @default("") @map("customer_email")
   customerPhone         String   @default("") @map("customer_phone")
   paymentMethod         String   @default("") @map("payment_method")
+  addressLine1          String   @default("") @map("address_line1")
+  addressLine2          String   @default("") @map("address_line2")
+  addressCity           String   @default("") @map("address_city")
+  addressPostalCode     String   @default("") @map("address_postal_code")
+  addressCountry        String   @default("") @map("address_country")
   urlParams             Json     @default("{}") @map("url_params")
   metadata              Json     @default("{}")
   createdAt             DateTime @default(now()) @map("created_at")
@@ -145,4 +160,70 @@ model Settings {
   notifyWeekly    Boolean @default(false) @map("notify_weekly")
 
   @@map("settings")
+}
+
+model OutboundWebhook {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  name       String
+  url        String
+  secret     String
+  events     Json     @default("[]")
+  productIds Json     @default("[]") @map("product_ids")
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("outbound_webhooks")
+}
+
+model StripeEvent {
+  id         String   @id
+  type       String
+  livemode   Boolean  @default(false)
+  apiVersion String   @default("") @map("api_version")
+  objectId   String   @default("") @map("object_id")
+  objectType String   @default("") @map("object_type")
+  payload    Json
+  processed  Boolean  @default(false)
+  error      String?
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  @@map("stripe_events")
+}
+
+model AbandonedCart {
+  id                    String    @id @default(cuid())
+  productId             String    @map("product_id")
+  stripePaymentIntentId String    @unique @map("stripe_payment_intent_id")
+  customerName          String    @default("") @map("customer_name")
+  customerEmail         String    @default("") @map("customer_email")
+  customerPhone         String    @default("") @map("customer_phone")
+  amount                Int
+  currency              String    @default("EUR")
+  urlParams             Json      @default("{}") @map("url_params")
+  bumpIds               Json      @default("[]") @map("bump_ids")
+  shippingId            String    @default("") @map("shipping_id")
+  status                String    @default("pending")
+  recoveredAt           DateTime? @map("recovered_at")
+  expiresAt             DateTime  @map("expires_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("abandoned_carts")
+}
+
+model StripeApiLog {
+  id         String   @id @default(cuid())
+  operation  String
+  objectId   String   @default("") @map("object_id")
+  request    Json     @default("{}")
+  response   Json     @default("{}")
+  success    Boolean
+  errorCode  String?  @map("error_code")
+  errorMsg   String?  @map("error_msg")
+  durationMs Int      @default(0) @map("duration_ms")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("stripe_api_logs")
 }

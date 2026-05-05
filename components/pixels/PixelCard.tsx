@@ -173,8 +173,8 @@ export default function PixelCard({ config, onSave, onTest }: Props) {
 
   const snippet = buildSnippet(config.platform, pixelId)
 
-  const handleToggle = async () => {
-    const next = !enabled
+  const handleToggle = async (e?: React.ChangeEvent<HTMLInputElement>) => {
+    const next = e ? e.target.checked : !enabled
 
     // Bloqueia ativação sem Pixel ID
     if (next && !canEnable) {
@@ -260,23 +260,23 @@ export default function PixelCard({ config, onSave, onTest }: Props) {
 
         {/* Toggle + bloqueio visual */}
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <button
-            onClick={handleToggle}
-            title={!canEnable && !enabled ? `Preencha o ${meta.idLabel} para ativar` : undefined}
+          <label
             className={clsx(
-              'relative w-11 h-6 rounded-full transition-colors duration-200 border',
-              enabled
-                ? 'bg-ep-accent/20 border-ep-accent/40'
-                : canEnable
-                  ? 'bg-ep-raised border-ep-border-default'
-                  : 'bg-ep-raised border-ep-border-subtle opacity-50 cursor-not-allowed',
+              'relative inline-flex items-center flex-shrink-0',
+              canEnable || enabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-50',
             )}
+            title={!canEnable && !enabled ? `Preencha o ${meta.idLabel} para ativar` : undefined}
           >
-            <span className={clsx(
-              'absolute top-0.5 w-5 h-5 rounded-full transition-transform duration-200',
-              enabled ? 'translate-x-5 bg-ep-accent' : 'translate-x-0.5 bg-ep-muted',
-            )} />
-          </button>
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={enabled}
+              disabled={!canEnable && !enabled}
+              onChange={handleToggle}
+            />
+            <div className="w-9 h-5 bg-ep-overlay rounded-full peer peer-checked:bg-ep-accent transition-colors" />
+            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-ep-base rounded-full transition-all peer-checked:translate-x-4" />
+          </label>
 
           {/* Ícone de cadeado quando não pode ativar */}
           {!canEnable && !enabled && (

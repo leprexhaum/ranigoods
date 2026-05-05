@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, Plus, Trash2, ChevronDown, ChevronUp, Star } from 'lucide-react'
 import clsx from 'clsx'
 import type { Product } from '@/lib/services/product.service'
-import type { ShippingOption } from '@/lib/types/checkout'
+import type { ShippingOption, OrderBump, CheckoutReview } from '@/lib/types/checkout'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +18,8 @@ type FormData = {
   slug:             string
   defaultShipping:  string
   shippingOptions:  ShippingOption[]
+  orderBumps:       OrderBump[]
+  reviews:          CheckoutReview[]
   logoUrl:          string
   brandName:        string
   showReviews:      boolean
@@ -42,9 +44,10 @@ const PAYMENT_METHODS = [
 ]
 
 const TEMPLATES = [
-  { id: 'single_step', label: 'Padrão (Clean)' },
-  { id: 'promo',       label: 'Promoção'        },
-  { id: 'minimal',     label: 'Minimalista'     },
+  { id: 'single_step',  label: 'Padrão (Clean)'    },
+  { id: 'promo',        label: 'Promoção'           },
+  { id: 'info_product', label: 'Produto Digital'    },
+  { id: 'dropshipping', label: 'Dropshipping'       },
 ]
 
 const LANGUAGES = [
@@ -151,6 +154,8 @@ function toForm(p?: Product | null): FormData {
     slug:             p?.slug             ?? '',
     defaultShipping:  p ? (p.defaultShipping / 100).toFixed(2) : '',
     shippingOptions:  p?.shippingOptions  ?? [],
+    orderBumps:       p?.orderBumps       ?? [],
+    reviews:          p?.reviews          ?? [],
     logoUrl:          p?.logoUrl          ?? '',
     brandName:        p?.brandName        ?? '',
     showReviews:      p?.showReviews      ?? false,
@@ -176,6 +181,16 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
   const [newShipLabel, setNewShipLabel] = useState('')
   const [newShipPrice, setNewShipPrice] = useState('')
 
+  // Novo order bump em construção
+  const [newBumpLabel, setNewBumpLabel] = useState('')
+  const [newBumpPrice, setNewBumpPrice] = useState('')
+  const [newBumpDesc,  setNewBumpDesc]  = useState('')
+
+  // Nova review em construção
+  const [newRevName,   setNewRevName]   = useState('')
+  const [newRevText,   setNewRevText]   = useState('')
+  const [newRevRating, setNewRevRating] = useState('5')
+
   useEffect(() => { setForm(toForm(product)) }, [product])
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
@@ -196,6 +211,31 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     setNewShipLabel('')
     setNewShipPrice('')
   }
+
+  const addBump = () => {
+    if (!newBumpLabel.trim() || !newBumpPrice.trim()) return
+    const price = Math.round(parseFloat(newBumpPrice) * 100)
+    set('orderBumps', [
+      ...form.orderBumps,
+      { id: `bump_${Date.now()}`, name: newBumpLabel.trim(), description: newBumpDesc.trim(), price, currency: form.currency },
+    ])
+    setNewBumpLabel(''); setNewBumpPrice(''); setNewBumpDesc('')
+  }
+
+  const removeBump = (id: string) =>
+    set('orderBumps', form.orderBumps.filter(b => b.id !== id))
+
+  const addReview = () => {
+    if (!newRevName.trim() || !newRevText.trim()) return
+    set('reviews', [
+      ...form.reviews,
+      { id: `rev_${Date.now()}`, author: newRevName.trim(), comment: newRevText.trim(), rating: Number(newRevRating) },
+    ])
+    setNewRevName(''); setNewRevText(''); setNewRevRating('5')
+  }
+
+  const removeReview = (idx: number) =>
+    set('reviews', form.reviews.filter((_, i) => i !== idx))
 
   const removeShipping = (id: string) =>
     set('shippingOptions', form.shippingOptions.filter(s => s.id !== id))
@@ -220,6 +260,8 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         slug:             form.slug.trim() || null,
         defaultShipping:  Math.round(parseFloat(form.defaultShipping || '0') * 100),
         shippingOptions:  form.shippingOptions,
+        orderBumps:       form.orderBumps,
+        reviews:          form.reviews,
         logoUrl:          form.logoUrl.trim(),
         brandName:        form.brandName.trim(),
         showReviews:      form.showReviews,
@@ -362,14 +404,90 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             </Field>
           </Section>
 
+          {/* Order Bumps */}
+          <Section title="Order Bumps" collapsible>
+            <p className="text-ep-muted text-xs">Ofertas adicionais exibidas antes do pagamento para aumentar o ticket médio.</p>
+            {form.orderBumps.map(bump => (
+              <div key={bump.id} className="flex items-center gap-2 p-2.5 bg-ep-raised rounded-lg border border-ep-border-default">
+                <div className="flex-1 min-w-0">
+                  <p className="text-ep-primary text-sm font-medium truncate">{bump.name}</p>
+                  {bump.description && <p className="text-ep-muted text-xs truncate">{bump.description}</p>}
+                </div>
+                <span className="text-ep-accent text-sm font-medium flex-shrink-0">
+                  {bump.price === 0 ? 'Grátis' : `+${(bump.price / 100).toFixed(2)} ${form.currency}`}
+                </span>
+                <button type="button" onClick={() => removeBump(bump.id)}
+                  className="text-ep-muted hover:text-ep-danger transition-colors p-1 flex-shrink-0">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input value={newBumpLabel} onChange={e => setNewBumpLabel(e.target.value)}
+                  placeholder="Nome do bump (ex: Garantia Estendida)"
+                  className="flex-1 px-3 py-2 bg-ep-raised border border-ep-border-default rounded-lg text-ep-primary text-sm placeholder-ep-muted focus:outline-none focus:border-ep-accent" />
+                <input value={newBumpPrice} onChange={e => setNewBumpPrice(e.target.value)}
+                  placeholder="9.99" type="number"
+                  className="w-24 px-3 py-2 bg-ep-raised border border-ep-border-default rounded-lg text-ep-primary text-sm placeholder-ep-muted focus:outline-none focus:border-ep-accent" />
+              </div>
+              <div className="flex gap-2">
+                <input value={newBumpDesc} onChange={e => setNewBumpDesc(e.target.value)}
+                  placeholder="Descrição curta (opcional)"
+                  className="flex-1 px-3 py-2 bg-ep-raised border border-ep-border-default rounded-lg text-ep-primary text-sm placeholder-ep-muted focus:outline-none focus:border-ep-accent" />
+                <button type="button" onClick={addBump}
+                  className="flex items-center gap-1 px-3 py-2 bg-ep-accent text-ep-base rounded-lg text-xs font-semibold hover:bg-ep-accent-dark transition-colors flex-shrink-0">
+                  <Plus size={13} /> Adicionar
+                </button>
+              </div>
+            </div>
+          </Section>
+
           {/* Avaliações */}
           <Section title="Avaliações / Depoimentos" collapsible>
             <Toggle
               checked={form.showReviews}
               onChange={v => set('showReviews', v)}
               label="Exibir avaliações no checkout"
-              desc="Mostra até 3 avaliações para aumentar a confiança"
+              desc="Mostra avaliações para aumentar a confiança"
             />
+            {form.reviews.map((rev, idx) => (
+              <div key={rev.id ?? idx} className="flex items-start gap-2 p-2.5 bg-ep-raised rounded-lg border border-ep-border-default">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-ep-primary text-sm font-medium">{rev.author}</p>
+                    <span className="flex items-center gap-0.5 text-yellow-400 text-xs">
+                      {Array.from({ length: rev.rating }).map((_, i) => <Star key={i} size={10} fill="currentColor" />)}
+                    </span>
+                  </div>
+                  <p className="text-ep-muted text-xs truncate">{rev.comment}</p>
+                </div>
+                <button type="button" onClick={() => removeReview(idx)}
+                  className="text-ep-muted hover:text-ep-danger transition-colors p-1 flex-shrink-0">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input value={newRevName} onChange={e => setNewRevName(e.target.value)}
+                  placeholder="Nome do cliente"
+                  className="flex-1 px-3 py-2 bg-ep-raised border border-ep-border-default rounded-lg text-ep-primary text-sm placeholder-ep-muted focus:outline-none focus:border-ep-accent" />
+                <select value={newRevRating} onChange={e => setNewRevRating(e.target.value)}
+                  className="w-20 px-2 py-2 bg-ep-raised border border-ep-border-default rounded-lg text-ep-primary text-sm focus:outline-none focus:border-ep-accent appearance-none">
+                  {[5,4,3,2,1].map(n => <option key={n} value={n}>{n} ★</option>)}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <input value={newRevText} onChange={e => setNewRevText(e.target.value)}
+                  placeholder="Texto da avaliação"
+                  className="flex-1 px-3 py-2 bg-ep-raised border border-ep-border-default rounded-lg text-ep-primary text-sm placeholder-ep-muted focus:outline-none focus:border-ep-accent" />
+                <button type="button" onClick={addReview}
+                  className="flex items-center gap-1 px-3 py-2 bg-ep-accent text-ep-base rounded-lg text-xs font-semibold hover:bg-ep-accent-dark transition-colors flex-shrink-0">
+                  <Plus size={13} /> Adicionar
+                </button>
+              </div>
+            </div>
           </Section>
 
           {/* Métodos de Pagamento */}

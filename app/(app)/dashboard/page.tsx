@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import {
   DollarSign, CreditCard, CheckCircle,
@@ -56,8 +56,8 @@ export default function DashboardPage() {
   const sales    = data?.sales    ?? []
   const payments = data?.payments ?? []
 
-  const pendentes  = useMemo(() => payments.filter(p => p.status === 'pending').length,  [payments])
-  const reembolsos = useMemo(() => payments.filter(p => p.status === 'refunded').length, [payments])
+  const pendentes  = stats?.pendentes  ?? 0
+  const reembolsos = stats?.reembolsos ?? 0
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -88,38 +88,38 @@ export default function DashboardPage() {
           title="Receita Total"
           value={stats ? formatEUR(stats.receitaTotal) : '—'}
           subValue={stats ? eurToBrlStr(stats.receitaTotal) : undefined}
-          change={12.4} changeLabel="vs período ant."
+          change={stats?.receitaChange} changeLabel="vs período ant."
           icon={DollarSign} accent="default"
         />
         <StatsCard
           title="Total Pagamentos"
           value={stats ? stats.totalPagamentos.toLocaleString('pt-PT') : '—'}
-          change={8.7} changeLabel="vs período ant."
+          change={stats?.vendasChange} changeLabel="vs período ant."
           icon={CreditCard} accent="info"
         />
         <StatsCard
           title="Vendas Aprovadas"
           value={stats ? stats.vendas.toLocaleString('pt-PT') : '—'}
-          change={8.7} changeLabel="vs período ant."
+          change={stats?.vendasChange} changeLabel="vs período ant."
           icon={CheckCircle} accent="success"
         />
         <StatsCard
           title="Falhas"
           value={stats ? stats.falhas.toLocaleString('pt-PT') : '—'}
-          change={-2.1} changeLabel="vs período ant."
+          change={stats?.falhasChange} changeLabel="vs período ant."
           icon={XCircle} accent="danger"
         />
         <StatsCard
           title="Taxa de Conversão"
           value={stats ? `${stats.taxaConversao}%` : '—'}
-          change={1.3} changeLabel="vs período ant."
+          change={stats?.conversaoChange} changeLabel="vs período ant."
           icon={Percent} accent="warning"
         />
         <StatsCard
           title="Ticket Médio"
           value={stats ? formatEUR(stats.ticketMedio) : '—'}
           subValue={stats ? eurToBrlStr(stats.ticketMedio) : undefined}
-          change={4.2} changeLabel="vs período ant."
+          change={stats?.ticketChange} changeLabel="vs período ant."
           icon={Receipt} accent="default"
         />
       </div>

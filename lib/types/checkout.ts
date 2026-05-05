@@ -1,4 +1,4 @@
-export type CheckoutTemplate = 'single_step' | 'promo' | 'minimal'
+export type CheckoutTemplate = 'single_step' | 'promo' | 'info_product' | 'dropshipping'
 
 export interface OrderBump {
   id:          string
@@ -15,6 +15,7 @@ export interface ShippingOption {
 }
 
 export interface CheckoutReview {
+  id?:     string
   author:  string
   rating:  number
   comment: string
@@ -35,11 +36,22 @@ export interface CheckoutProduct {
   reviews:          CheckoutReview[]
   showReviews:      boolean
   checkoutTemplate: CheckoutTemplate
+  checkoutLanguage: string
+  countdownMinutes: number
+  active:           boolean
   successUrl:       string
   logoUrl:          string
   brandName:        string
   requirePhone:     boolean
   requireAddress:   boolean
+}
+
+export interface CheckoutAddress {
+  line1:      string
+  line2?:     string
+  city:       string
+  postalCode: string
+  country:    string
 }
 
 export interface CreatePaymentIntentRequest {
@@ -48,6 +60,8 @@ export interface CreatePaymentIntentRequest {
   customerPhone?: string
   shippingId?:    string
   bumpIds?:       string[]
+  urlParams?:     Record<string, string>
+  address?:       CheckoutAddress
 }
 
 export interface CreatePaymentIntentResponse {

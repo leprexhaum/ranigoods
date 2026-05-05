@@ -9,18 +9,22 @@ import type { DatePreset } from '@/components/ui/DateFilter'
 import { formatEUR, eurToBrlStr } from '@/lib/utils/currency'
 
 const statusFilters: { label: string; value: PaymentStatus | 'all' }[] = [
-  { label: 'Todos',      value: 'all'       },
-  { label: 'Aprovados',  value: 'succeeded' },
-  { label: 'Falhas',     value: 'failed'    },
-  { label: 'Pendentes',  value: 'pending'   },
-  { label: 'Reembolsos', value: 'refunded'  },
+  { label: 'Todos',        value: 'all'        },
+  { label: 'Aprovados',    value: 'succeeded'  },
+  { label: 'Falhas',       value: 'failed'     },
+  { label: 'Pendentes',    value: 'pending'    },
+  { label: 'Processando',  value: 'processing' },
+  { label: 'Reembolsos',   value: 'refunded'   },
+  { label: 'Disputados',   value: 'disputed'   },
 ]
 
-const statusConfig = {
-  succeeded: { label: 'Aprovado',  className: 'text-ep-success bg-ep-success/10 border-ep-success/20' },
-  failed:    { label: 'Falhou',    className: 'text-ep-danger  bg-ep-danger/10  border-ep-danger/20'  },
-  pending:   { label: 'Pendente',  className: 'text-ep-warning bg-ep-warning/10 border-ep-warning/20' },
-  refunded:  { label: 'Reembolso', className: 'text-ep-info    bg-ep-info/10    border-ep-info/20'    },
+const statusConfig: Record<string, { label: string; className: string }> = {
+  succeeded:  { label: 'Aprovado',     className: 'text-ep-success bg-ep-success/10 border-ep-success/20' },
+  failed:     { label: 'Falhou',       className: 'text-ep-danger  bg-ep-danger/10  border-ep-danger/20'  },
+  pending:    { label: 'Pendente',     className: 'text-ep-warning bg-ep-warning/10 border-ep-warning/20' },
+  processing: { label: 'Processando',  className: 'text-ep-info    bg-ep-info/10    border-ep-info/20'    },
+  refunded:   { label: 'Reembolso',    className: 'text-ep-info    bg-ep-info/10    border-ep-info/20'    },
+  disputed:   { label: 'Disputado',    className: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
 }
 
 const PAGE_SIZE = 12
@@ -150,7 +154,7 @@ export default function PagamentosPage() {
         ) : paginated.length === 0 ? (
           <div className="px-4 py-10 text-center text-ep-muted text-sm">Nenhum pagamento no período</div>
         ) : paginated.map((p) => {
-          const s = statusConfig[p.status]
+          const s = statusConfig[p.status] ?? statusConfig.pending
           return (
             <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -189,7 +193,7 @@ export default function PagamentosPage() {
               ) : paginated.length === 0 ? (
                 <tr><td colSpan={7} className="px-5 py-12 text-center text-ep-muted text-sm">Nenhum pagamento no período selecionado</td></tr>
               ) : paginated.map((p) => {
-                const s = statusConfig[p.status]
+                const s = statusConfig[p.status] ?? statusConfig.pending
                 return (
                   <tr key={p.id} className="border-b border-ep-border-subtle last:border-0 hover:bg-ep-raised/50 transition-colors">
                     <td className="px-5 py-3"><span className="text-ep-muted text-xs font-mono">{p.id.slice(0, 14)}…</span></td>
