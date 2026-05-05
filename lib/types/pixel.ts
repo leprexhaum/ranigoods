@@ -57,6 +57,8 @@ export interface TrackEventPayload {
     content_type?: string
     num_items?: number
     order_id?: string
+    event_source_url?: string
+    items?: Array<{ id: string; name: string; quantity: number; price: number }>
     [key: string]: unknown
   }
   userData?: {
@@ -66,7 +68,16 @@ export interface TrackEventPayload {
     lastName?: string
     ip?: string
     userAgent?: string
+    // Meta
     fbp?: string
     fbc?: string
+    // TikTok
+    ttp?: string
+    ttclid?: string
+    // GA4
+    clientId?: string   // valor do cookie _ga
+    userId?: string
+    // page
+    pageUrl?: string
   }
 }

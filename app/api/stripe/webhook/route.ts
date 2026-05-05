@@ -138,6 +138,14 @@ export async function POST(req: NextRequest) {
       const charge = await getCharge(pi)
       await persistPayment(pi)
       await checkoutService.updatePaymentStatus(pi.id, 'paid', resolveMethodRaw(charge))
+
+      // Recuperar urlParams e dados do cliente guardados no CheckoutPayment
+      const cpRecord = await prisma.checkoutPayment.findFirst({
+        where:  { stripePaymentIntentId: pi.id },
+        select: { urlParams: true, customerEmail: true, customerPhone: true },
+      })
+      const urlParams = (cpRecord?.urlParams ?? {}) as Record<string, string>
+
       await pixelService.trackEvent('Purchase', {
         event: 'Purchase',
         data: {
@@ -146,8 +154,24 @@ export async function POST(req: NextRequest) {
           order_id:     pi.id,
           content_type: 'product',
           num_items:    1,
+          content_ids:  [pi.metadata?.productSlug ?? pi.metadata?.productId ?? ''],
+          items: [{
+            id:       pi.metadata?.productSlug ?? pi.metadata?.productId ?? '',
+            name:     pi.metadata?.productName ?? 'Produto',
+            quantity: 1,
+            price:    pi.amount,
+          }],
         },
-        userData: { ip, userAgent },
+        userData: {
+          ip,
+          userAgent,
+          email:   cpRecord?.customerEmail || pi.metadata?.customerEmail || undefined,
+          phone:   cpRecord?.customerPhone || undefined,
+          fbp:     urlParams.fbp,
+          fbc:     urlParams.fbclid ? `fb.1.${Date.now()}.${urlParams.fbclid}` : undefined,
+          ttp:     urlParams.ttp,
+          ttclid:  urlParams.ttclid,
+        },
       })
       break
     }
