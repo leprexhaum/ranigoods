@@ -29,6 +29,7 @@ export interface Product {
   successUrl:       string
   metaPixelId:      string
   utmfyApiToken:    string
+  stock:            number
 }
 
 type ProductRow = {
@@ -40,7 +41,7 @@ type ProductRow = {
   checkoutTemplate: string; checkoutLanguage: string;
   requirePhone: boolean; requireAddress: boolean;
   logoUrl: string; brandName: string; successUrl: string;
-  metaPixelId: string; utmfyApiToken: string;
+  metaPixelId: string; utmfyApiToken: string; stock: number;
 }
 
 function toProduct(r: ProductRow): Product {
@@ -72,6 +73,7 @@ function toProduct(r: ProductRow): Product {
     successUrl:       r.successUrl,
     metaPixelId:      r.metaPixelId,
     utmfyApiToken:    r.utmfyApiToken,
+    stock:            r.stock,
   }
 }
 
@@ -123,6 +125,7 @@ export const productService = {
         successUrl:       data.successUrl ?? '',
         metaPixelId:      data.metaPixelId ?? '',
         utmfyApiToken:    data.utmfyApiToken ?? '',
+        stock:            data.stock ?? -1,
       },
     })
     return toProduct(r)
@@ -169,5 +172,25 @@ export const productService = {
         revenue: { increment: BigInt(amount) },
       },
     })
+  },
+
+  async checkStock(productId: string, quantity: number): Promise<{ available: boolean; stock: number }> {
+    const r = await prisma.product.findUnique({ where: { id: productId }, select: { stock: true } })
+    if (!r) return { available: false, stock: 0 }
+    if (r.stock === -1) return { available: true, stock: -1 }
+    return { available: r.stock >= quantity, stock: r.stock }
+  },
+
+  async decrementStock(productId: string, quantity: number): Promise<boolean> {
+    const result = await prisma.product.updateMany({
+      where: { id: productId, OR: [{ stock: { gte: quantity } }, { stock: -1 }] },
+      data:  { stock: { decrement: quantity } },
+    })
+    // Se stock era -1, o decrement vai deixar negativo — corrigir
+    await prisma.product.updateMany({
+      where: { id: productId, stock: { lt: -1 } },
+      data:  { stock: -1 },
+    })
+    return result.count > 0
   },
 }

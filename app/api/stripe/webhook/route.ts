@@ -9,6 +9,7 @@ import { emailService } from '@/lib/services/email.service'
 import { webhookNotifyService } from '@/lib/services/webhook-notify.service'
 import { stripeLogger } from '@/lib/services/stripe-logger.service'
 import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
+import { cartService } from '@/lib/services/cart.service'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 
@@ -317,6 +318,111 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription
         console.log(`Assinatura cancelada: ${sub.id}`)
+        break
+      }
+
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session
+        if (session.metadata?.type !== 'cart') break
+
+        const cartId = session.metadata.cartId
+        if (!cartId) break
+
+        const cart = await cartService.getById(cartId)
+        if (!cart || cart.status === 'paid') break
+
+        const isoDate   = new Date().toISOString().slice(0, 10)
+        const dateLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+        const piId      = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.toString() ?? ''
+        const method    = 'Cartão'
+
+        // Criar Order + OrderItems
+        const order = await prisma.order.create({
+          data: {
+            cartId,
+            userId:               cart.userId,
+            status:               'paid',
+            amount:               session.amount_total ?? cart.total,
+            currency:             (session.currency ?? cart.currency).toUpperCase(),
+            stripeSessionId:      session.id,
+            stripePaymentIntentId: piId || null,
+            customerName:         session.metadata.customerName  ?? cart.items[0]?.name ?? '',
+            customerEmail:        session.customer_details?.email ?? session.metadata.customerEmail ?? '',
+            customerPhone:        session.customer_details?.phone ?? session.metadata.customerPhone ?? '',
+            paymentMethod:        method,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            urlParams:            (await prisma.cart.findUnique({ where: { id: cartId }, select: { urlParams: true } }))?.urlParams as any ?? {},
+            items: {
+              create: cart.items.map(i => ({
+                productId: i.productId,
+                name:      i.name,
+                quantity:  i.quantity,
+                unitPrice: i.unitPrice,
+              })),
+            },
+          },
+        })
+
+        // Decrementar estoque de cada produto
+        for (const item of cart.items) {
+          await productService.decrementStock(item.productId, item.quantity)
+        }
+
+        // Marcar cart como pago
+        await cartService.markPaid(cartId, session.id)
+
+        // Registar em Payment (tabela existente) para aparecer na tela de pagamentos
+        const productNames = cart.items.map(i => `${i.name} x${i.quantity}`).join(', ')
+        const customerEmail = session.customer_details?.email ?? session.metadata.customerEmail ?? ''
+        const customerName  = session.metadata.customerName ?? ''
+
+        await prisma.payment.upsert({
+          where:  { id: order.id },
+          create: {
+            id:       order.id,
+            customer: customerName,
+            email:    customerEmail,
+            amount:   session.amount_total ?? cart.total,
+            status:   'succeeded',
+            date:     isoDate,
+            product:  productNames,
+            method,
+          },
+          update: { status: 'succeeded' },
+        })
+
+        await prisma.dailySale.upsert({
+          where:  { isoDate },
+          create: { date: dateLabel, isoDate, receita: session.amount_total ?? cart.total, vendas: 1, falhas: 0 },
+          update: { receita: { increment: session.amount_total ?? cart.total }, vendas: { increment: 1 } },
+        })
+
+        // Disparar webhooks outbound vinculados ao userId do dono
+        await webhookNotifyService.notifyWebhooks('payment.succeeded', {
+          orderId:       order.id,
+          cartId,
+          userId:        cart.userId,
+          amount:        session.amount_total ?? cart.total,
+          currency:      (session.currency ?? cart.currency).toUpperCase(),
+          customerEmail,
+          items:         cart.items.map(i => ({ productId: i.productId, name: i.name, quantity: i.quantity })),
+        }, cart.userId)
+
+        // Disparar pixels vinculados ao userId do dono
+        await pixelService.trackEvent('Purchase', {
+          event: 'Purchase',
+          data: {
+            value:        session.amount_total ?? cart.total,
+            currency:     (session.currency ?? cart.currency).toUpperCase(),
+            order_id:     order.id,
+            content_type: 'product',
+            num_items:    cart.items.reduce((s, i) => s + i.quantity, 0),
+            content_ids:  cart.items.map(i => i.productId),
+            items:        cart.items.map(i => ({ id: i.productId, name: i.name, quantity: i.quantity, price: i.unitPrice })),
+          },
+          userData: { ip, userAgent, email: customerEmail },
+        }, cart.userId)
+
         break
       }
 

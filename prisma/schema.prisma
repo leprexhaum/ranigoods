@@ -74,7 +74,9 @@ model Product {
   userId           String   @default("") @map("user_id")
   active           Boolean  @default(true)
   countdownMinutes Int      @default(15) @map("countdown_minutes")
+  stock            Int      @default(-1)
   checkoutPayments CheckoutPayment[]
+  cartItems        CartItem[]
 
   @@map("products")
 }
@@ -226,4 +228,82 @@ model StripeApiLog {
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@map("stripe_api_logs")
+}
+
+model ApiKey {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  name      String    @default("")
+  key       String    @unique
+  keyPrefix String    @map("key_prefix")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  @@map("api_keys")
+}
+
+model Cart {
+  id              String     @id @default(cuid())
+  userId          String     @map("user_id")
+  status          String     @default("pending")
+  expiresAt       DateTime   @map("expires_at")
+  stripeSessionId String?    @unique @map("stripe_session_id")
+  customerName    String     @default("") @map("customer_name")
+  customerEmail   String     @default("") @map("customer_email")
+  customerPhone   String     @default("") @map("customer_phone")
+  urlParams       Json       @default("{}") @map("url_params")
+  metadata        Json       @default("{}")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  items           CartItem[]
+  order           Order?
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String  @map("cart_id")
+  productId String  @map("product_id")
+  quantity  Int     @default(1)
+  unitPrice Int     @map("unit_price")
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@map("cart_items")
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  cartId                String      @unique @map("cart_id")
+  userId                String      @map("user_id")
+  status                String      @default("pending")
+  amount                Int
+  currency              String      @default("EUR")
+  stripeSessionId       String?     @unique @map("stripe_session_id")
+  stripePaymentIntentId String?     @map("stripe_payment_intent_id")
+  customerName          String      @default("") @map("customer_name")
+  customerEmail         String      @default("") @map("customer_email")
+  customerPhone         String      @default("") @map("customer_phone")
+  paymentMethod         String      @default("") @map("payment_method")
+  urlParams             Json        @default("{}") @map("url_params")
+  metadata              Json        @default("{}")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+  cart                  Cart        @relation(fields: [cartId], references: [id])
+  items                 OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String @map("order_id")
+  productId String @map("product_id")
+  name      String
+  quantity  Int
+  unitPrice Int    @map("unit_price")
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
 }

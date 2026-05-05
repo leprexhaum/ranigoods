@@ -32,6 +32,7 @@ type FormData = {
   successUrl:       string
   metaPixelId:      string
   status:           'active' | 'archived'
+  stock:            string
 }
 
 const PAYMENT_METHODS = [
@@ -168,6 +169,7 @@ function toForm(p?: Product | null): FormData {
     successUrl:       p?.successUrl       ?? '',
     metaPixelId:      p?.metaPixelId      ?? '',
     status:           p?.status           ?? 'active',
+    stock:            String(p?.stock     ?? -1),
   }
 }
 
@@ -274,6 +276,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         successUrl:       form.successUrl.trim(),
         metaPixelId:      form.metaPixelId.trim(),
         status:           form.status,
+        stock:            parseInt(form.stock) || -1,
         stripeId:         product?.stripeId ?? '',
       }
 
@@ -545,6 +548,14 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
 
           {/* Avançado */}
           <Section title="Avançado" collapsible>
+            <Field label="Estoque disponível" hint="-1 = ilimitado. Defina um número para limitar a quantidade vendável.">
+              <Input
+                type="number"
+                value={form.stock}
+                onChange={v => set('stock', v)}
+                placeholder="-1"
+              />
+            </Field>
             <Field label="URL de Sucesso (opcional)" hint="Redireciona após pagamento confirmado. Deixe vazio para usar a página padrão.">
               <Input value={form.successUrl} onChange={v => set('successUrl', v)} placeholder="https://seusite.com/obrigado" />
             </Field>

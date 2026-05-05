@@ -335,7 +335,7 @@ export const pixelService = {
     return rowToLog(r)
   },
 
-  async trackEvent(eventName: string, payload: TrackEventPayload): Promise<PixelFireLog[]> {
+  async trackEvent(eventName: string, payload: TrackEventPayload, _userId?: string): Promise<PixelFireLog[]> {
     const allConfigs = await prisma.pixelConfig.findMany({ where: { enabled: true } })
     const configs = allConfigs
       .map(rowToConfig)

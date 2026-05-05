@@ -1,4 +1,11 @@
-// Taxa de câmbio de referência — 1 EUR = R$ X
+// Formata centavos para qualquer moeda
+export function formatCurrency(cents: number, currency: string): string {
+  return new Intl.NumberFormat('pt-PT', {
+    style:    'currency',
+    currency: currency.toUpperCase(),
+  }).format(cents / 100)
+}
+
 // Actualizar conforme necessidade; usado para conversão informativa
 export const EUR_TO_BRL_RATE = 6.20
 

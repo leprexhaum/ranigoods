@@ -5,9 +5,10 @@ export const webhookNotifyService = {
   async notifyWebhooks(
     event:   string,
     payload: Record<string, unknown>,
+    userId?: string,
   ): Promise<void> {
     const webhooks = await prisma.outboundWebhook.findMany({
-      where: { enabled: true },
+      where: { enabled: true, ...(userId ? { userId } : {}) },
     })
 
     const matching = webhooks.filter(wh => {

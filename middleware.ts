@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose'
 const COOKIE       = 'rg_session'
 const PUBLIC_PATHS = ['/login', '/cadastro']
 const PUBLIC_PAGE_PREFIXES = ['/checkout']
-const PUBLIC_API   = ['/api/auth/', '/api/pixels/track', '/api/pixels/config', '/api/stripe/webhook', '/api/checkout/', '/api/cron/']
+const PUBLIC_API   = ['/api/auth/', '/api/pixels/track', '/api/pixels/config', '/api/stripe/webhook', '/api/checkout/', '/api/cron/', '/api/v1/']
 
 function getKey() {
   const secret = process.env.JWT_SECRET
