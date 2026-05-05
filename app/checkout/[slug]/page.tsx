@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import {
@@ -9,7 +9,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { Loader2, ChevronDown, ChevronUp, Mail, User, Phone, CreditCard, Info } from 'lucide-react'
+import { Loader2, ChevronDown, ChevronUp, Mail, User, Phone, Info } from 'lucide-react'
 import clsx from 'clsx'
 import type { CheckoutProduct, ShippingOption } from '@/lib/types/checkout'
 
@@ -274,10 +274,6 @@ interface CheckoutFormProps {
   setName: (v: string) => void
   phone: string
   setPhone: (v: string) => void
-  payMethod: 'card' | 'googlepay'
-  setPayMethod: (v: 'card' | 'googlepay') => void
-  saveInfo: boolean
-  setSaveInfo: (v: boolean) => void
   selectedShip: string
   setSelectedShip: (v: string) => void
   selectedBumps: string[]
@@ -301,10 +297,6 @@ function CheckoutForm({
   setName,
   phone,
   setPhone,
-  payMethod,
-  setPayMethod,
-  saveInfo,
-  setSaveInfo,
   selectedShip,
   setSelectedShip,
   formError,
@@ -343,164 +335,18 @@ function CheckoutForm({
                 required
               />
               <GroupedInput
-                position="bottom"
+                position={product.requirePhone ? 'bottom' : 'bottom'}
                 icon={<Phone size={15} />}
                 type="tel"
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
-                placeholder="+55 (11) 99999-9999"
+                placeholder="+351 912 345 678"
                 required={product.requirePhone}
                 rightSlot={
                   <Info size={14} className="text-[#9E9E9E] cursor-pointer hover:text-[#6B7280]" />
                 }
               />
             </div>
-          </div>
-
-          {/* Section 2: Payment method */}
-          <div>
-            <h2 className="text-[16px] font-medium text-[#1A1A1A] mb-3">Forma de pagamento</h2>
-            <div className="border border-[#E5E7EB] rounded-[6px] overflow-hidden">
-
-              {/* Card option */}
-              <div
-                className={clsx(
-                  'cursor-pointer',
-                  payMethod === 'card' && 'border-l-2 border-l-[#1A56DB]',
-                )}
-                onClick={() => setPayMethod('card')}
-              >
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <div className={clsx(
-                    'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all',
-                    payMethod === 'card' ? 'border-[#1A56DB]' : 'border-[#D1D5DB]',
-                  )}>
-                    {payMethod === 'card' && <div className="w-2 h-2 rounded-full bg-[#1A56DB]" />}
-                  </div>
-                  <CreditCard size={16} className="text-[#6B7280]" />
-                  <span className="text-[14px] text-[#1A1A1A] font-medium flex-1">Cartão</span>
-                  <div className="flex gap-1">
-                    {/* Visa */}
-                    <svg viewBox="0 0 38 24" className="h-5 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect width="38" height="24" rx="4" fill="#1A1F71"/>
-                      <path d="M16 7l-2.5 10h-2L14 7h2zm8.5 6.5c0-2-2.8-2.1-2.8-3 0-.3.3-.6.9-.7.6-.1 1.3 0 1.9.3l.3-1.6c-.5-.2-1.2-.4-2-.4-2.1 0-3.6 1.1-3.6 2.7 0 1.2 1.1 1.8 1.9 2.2.8.4 1.1.7 1.1 1.1 0 .6-.7.9-1.3.9-.9 0-1.7-.2-2.2-.5l-.4 1.7c.5.2 1.4.4 2.3.4 2.2 0 3.7-1.1 3.7-2.8l.2-.3zm5.5 3.5h1.8L30 7h-1.7c-.4 0-.7.2-.9.6L24.5 17h2l.4-1.1h2.4l.2 1.1zm-2.1-2.6l1-2.7.6 2.7h-1.6zM19 7l-3.1 10h1.9L21 7h-2z" fill="white"/>
-                    </svg>
-                    {/* Mastercard */}
-                    <svg viewBox="0 0 38 24" className="h-5 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect width="38" height="24" rx="4" fill="#252525"/>
-                      <circle cx="15" cy="12" r="6" fill="#EB001B"/>
-                      <circle cx="23" cy="12" r="6" fill="#F79E1B"/>
-                      <path d="M19 7.8a6 6 0 010 8.4A6 6 0 0119 7.8z" fill="#FF5F00"/>
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Card fields — expanded when selected */}
-                {payMethod === 'card' && (
-                  <div className="px-4 pb-4 space-y-3 border-t border-[#E5E7EB]">
-                    <div className="mt-3">
-                      <p className="text-[13px] text-[#6B7280] mb-2">Dados do cartão</p>
-                      <div>
-                        <GroupedInput
-                          position="top"
-                          type="text"
-                          placeholder="Número do cartão"
-                          inputMode="numeric"
-                          rightSlot={
-                            <div className="flex gap-1">
-                              <svg viewBox="0 0 38 24" className="h-4 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect width="38" height="24" rx="4" fill="#1A1F71"/>
-                                <path d="M16 7l-2.5 10h-2L14 7h2zm8.5 6.5c0-2-2.8-2.1-2.8-3 0-.3.3-.6.9-.7.6-.1 1.3 0 1.9.3l.3-1.6c-.5-.2-1.2-.4-2-.4-2.1 0-3.6 1.1-3.6 2.7 0 1.2 1.1 1.8 1.9 2.2.8.4 1.1.7 1.1 1.1 0 .6-.7.9-1.3.9-.9 0-1.7-.2-2.2-.5l-.4 1.7c.5.2 1.4.4 2.3.4 2.2 0 3.7-1.1 3.7-2.8l.2-.3zm5.5 3.5h1.8L30 7h-1.7c-.4 0-.7.2-.9.6L24.5 17h2l.4-1.1h2.4l.2 1.1zm-2.1-2.6l1-2.7.6 2.7h-1.6zM19 7l-3.1 10h1.9L21 7h-2z" fill="white"/>
-                              </svg>
-                            </div>
-                          }
-                        />
-                        <div className="flex">
-                          <div className="flex-1">
-                            <GroupedInput position="bottom" type="text" placeholder="MM / AA" />
-                          </div>
-                          <div className="flex-1 border-l border-[#E0E0E0]">
-                            <GroupedInput
-                              position="bottom"
-                              type="text"
-                              placeholder="CVC"
-                              rightSlot={<CreditCard size={14} className="text-[#9E9E9E]" />}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-[13px] text-[#6B7280] mb-2">Nome do titular do cartão</p>
-                      <GroupedInput position="only" type="text" placeholder="Nome como no cartão" />
-                    </div>
-
-                    <div>
-                      <p className="text-[13px] text-[#6B7280] mb-2">País ou região</p>
-                      <div className="relative">
-                        <select className="w-full h-12 px-3 text-[14px] text-[#1A1A1A] border border-[#E0E0E0] rounded-[6px] bg-white appearance-none focus:outline-none focus:border-[#1A56DB] focus:shadow-[0_0_0_3px_rgba(26,86,219,0.15)] transition-all">
-                          <option value="BR">Brasil</option>
-                          <option value="PT">Portugal</option>
-                          <option value="US">Estados Unidos</option>
-                        </select>
-                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9E9E9E] pointer-events-none" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-[#E5E7EB]" />
-
-              {/* Google Pay option */}
-              <div
-                className={clsx(
-                  'flex items-center gap-3 px-4 py-3 cursor-pointer',
-                  payMethod === 'googlepay' && 'border-l-2 border-l-[#1A56DB]',
-                )}
-                onClick={() => setPayMethod('googlepay')}
-              >
-                <div className={clsx(
-                  'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all',
-                  payMethod === 'googlepay' ? 'border-[#1A56DB]' : 'border-[#D1D5DB]',
-                )}>
-                  {payMethod === 'googlepay' && <div className="w-2 h-2 rounded-full bg-[#1A56DB]" />}
-                </div>
-                {/* Google Pay wordmark */}
-                <svg viewBox="0 0 41 17" className="h-4 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M19.2 8.5v5h-1.6V1h4.2c1 0 1.9.3 2.6 1 .7.6 1 1.4 1 2.3 0 .9-.3 1.7-1 2.3-.7.6-1.6 1-2.6.9h-2.6zm0-6v4.5h2.7c.6 0 1.1-.2 1.5-.6.4-.4.6-.9.6-1.4 0-.6-.2-1-.6-1.4-.4-.4-.9-.6-1.5-.6h-2.7v1.5z" fill="#5F6368"/>
-                  <path d="M29.3 5.5c1.1 0 2 .3 2.6.9.6.6.9 1.4.9 2.4v4.7h-1.5v-1.1h-.1c-.6.9-1.4 1.3-2.4 1.3-.9 0-1.6-.3-2.2-.8-.6-.5-.9-1.2-.9-2 0-.8.3-1.5.9-2 .6-.5 1.4-.7 2.4-.7.9 0 1.6.2 2.2.5v-.4c0-.6-.2-1.1-.7-1.5-.4-.4-1-.6-1.6-.6-.9 0-1.6.4-2.1 1.1l-1.4-.9c.8-1.2 2-1.9 3.9-1.9zm-2.3 6.1c0 .4.2.7.5.9.3.2.7.4 1.1.4.6 0 1.2-.2 1.6-.7.5-.4.7-1 .7-1.6-.4-.3-1-.5-1.8-.5-.6 0-1 .1-1.4.4-.4.3-.7.7-.7 1.1z" fill="#5F6368"/>
-                  <path d="M40.7 5.7l-5.3 12.2h-1.6l2-4.3-3.5-7.9h1.7l2.5 6.1h.1l2.4-6.1h1.7z" fill="#5F6368"/>
-                  <path d="M13.4 7.3c0-.5 0-.9-.1-1.4H6.8v2.6h3.7c-.2.8-.6 1.5-1.3 2v1.7h2.1c1.2-1.1 1.9-2.8 1.9-4.9h.2z" fill="#4285F4"/>
-                  <path d="M6.8 14c1.8 0 3.4-.6 4.5-1.7l-2.1-1.7c-.6.4-1.4.7-2.4.7-1.8 0-3.4-1.2-3.9-2.9H.7v1.7C1.8 12.5 4.1 14 6.8 14z" fill="#34A853"/>
-                  <path d="M2.9 8.4c-.1-.4-.2-.8-.2-1.2 0-.4.1-.8.2-1.2V4.3H.7C.3 5.1 0 6 0 7.2c0 1.2.3 2.1.7 2.9l2.2-1.7z" fill="#FBBC05"/>
-                  <path d="M6.8 2.7c1 0 1.9.4 2.6 1l1.9-1.9C10.2.7 8.6 0 6.8 0 4.1 0 1.8 1.5.7 3.7l2.2 1.7c.5-1.7 2.1-2.7 3.9-2.7z" fill="#EA4335"/>
-                </svg>
-                <span className="text-[14px] text-[#1A1A1A] font-medium">Google Pay</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Save info */}
-          <div className="bg-[#F9FAFB] rounded-[8px] p-3">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={saveInfo}
-                onChange={e => setSaveInfo(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-[#D1D5DB] text-[#1A56DB] focus:ring-[#1A56DB] cursor-pointer"
-              />
-              <div>
-                <p className="text-[14px] text-[#1A1A1A] font-medium leading-snug">
-                  Salve minhas informações para um checkout mais rápido
-                </p>
-                <p className="text-[13px] text-[#6B7280] mt-0.5 leading-relaxed">
-                  Pague com segurança em <strong className="font-medium">{brandName}</strong> e em qualquer lugar onde a Link é aceita.
-                </p>
-              </div>
-            </label>
           </div>
 
           {/* Shipping options */}
@@ -549,7 +395,7 @@ function CheckoutForm({
               {!submitting && <span className="absolute inset-0 pointer-events-none shimmer-overlay" />}
               {submitting
                 ? <><Loader2 size={16} className="animate-spin" /> A preparar…</>
-                : <>Assinar</>
+                : <>Continuar para pagamento</>
               }
             </button>
           </div>
@@ -623,30 +469,28 @@ function CheckoutForm({
 export default function CheckoutPage() {
   const { slug } = useParams<{ slug: string }>()
 
-  const [product,        setProduct]        = useState<CheckoutProduct | null>(null)
-  const [pageLoading,    setPageLoading]    = useState(true)
-  const [pageError,      setPageError]      = useState('')
-  const [step,           setStep]           = useState<'form' | 'payment'>('form')
+  const [product,       setProduct]       = useState<CheckoutProduct | null>(null)
+  const [pageLoading,   setPageLoading]   = useState(true)
+  const [pageError,     setPageError]     = useState('')
+  const [step,          setStep]          = useState<'form' | 'payment'>('form')
 
   // Form
-  const [name,           setName]           = useState('')
-  const [email,          setEmail]          = useState('')
-  const [phone,          setPhone]          = useState('')
-  const [selectedBumps,  setSelectedBumps]  = useState<string[]>([])
-  const [selectedShip,   setSelectedShip]   = useState('')
-  const [formError,      setFormError]      = useState('')
-  const [submitting,     setSubmitting]     = useState(false)
-  const [promoCode,      setPromoCode]      = useState('')
-  const [descExpanded,   setDescExpanded]   = useState(false)
-  const [summaryOpen,    setSummaryOpen]    = useState(false)
-  const [saveInfo,       setSaveInfo]       = useState(false)
-  const [payMethod,      setPayMethod]      = useState<'card' | 'googlepay'>('card')
+  const [name,          setName]          = useState('')
+  const [email,         setEmail]         = useState('')
+  const [phone,         setPhone]         = useState('')
+  const [selectedBumps, setSelectedBumps] = useState<string[]>([])
+  const [selectedShip,  setSelectedShip]  = useState('')
+  const [formError,     setFormError]     = useState('')
+  const [submitting,    setSubmitting]    = useState(false)
+  const [promoCode,     setPromoCode]     = useState('')
+  const [descExpanded,  setDescExpanded]  = useState(false)
+  const [summaryOpen,   setSummaryOpen]   = useState(false)
 
   // Payment
-  const [clientSecret,   setClientSecret]   = useState('')
+  const [clientSecret,  setClientSecret]  = useState('')
   const [publishableKey, setPublishableKey] = useState('')
-  const [paymentId,      setPaymentId]      = useState('')
-  const [paymentAmount,  setPaymentAmount]  = useState(0)
+  const [paymentId,     setPaymentId]     = useState('')
+  const [paymentAmount, setPaymentAmount] = useState(0)
 
   useEffect(() => {
     fetch(`/api/checkout/${slug}`)
@@ -677,7 +521,13 @@ export default function CheckoutPage() {
       const res = await fetch(`/api/checkout/${slug}/payment-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerName: name, customerEmail: email, customerPhone: phone, bumpIds: selectedBumps, shippingId: selectedShip || undefined }),
+        body: JSON.stringify({
+          customerName:  name,
+          customerEmail: email,
+          customerPhone: phone,
+          bumpIds:       selectedBumps,
+          shippingId:    selectedShip || undefined,
+        }),
       })
       const data = await res.json()
       if (!res.ok) { setFormError(data.error ?? 'Erro ao iniciar pagamento'); return }
@@ -695,12 +545,18 @@ export default function CheckoutPage() {
 
   const intervalLabel = product?.interval && product.interval !== 'unit'
     ? product.interval === 'month' ? 'por mês'
-    : product.interval === 'year' ? 'por ano'
-    : product.interval === 'week' ? 'por semana'
+    : product.interval === 'year'  ? 'por ano'
+    : product.interval === 'week'  ? 'por semana'
     : `por ${product.interval}`
     : null
 
-  // ── Loading ──
+  // stripePromise is recreated only when publishableKey changes (from backend response)
+  // Falls back to build-time env var before the first payment-intent call
+  const stripePromise = useMemo(
+    () => loadStripe(publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''),
+    [publishableKey],
+  )
+
   if (pageLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -709,7 +565,6 @@ export default function CheckoutPage() {
     )
   }
 
-  // ── Error ──
   if (pageError || !product) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-4">
@@ -721,12 +576,10 @@ export default function CheckoutPage() {
     )
   }
 
-  const stripePromise = publishableKey ? loadStripe(publishableKey) : null
   const brandName = product.brandName || product.name
 
   return (
     <>
-      {/* Shimmer keyframe */}
       <style>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
@@ -746,7 +599,6 @@ export default function CheckoutPage() {
         {/* Sticky header */}
         <header className="sticky top-0 z-20 bg-white border-b border-[#E5E7EB] h-14 flex items-center px-4 lg:px-0">
           <div className="w-full lg:flex lg:items-center">
-            {/* Left: brand */}
             <div className="lg:w-[47%] lg:flex lg:justify-end">
               <div className="lg:w-full lg:max-w-[calc(50vw-24px)] lg:px-12 flex items-center gap-2">
                 {product.logoUrl ? (
@@ -761,7 +613,6 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Right: toggle on mobile/tablet */}
             <div className="lg:hidden absolute right-4 top-1/2 -translate-y-1/2">
               <button
                 type="button"
@@ -774,7 +625,7 @@ export default function CheckoutPage() {
           </div>
         </header>
 
-        {/* Mobile/tablet collapsible summary */}
+        {/* Mobile collapsible summary */}
         {summaryOpen && (
           <div className="lg:hidden border-b border-[#E5E7EB] bg-white">
             <div className="max-w-[576px] mx-auto px-4 md:px-24 py-6">
@@ -827,10 +678,6 @@ export default function CheckoutPage() {
                 setName={setName}
                 phone={phone}
                 setPhone={setPhone}
-                payMethod={payMethod}
-                setPayMethod={setPayMethod}
-                saveInfo={saveInfo}
-                setSaveInfo={setSaveInfo}
                 selectedShip={selectedShip}
                 setSelectedShip={setSelectedShip}
                 selectedBumps={selectedBumps}
