@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Key, Plus, Trash2, Copy, Check, Eye, EyeOff } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Key, Plus, Trash2, Copy, Check, Eye, EyeOff, ShieldAlert, X, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useConfirm } from '@/lib/hooks/useConfirm'
@@ -11,22 +11,158 @@ interface ApiKeyRecord {
   id:        string
   name:      string
   keyPrefix: string
-  key?:      string
+  key?:      string   // só presente no momento da criação
   createdAt: string
   revokedAt: string | null
 }
 
+// ─── KeyDisplay ──────────────────────────────────────────────────────────────
+// Mostra a chave com blur animado e botão de revelar/ocultar + copiar
+
+function KeyDisplay({
+  value,
+  fullKey,
+  isNew = false,
+  revoked = false,
+}: {
+  value:    string   // keyPrefix (lista) ou chave completa (banner)
+  fullKey?: string   // chave completa — só disponível no momento da criação
+  isNew?:   boolean
+  revoked?: boolean
+}) {
+  const [revealed,  setRevealed]  = useState(isNew)   // nova key começa revelada
+  const [copied,    setCopied]    = useState(false)
+  const [animating, setAnimating] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const displayValue = fullKey ?? value
+
+  function toggle() {
+    if (animating) return
+    setAnimating(true)
+    timerRef.current = setTimeout(() => {
+      setRevealed(r => !r)
+      setAnimating(false)
+    }, 180)
+  }
+
+  function copy() {
+    navigator.clipboard.writeText(displayValue)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+
+  const maskedValue = fullKey
+    ? fullKey.slice(0, 10) + '•'.repeat(Math.max(0, fullKey.length - 10))
+    : value.slice(0, 10) + '••••••••••••••••••••'
+
+  return (
+    <div className={clsx(
+      'flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors',
+      isNew
+        ? 'bg-ep-success/5 border-ep-success/20'
+        : revoked
+        ? 'bg-ep-overlay/30 border-ep-border-subtle'
+        : 'bg-ep-raised border-ep-border-default',
+    )}>
+      {/* Chave */}
+      <code
+        className={clsx(
+          'flex-1 text-xs font-mono min-w-0 truncate select-all transition-all duration-300',
+          revoked ? 'text-ep-muted line-through' : isNew ? 'text-ep-success' : 'text-ep-primary',
+          animating && 'opacity-0 scale-y-95',
+          !animating && revealed && 'blur-none',
+          !animating && !revealed && 'blur-[4px] select-none',
+        )}
+        style={{ transition: 'filter 0.25s ease, opacity 0.18s ease, transform 0.18s ease' }}
+      >
+        {revealed ? displayValue : maskedValue}
+      </code>
+
+      {/* Botão revelar/ocultar */}
+      {!revoked && (
+        <button
+          onClick={toggle}
+          disabled={animating}
+          title={revealed ? 'Ocultar' : 'Revelar'}
+          className={clsx(
+            'flex-shrink-0 p-1 rounded transition-colors',
+            'text-ep-muted hover:text-ep-primary disabled:opacity-40',
+          )}
+        >
+          {revealed
+            ? <EyeOff size={13} />
+            : <Eye    size={13} />}
+        </button>
+      )}
+
+      {/* Botão copiar */}
+      {!revoked && (
+        <button
+          onClick={copy}
+          title="Copiar"
+          className={clsx(
+            'flex-shrink-0 p-1 rounded transition-colors',
+            copied
+              ? 'text-ep-success'
+              : 'text-ep-muted hover:text-ep-primary',
+          )}
+        >
+          {copied ? <Check size={13} /> : <Copy size={13} />}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ─── NewKeyBanner ─────────────────────────────────────────────────────────────
+
+function NewKeyBanner({ apiKey, onClose }: { apiKey: ApiKeyRecord; onClose: () => void }) {
+  return (
+    <div className="bg-ep-success/8 border border-ep-success/25 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-ep-success/15 border border-ep-success/25 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Key size={14} className="text-ep-success" />
+          </div>
+          <div>
+            <p className="text-ep-success text-sm font-semibold">Key criada com sucesso</p>
+            <p className="text-ep-secondary text-xs mt-0.5">
+              Copie agora — por segurança, a chave completa não será exibida novamente
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-ep-muted hover:text-ep-primary transition-colors flex-shrink-0"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      <KeyDisplay value={apiKey.keyPrefix} fullKey={apiKey.key} isNew />
+
+      <div className="flex items-center gap-1.5 text-ep-warning text-xs">
+        <ShieldAlert size={11} className="flex-shrink-0" />
+        Guarde esta chave num local seguro. Ela não pode ser recuperada depois de fechar este aviso.
+      </div>
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function ApiKeysPage() {
-  const [keys,        setKeys]        = useState<ApiKeyRecord[]>([])
-  const [loading,     setLoading]     = useState(true)
-  const [showModal,   setShowModal]   = useState(false)
-  const [newName,     setNewName]     = useState('')
-  const [creating,    setCreating]    = useState(false)
-  const [newKey,      setNewKey]      = useState<ApiKeyRecord | null>(null)
-  const [copied,      setCopied]      = useState(false)
-  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({})
-  const [revoking,    setRevoking]    = useState<string | null>(null)
-  const { confirmProps, confirm }     = useConfirm()
+  const [keys,      setKeys]      = useState<ApiKeyRecord[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [newName,   setNewName]   = useState('')
+  const [creating,  setCreating]  = useState(false)
+  const [newKey,    setNewKey]    = useState<ApiKeyRecord | null>(null)
+  const [revoking,  setRevoking]  = useState<string | null>(null)
+  const { confirmProps, confirm } = useConfirm()
 
   const fetchKeys = useCallback(async () => {
     setLoading(true)
@@ -42,12 +178,13 @@ export default function ApiKeysPage() {
   useEffect(() => { fetchKeys() }, [fetchKeys])
 
   async function handleCreate() {
+    if (creating) return
     setCreating(true)
     try {
       const res  = await fetch('/api/api-keys', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ name: newName }),
+        body:    JSON.stringify({ name: newName.trim() }),
       })
       const data = await res.json() as ApiKeyRecord
       setNewKey(data)
@@ -77,18 +214,9 @@ export default function ApiKeysPage() {
     })
   }
 
-  function copyKey(key: string) {
-    navigator.clipboard.writeText(key)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  function toggleVisible(id: string) {
-    setVisibleKeys(v => ({ ...v, [id]: !v[id] }))
-  }
-
   return (
     <div className="p-4 md:p-6 space-y-5">
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-ep-primary text-lg md:text-xl font-bold">API Keys</h1>
@@ -106,74 +234,85 @@ export default function ApiKeysPage() {
       </div>
 
       {/* Banner key recém-criada */}
-      {newKey && (
-        <div className="bg-ep-success/10 border border-ep-success/30 rounded-lg p-4 space-y-2">
-          <p className="text-ep-success text-sm font-semibold">Key criada — copie agora, não será exibida novamente</p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 bg-ep-surface border border-ep-border-default rounded px-3 py-2 text-xs font-mono text-ep-primary break-all">
-              {newKey.key}
-            </code>
-            <button
-              onClick={() => copyKey(newKey.key!)}
-              className="flex-shrink-0 p-2 rounded border border-ep-border-default hover:border-ep-accent text-ep-secondary hover:text-ep-accent transition-colors"
-            >
-              {copied ? <Check size={14} className="text-ep-success" /> : <Copy size={14} />}
-            </button>
-          </div>
-          <button onClick={() => setNewKey(null)} className="text-ep-muted text-xs hover:text-ep-secondary transition-colors">
-            Fechar
-          </button>
-        </div>
-      )}
+      {newKey && <NewKeyBanner apiKey={newKey} onClose={() => setNewKey(null)} />}
 
       {/* Lista de keys */}
-      <div className="bg-ep-surface border border-ep-border-default rounded-lg overflow-hidden">
+      <div className="bg-ep-surface border border-ep-border-default rounded-xl overflow-hidden">
         {loading ? (
           <div className="divide-y divide-ep-border-subtle">
             {Array.from({ length: 3 }).map((_, i) => <ListRowSkeleton key={i} cols={3} />)}
           </div>
         ) : keys.length === 0 ? (
-          <div className="px-5 py-10 text-center space-y-2">
-            <Key size={28} className="mx-auto text-ep-muted" />
-            <p className="text-ep-muted text-sm">Nenhuma API key criada ainda</p>
+          <div className="px-5 py-14 text-center space-y-3">
+            <div className="w-12 h-12 rounded-xl bg-ep-raised border border-ep-border-default flex items-center justify-center mx-auto">
+              <Key size={20} className="text-ep-muted" />
+            </div>
+            <p className="text-ep-primary font-medium text-sm">Nenhuma API key criada</p>
+            <p className="text-ep-muted text-xs">Crie uma key para integrar o carrinho via API</p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-ep-accent text-ep-base rounded-md text-sm font-medium hover:bg-ep-accent/90 transition-colors"
+            >
+              <Plus size={14} /> Nova Key
+            </button>
           </div>
         ) : (
           <div className="divide-y divide-ep-border-subtle">
             {keys.map(k => (
-              <div key={k.id} className="px-5 py-4 flex items-center gap-4">
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2">
+              <div key={k.id} className={clsx(
+                'px-5 py-4 flex items-start gap-4 transition-colors',
+                k.revokedAt ? 'opacity-60' : 'hover:bg-ep-raised/30',
+              )}>
+                {/* Ícone */}
+                <div className={clsx(
+                  'w-8 h-8 rounded-lg border flex items-center justify-center flex-shrink-0 mt-0.5',
+                  k.revokedAt
+                    ? 'bg-ep-overlay/30 border-ep-border-subtle'
+                    : 'bg-ep-accent/10 border-ep-accent/20',
+                )}>
+                  <Key size={13} className={k.revokedAt ? 'text-ep-muted' : 'text-ep-accent'} />
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-ep-primary text-sm font-medium">{k.name || 'Sem nome'}</p>
-                    {k.revokedAt && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-ep-danger/10 text-ep-danger border border-ep-danger/20">
+                    {k.revokedAt ? (
+                      <span className="text-xs px-1.5 py-0.5 rounded-md bg-ep-danger/10 text-ep-danger border border-ep-danger/20 font-medium">
                         Revogada
+                      </span>
+                    ) : (
+                      <span className="text-xs px-1.5 py-0.5 rounded-md bg-ep-success/10 text-ep-success border border-ep-success/20 font-medium">
+                        Ativa
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs font-mono text-ep-muted">
-                      {visibleKeys[k.id] ? k.keyPrefix + '…' : k.keyPrefix.slice(0, 6) + '••••••••••••••••'}
-                    </code>
-                    <button onClick={() => toggleVisible(k.id)} className="text-ep-muted hover:text-ep-secondary transition-colors">
-                      {visibleKeys[k.id] ? <EyeOff size={12} /> : <Eye size={12} />}
-                    </button>
-                  </div>
+
+                  {/* Chave com blur */}
+                  <KeyDisplay
+                    value={k.keyPrefix}
+                    revoked={!!k.revokedAt}
+                  />
+
                   <p className="text-ep-muted text-xs">
-                    Criada em {new Date(k.createdAt).toLocaleDateString('pt-PT')}
-                    {k.revokedAt && ` · Revogada em ${new Date(k.revokedAt).toLocaleDateString('pt-PT')}`}
+                    Criada em {new Date(k.createdAt).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {k.revokedAt && ` · Revogada em ${new Date(k.revokedAt).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}`}
                   </p>
                 </div>
+
+                {/* Ação */}
                 {!k.revokedAt && (
                   <button
                     onClick={() => handleRevoke(k.id)}
                     disabled={revoking === k.id}
                     className={clsx(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs transition-colors',
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs transition-colors flex-shrink-0 mt-0.5',
                       'border-ep-danger/30 text-ep-danger hover:bg-ep-danger/10 disabled:opacity-50',
                     )}
                   >
-                    <Trash2 size={12} />
-                    {revoking === k.id ? 'Revogando…' : 'Revogar'}
+                    {revoking === k.id
+                      ? <><Loader2 size={11} className="animate-spin" /> Revogando…</>
+                      : <><Trash2  size={11} /> Revogar</>}
                   </button>
                 )}
               </div>
@@ -184,22 +323,41 @@ export default function ApiKeysPage() {
 
       {/* Modal nova key */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-ep-surface border border-ep-border-default rounded-xl w-full max-w-sm p-6 space-y-4">
-            <h2 className="text-ep-primary font-semibold">Nova API Key</h2>
-            <div className="space-y-1.5">
-              <label className="text-ep-secondary text-xs font-medium">Nome (opcional)</label>
-              <input
-                type="text"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                placeholder="Ex: Loja Principal"
-                className="w-full px-3 py-2 bg-ep-raised border border-ep-border-default rounded-md text-ep-primary text-sm placeholder-ep-muted focus:outline-none focus:border-ep-accent transition-colors"
-                onKeyDown={e => e.key === 'Enter' && handleCreate()}
-                autoFocus
-              />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+          onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setNewName('') } }}
+        >
+          <div className="bg-ep-surface border border-ep-border-default rounded-xl w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-ep-border-subtle">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-md bg-ep-accent/10 border border-ep-accent/20 flex items-center justify-center">
+                  <Key size={13} className="text-ep-accent" />
+                </div>
+                <h2 className="text-ep-primary font-semibold text-sm">Nova API Key</h2>
+              </div>
+              <button
+                onClick={() => { setShowModal(false); setNewName('') }}
+                className="text-ep-muted hover:text-ep-primary transition-colors"
+              >
+                <X size={15} />
+              </button>
             </div>
-            <div className="flex gap-2 justify-end">
+            <div className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-ep-secondary text-xs font-medium">Nome (opcional)</label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  placeholder="Ex: Loja Principal, Integração X"
+                  className="w-full px-3 py-2 bg-ep-raised border border-ep-border-default rounded-md text-ep-primary text-sm placeholder-ep-muted focus:outline-none focus:border-ep-accent transition-colors"
+                  onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                  autoFocus
+                />
+                <p className="text-ep-muted text-xs">Um nome ajuda a identificar onde esta key está a ser usada</p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end px-5 py-4 border-t border-ep-border-subtle">
               <button
                 onClick={() => { setShowModal(false); setNewName('') }}
                 className="px-4 py-2 rounded-md border border-ep-border-default text-ep-secondary text-sm hover:text-ep-primary transition-colors"
@@ -209,14 +367,16 @@ export default function ApiKeysPage() {
               <button
                 onClick={handleCreate}
                 disabled={creating}
-                className="px-4 py-2 rounded-md bg-ep-accent text-ep-base text-sm font-medium hover:bg-ep-accent/90 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-md bg-ep-accent text-ep-base text-sm font-medium hover:bg-ep-accent/90 disabled:opacity-50 transition-colors"
               >
+                {creating && <Loader2 size={13} className="animate-spin" />}
                 {creating ? 'Criando…' : 'Criar Key'}
               </button>
             </div>
           </div>
         </div>
       )}
+
       <ConfirmDialog {...confirmProps} />
     </div>
   )
