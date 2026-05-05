@@ -162,6 +162,44 @@ export async function POST(req: NextRequest) {
       break
     }
 
+    case 'payment_intent.processing': {
+      const pi = event.data.object as Stripe.PaymentIntent
+      await checkoutService.updatePaymentStatus(pi.id, 'processing')
+      const isoDate   = new Date().toISOString().slice(0, 10)
+      const dateLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+      await prisma.payment.upsert({
+        where: { id: pi.id },
+        create: {
+          id:       pi.id,
+          customer: pi.metadata?.customerName ?? 'Cliente',
+          email:    pi.metadata?.customerEmail ?? '',
+          amount:   pi.amount,
+          status:   'processing',
+          date:     isoDate,
+          product:  pi.metadata?.productSlug ?? pi.description ?? 'Produto',
+          method:   'Cartão',
+        },
+        update: { status: 'processing' },
+      })
+      await prisma.dailySale.upsert({
+        where: { isoDate },
+        create: { date: dateLabel, isoDate, receita: 0, vendas: 0, falhas: 0 },
+        update: {},
+      })
+      break
+    }
+
+    case 'payment_intent.canceled': {
+      const pi = event.data.object as Stripe.PaymentIntent
+      await checkoutService.updatePaymentStatus(pi.id, 'failed')
+      await prisma.payment.updateMany({
+        where: { id: pi.id },
+        data:  { status: 'failed' },
+      })
+      break
+    }
+
+
     case 'charge.refunded': {
       const charge = event.data.object as Stripe.Charge
       await persistRefund(charge)

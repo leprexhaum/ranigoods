@@ -27,7 +27,8 @@ export default function SuccessContent() {
         const data = await res.json() as CheckoutPaymentDetail
         if (!res.ok) { setError('Pagamento não encontrado'); setLoading(false); return }
         setPayment(data)
-        if (data.status === 'pending' && attempts < 10) {
+        // Continua a fazer polling enquanto pending ou processing (Multibanco)
+        if ((data.status === 'pending' || data.status === 'processing') && attempts < 20) {
           attempts++
           setTimeout(poll, 3000)
         } else {
@@ -62,6 +63,20 @@ export default function SuccessContent() {
         <div className="text-center space-y-1">
           <h1 className="text-[#111827] text-xl font-bold">Erro</h1>
           <p className="text-[#6b7280] text-sm">{error || 'Pagamento não encontrado'}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (payment.status === 'processing') {
+    return (
+      <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center gap-5 px-4">
+        <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center">
+          <Loader2 size={32} className="text-blue-500 animate-spin" />
+        </div>
+        <div className="text-center space-y-1">
+          <h1 className="text-[#111827] text-xl font-bold">Pagamento em processamento</h1>
+          <p className="text-[#6b7280] text-sm">O seu pagamento está a ser processado. Receberá uma confirmação em breve.</p>
         </div>
       </div>
     )

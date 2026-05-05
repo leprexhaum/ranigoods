@@ -79,7 +79,7 @@ export const checkoutService = {
 
   async updatePaymentStatus(
     stripePaymentIntentId: string,
-    status: 'paid' | 'failed',
+    status: 'paid' | 'failed' | 'processing',
   ) {
     return prisma.checkoutPayment.updateMany({
       where: { stripePaymentIntentId },

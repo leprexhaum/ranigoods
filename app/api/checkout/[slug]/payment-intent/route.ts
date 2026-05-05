@@ -7,10 +7,28 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06
 
 export const dynamic = 'force-dynamic'
 
+// ─── Rate limiter (sliding window, por IP) ────────────────────────────────────
+const rateLimitMap = new Map<string, number[]>()
+const RATE_LIMIT    = 10
+const WINDOW_MS     = 60_000
+
+function isRateLimited(ip: string): boolean {
+  const now  = Date.now()
+  const hits = (rateLimitMap.get(ip) ?? []).filter(t => now - t < WINDOW_MS)
+  hits.push(now)
+  rateLimitMap.set(ip, hits)
+  return hits.length > RATE_LIMIT
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { slug: string } },
 ) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ error: 'Demasiadas tentativas. Aguarde um momento.' }, { status: 429 })
+  }
+
   try {
     const body = await req.json() as CreatePaymentIntentRequest & { bumpIds?: string[]; shippingId?: string }
 
@@ -19,14 +37,9 @@ export async function POST(
       return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 })
     }
 
-    if (!body.customerName?.trim() || !body.customerEmail?.trim()) {
-      return NextResponse.json({ error: 'Nome e email são obrigatórios' }, { status: 400 })
-    }
-
     // Calcular total
     let total = product.price
 
-    // Adicionar order bumps selecionados
     if (body.bumpIds?.length) {
       for (const bumpId of body.bumpIds) {
         const bump = product.orderBumps.find(b => b.id === bumpId)
@@ -34,7 +47,6 @@ export async function POST(
       }
     }
 
-    // Adicionar shipping selecionado
     if (body.shippingId) {
       const shipping = product.shippingOptions.find(s => s.id === body.shippingId)
       if (shipping) total += shipping.price
@@ -42,42 +54,43 @@ export async function POST(
 
     // Mapear métodos de pagamento para Stripe
     const stripeMethodMap: Record<string, string> = {
-      card:        'card',
-      mbway:       'mb_way',
-      multibanco:  'multibanco',
-      apple_pay:   'card',
-      google_pay:  'card',
-      sepa:        'sepa_debit',
+      card:       'card',
+      mbway:      'mb_way',
+      multibanco: 'multibanco',
+      apple_pay:  'card',
+      google_pay: 'card',
+      sepa:       'sepa_debit',
     }
 
     const paymentMethodTypes = product.paymentMethods.length > 0
       ? [...new Set(product.paymentMethods.map(m => stripeMethodMap[m] ?? 'card'))]
       : ['card']
 
-    // Criar PaymentIntent no Stripe
+    const customerName  = body.customerName?.trim()  || ''
+    const customerEmail = body.customerEmail?.trim() || ''
+
     const pi = await stripe.paymentIntents.create({
       amount:               total,
       currency:             product.currency.toLowerCase(),
       payment_method_types: paymentMethodTypes,
       metadata: {
-        productId:    product.id,
-        productSlug:  product.slug,
-        customerName: body.customerName,
-        customerEmail: body.customerEmail,
+        productId:     product.id,
+        productSlug:   product.slug,
+        customerName,
+        customerEmail,
       },
     })
 
-    // Criar registo de pagamento no banco
     const payment = await checkoutService.createPayment({
       productId:             product.id,
       amount:                total,
       currency:              product.currency,
       stripePaymentIntentId: pi.id,
-      customerName:          body.customerName,
-      customerEmail:         body.customerEmail,
+      customerName,
+      customerEmail,
       customerPhone:         body.customerPhone ?? '',
       metadata: {
-        bumpIds:    body.bumpIds ?? [],
+        bumpIds:    body.bumpIds    ?? [],
         shippingId: body.shippingId ?? null,
       },
     })

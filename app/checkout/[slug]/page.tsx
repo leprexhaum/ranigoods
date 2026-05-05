@@ -304,6 +304,15 @@ function CheckoutForm({
   clientSecret, stripePromise, paymentId, paymentAmount,
 }: CheckoutFormProps) {
 
+  const updatePayment = (fields: { customerName?: string; customerEmail?: string; customerPhone?: string }) => {
+    if (!paymentId) return
+    fetch(`/api/checkout/payment/${paymentId}/update`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    }).catch(() => {/* silent — não bloqueia o utilizador */})
+  }
+
   const fieldWrapTop    = 'relative flex items-center bg-white border border-[#E0E6EB] rounded-t-[5px] focus-within:border-[#0570DE] focus-within:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] focus-within:z-10 transition-all'
   const fieldWrapMid    = 'relative flex items-center bg-white border-l border-r border-b border-[#E0E6EB] focus-within:border-[#0570DE] focus-within:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] focus-within:z-10 transition-all'
   const fieldWrapBottom = 'relative flex items-center bg-white border-l border-r border-b border-[#E0E6EB] rounded-b-[5px] focus-within:border-[#0570DE] focus-within:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] focus-within:z-10 transition-all'
@@ -324,7 +333,9 @@ function CheckoutForm({
                 <path fillRule="evenodd" clipRule="evenodd" d="M3 1.51221C1.34315 1.51221 0 2.85535 0 4.51221V11.5122C0 13.1691 1.34315 14.5122 3 14.5122H13C14.6569 14.5122 16 13.1691 16 11.5122V4.51221C16 2.85535 14.6569 1.51221 13 1.51221H3ZM13 3.01221H3C2.43944 3.01221 1.9507 3.31969 1.69325 3.7752C1.7485 3.78999 1.80292 3.81137 1.85548 3.83967L7.88138 7.08439C7.95537 7.12423 8.04443 7.12423 8.11843 7.08439L14.1443 3.83967C14.1969 3.81134 14.2514 3.78994 14.3067 3.77515C14.0493 3.31967 13.5605 3.01221 13 3.01221ZM14.5 5.35179L8.82958 8.40509C8.31162 8.68399 7.68819 8.68399 7.17023 8.40509L1.5 5.35189V11.5122C1.5 12.3406 2.17157 13.0122 3 13.0122H13C13.8284 13.0122 14.5 12.3406 14.5 11.5122V5.35179Z" fill="#1A1A1A" fillOpacity="0.5"/>
               </svg>
             </span>
-            <input className={inputBase} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required autoComplete="email" />
+            <input className={inputBase} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required autoComplete="email"
+              onBlur={e => { if (e.target.value.trim()) updatePayment({ customerEmail: e.target.value.trim() }) }}
+            />
           </div>
           {/* Nome */}
           <div className={fieldWrapMid}>
@@ -334,7 +345,9 @@ function CheckoutForm({
                 <path fillRule="evenodd" clipRule="evenodd" d="M8 6.4C9.32548 6.4 10.4 5.32548 10.4 4C10.4 2.67452 9.32548 1.6 8 1.6C6.67452 1.6 5.6 2.67452 5.6 4C5.6 5.32548 6.67452 6.4 8 6.4ZM8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="#1A1A1A" fillOpacity="0.5"/>
               </svg>
             </span>
-            <input className={inputBase} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" required autoComplete="name" />
+            <input className={inputBase} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" required autoComplete="name"
+              onBlur={e => { if (e.target.value.trim()) updatePayment({ customerName: e.target.value.trim() }) }}
+            />
           </div>
           {/* Telefone com bandeira PT */}
           <div className={fieldWrapBottom}>
@@ -342,7 +355,9 @@ function CheckoutForm({
               <img src="https://js.stripe.com/v3/fingerprinted/img/FlagIcon-PT-06923ff565a419d109f1f09ade4e9bd3.svg" alt="PT" className="w-5 h-auto" />
               <span className="text-[13px] text-[#30313D]">+351</span>
             </span>
-            <input className={inputBase} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="912 345 678" required={product.requirePhone} autoComplete="tel" />
+            <input className={inputBase} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="912 345 678" required={product.requirePhone} autoComplete="tel"
+              onBlur={e => { if (e.target.value.trim()) updatePayment({ customerPhone: e.target.value.trim() }) }}
+            />
           </div>
         </div>
       </div>

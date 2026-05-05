@@ -61,7 +61,7 @@ export interface CreatePaymentIntentResponse {
 
 export interface CheckoutPaymentDetail {
   id:           string
-  status:       'pending' | 'paid' | 'failed'
+  status:       'pending' | 'paid' | 'failed' | 'processing'
   amount:       number
   currency:     string
   customerName: string
