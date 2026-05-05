@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Eye, EyeOff, X, ChevronLeft, Zap, CheckCircle2, AlertCircle } from 'lucide-react'
 import clsx from 'clsx'
+import { Toggle } from '@/components/ui/Toggle'
 import type { PixelConfig } from '@/lib/types/pixel'
 import { STANDARD_EVENTS } from '@/lib/types/pixel'
 import { PlatformIcon, PLATFORM_CONFIG, type Platform } from './PlatformIcon'
@@ -219,19 +220,11 @@ export default function PixelModal({ open, pixel, onClose, onSave, onTest }: Pro
                   <p className="text-ep-primary text-sm font-medium">Pixel ativo</p>
                   <p className="text-ep-muted text-xs">Pixels inativos não disparam eventos</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setEnabled(v => !v)}
-                  className={clsx(
-                    'relative w-10 h-5 rounded-full transition-colors',
-                    enabled ? 'bg-ep-accent' : 'bg-ep-border-default',
-                  )}
-                >
-                  <span className={clsx(
-                    'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
-                    enabled ? 'translate-x-5' : 'translate-x-0.5',
-                  )} />
-                </button>
+                <Toggle
+                  checked={enabled}
+                  onChange={setEnabled}
+                  label="Pixel ativo"
+                />
               </div>
 
               {/* Testar evento — só em edição */}
