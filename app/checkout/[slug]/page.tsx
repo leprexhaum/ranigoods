@@ -188,88 +188,103 @@ interface OrderSummaryProps {
 
 function OrderSummary({ product, total, selectedBumps, selectedShip, descExpanded, setDescExpanded, intervalLabel }: OrderSummaryProps) {
   const brandName = product.brandName || product.name
+  const subtotal = total
+
   return (
-    <div className="space-y-6">
-      {/* Logo + marca */}
-      <div className="flex items-center gap-3">
-        {product.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={product.logoUrl} alt={brandName} className="h-8 w-8 object-contain rounded-full border border-[#E0E6EB]" />
-        ) : (
-          <div className="w-8 h-8 bg-[#0570DE] rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-[13px] font-bold">{brandName.charAt(0)}</span>
+    <div className="space-y-0">
+
+      {/* Nome do produto + preço */}
+      <div className="pb-5">
+        <h2 className="text-[16px] font-medium text-[#6D6E78] mb-2">{product.name}</h2>
+        <div className="flex items-baseline gap-2">
+          <span className="text-[36px] font-semibold text-[#30313D] leading-none tabular-nums">
+            {fmt(product.price, product.currency)}
+          </span>
+          {intervalLabel && (
+            <span className="text-[14px] text-[#6D6E78]">
+              <div>por <br className="hidden" />{intervalLabel.replace('por ', '')}</div>
+            </span>
+          )}
+        </div>
+
+        {/* Descrição colapsável */}
+        {product.description && (
+          <div className="mt-3">
+            <p className={clsx('text-[14px] font-medium text-[#6D6E78] leading-relaxed', !descExpanded && 'line-clamp-2')}>
+              {product.description}
+            </p>
+            <button
+              type="button"
+              onClick={() => setDescExpanded(v => !v)}
+              className="mt-1 flex items-center gap-1 text-[12px] text-[#6D6E78] hover:text-[#30313D]"
+            >
+              {descExpanded ? <><ChevronUp size={11} /> Menos</> : <><ChevronDown size={11} /> Mais</>}
+            </button>
           </div>
         )}
-        <span className="text-[14px] font-medium text-[#30313D]">{brandName}</span>
       </div>
-
-      {/* Nome + preço */}
-      <div className="space-y-1">
-        <p className="text-[15px] text-[#6D6E78]">{product.name}</p>
-        <div className="flex items-baseline gap-2">
-          <span className="text-[36px] font-bold text-[#30313D] leading-none">{fmt(product.price, product.currency)}</span>
-          {intervalLabel && <span className="text-[14px] text-[#6D6E78]">{intervalLabel}</span>}
-        </div>
-      </div>
-
-      {/* Descrição */}
-      {product.description && (
-        <div>
-          <p className={clsx('text-[13px] text-[#6D6E78] leading-relaxed', !descExpanded && 'line-clamp-2')}>
-            {product.description}
-          </p>
-          <button
-            type="button"
-            onClick={() => setDescExpanded(v => !v)}
-            className="mt-1 flex items-center gap-1 text-[12px] text-[#6D6E78] hover:text-[#30313D]"
-          >
-            {descExpanded ? <><ChevronUp size={12} /> Menos</> : <><ChevronDown size={12} /> Mais</>}
-          </button>
-        </div>
-      )}
-
-      {/* Divisor */}
-      <div className="border-t border-[#E0E6EB]" />
 
       {/* Line items */}
-      <div className="space-y-3">
-        <div className="flex justify-between text-[14px]">
-          <span className="text-[#6D6E78]">{product.name}</span>
-          <span className="text-[#30313D]">{fmt(product.price, product.currency)}</span>
+      <div className="py-5 border-t border-[#E0E6EB] space-y-4">
+        {/* Item principal */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-medium text-[#30313D] leading-snug">{product.name}</p>
+            {product.description && (
+              <p className="text-[12px] text-[#8792A2] mt-0.5 line-clamp-2 leading-relaxed">{product.description}</p>
+            )}
+            {intervalLabel && (
+              <p className="text-[12px] text-[#8792A2] mt-0.5">Cobrado {intervalLabel.replace('por ', '')}</p>
+            )}
+          </div>
+          <span className="text-[14px] font-medium text-[#30313D] tabular-nums flex-shrink-0">
+            {fmt(product.price, product.currency)}
+          </span>
         </div>
+
+        {/* Order bumps */}
         {selectedBumps.map(id => {
           const b = product.orderBumps.find(b => b.id === id)
           if (!b) return null
           return (
-            <div key={id} className="flex justify-between text-[14px]">
-              <span className="text-[#6D6E78]">{b.name}</span>
-              <span className="text-[#30313D]">+{fmt(b.price, product.currency)}</span>
+            <div key={id} className="flex items-start justify-between gap-4">
+              <p className="text-[14px] font-medium text-[#30313D] flex-1">{b.name}</p>
+              <span className="text-[14px] font-medium text-[#30313D] tabular-nums flex-shrink-0">
+                +{fmt(b.price, product.currency)}
+              </span>
             </div>
           )
         })}
+
+        {/* Envio */}
         {selectedShip && (() => {
           const s = product.shippingOptions.find(s => s.id === selectedShip)
           if (!s || s.price === 0) return null
           return (
-            <div className="flex justify-between text-[14px]">
-              <span className="text-[#6D6E78]">{s.label}</span>
-              <span className="text-[#30313D]">+{fmt(s.price, product.currency)}</span>
+            <div className="flex items-start justify-between gap-4">
+              <p className="text-[14px] font-medium text-[#30313D] flex-1">{s.label}</p>
+              <span className="text-[14px] font-medium text-[#30313D] tabular-nums flex-shrink-0">
+                +{fmt(s.price, product.currency)}
+              </span>
             </div>
           )
         })()}
       </div>
 
-      {/* Divisor */}
-      <div className="border-t border-[#E0E6EB]" />
-
-      {/* Total */}
-      <div className="flex justify-between items-center">
-        <span className="text-[14px] font-medium text-[#30313D]">Total devido hoje</span>
-        <span className="text-[16px] font-bold text-[#30313D]">{fmt(total, product.currency)}</span>
+      {/* Subtotal + Total */}
+      <div className="pt-4 border-t border-[#E0E6EB] space-y-3">
+        <div className="flex justify-between items-center">
+          <span className="text-[14px] font-medium text-[#30313D]">Subtotal</span>
+          <span className="text-[14px] font-semibold text-[#30313D] tabular-nums">{fmt(subtotal, product.currency)}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-[14px] font-medium text-[#30313D]">Total devido hoje</span>
+          <span className="text-[16px] font-semibold text-[#30313D] tabular-nums">{fmt(total, product.currency)}</span>
+        </div>
       </div>
 
       {/* Powered by Stripe */}
-      <div className="flex items-center gap-1 text-[12px] text-[#8792A2] pt-2">
+      <div className="flex items-center gap-1 text-[12px] text-[#8792A2] pt-6">
         <span>Powered by</span>
         <StripeLogo />
       </div>
@@ -583,26 +598,49 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-[#F6F9FC] font-sans">
 
-      {/* Mobile — barra de resumo colapsável */}
-      <div className="lg:hidden bg-[#F6F9FC] border-b border-[#E0E6EB]">
-        <button
-          type="button"
-          onClick={() => setSummaryOpen(v => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 text-[14px] text-[#0570DE] font-medium"
-        >
-          <span className="flex items-center gap-2">
-            <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M1 1h2l2.5 8h7l1.5-5H4.5" stroke="#0570DE" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="7" cy="13.5" r="1" fill="#0570DE"/>
-              <circle cx="12" cy="13.5" r="1" fill="#0570DE"/>
+      {/* Mobile — header sticky com logo + marca + botão detalhes */}
+      <div className="lg:hidden sticky top-0 z-20 bg-white border-b border-[#E0E6EB]">
+        <div className="flex items-center justify-between px-4 h-14">
+          {/* Logo + nome da marca */}
+          <div className="flex items-center gap-2 min-w-0">
+            {product.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={product.logoUrl} alt={brandName} className="w-7 h-7 rounded-full object-contain border border-[#E0E6EB] flex-shrink-0" />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-[#E0E6EB] flex items-center justify-center flex-shrink-0">
+                <svg focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M14.9977 8.19089C15.6092 7.64898 16.0002 6.87952 16.0002 6V5.90012C16.0002 5.58415 15.9687 5.26896 15.9061 4.95925L15.2757 1.83964L15.2729 1.82792C15.1493 1.3036 14.9237 0.814761 14.4989 0.46826C14.0702 0.118638 13.5447 2.32458e-05 13 2.20537e-05L3 0C2.45536 0 1.92982 0.118541 1.50106 0.46812C1.0761 0.814602 0.850422 1.30347 0.726786 1.8279L0.72402 1.83963L0.0936206 4.95927C0.0310375 5.26897 -0.000488281 5.58414 -0.000488281 5.90011V6C-0.000488281 6.87964 0.390631 7.64918 1.00228 8.19109C1.00077 8.21053 1 8.23017 1 8.25V13.75C1 14.9926 2.00736 16 3.25 16H12.75C13.9926 16 15 14.9926 15 13.75V8.25C15 8.2301 14.9992 8.21039 14.9977 8.19089Z" fill="#1A1A1A" fillOpacity="0.5"/>
+                </svg>
+              </div>
+            )}
+            <span className="text-[14px] font-medium text-[#30313D] truncate">{brandName}</span>
+          </div>
+
+          {/* Botão Detalhes */}
+          <button
+            type="button"
+            onClick={() => setSummaryOpen(v => !v)}
+            className="flex items-center gap-1 text-[13px] text-[#30313D] hover:text-[#0570DE] transition-colors flex-shrink-0 ml-3"
+          >
+            <span>{summaryOpen ? 'Fechar' : 'Detalhes'}</span>
+            <svg
+              focusable="false"
+              viewBox="0 0 12 12"
+              className={clsx('w-3 h-3 transition-transform duration-200', summaryOpen && 'rotate-180')}
+            >
+              <path d="M10.193 3.97a.75.75 0 0 1 1.062 1.062L6.53 9.756a.75.75 0 0 1-1.06 0L.745 5.032A.75.75 0 0 1 1.807 3.97L6 8.163l4.193-4.193z" fillRule="evenodd" fill="currentColor"/>
             </svg>
-            {summaryOpen ? 'Ocultar resumo' : 'Mostrar resumo do pedido'}
-            {summaryOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </span>
-          <span className="font-bold text-[#30313D]">{fmt(total, product.currency)}</span>
-        </button>
-        {summaryOpen && (
-          <div className="px-4 pb-5 pt-1">
+          </button>
+        </div>
+
+        {/* Painel expansível com animação */}
+        <div
+          className={clsx(
+            'overflow-hidden transition-all duration-300 ease-in-out',
+            summaryOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0',
+          )}
+        >
+          <div className="px-4 pb-5 pt-2 bg-[#F6F9FC] border-t border-[#E0E6EB]">
             <OrderSummary
               product={product} total={total}
               selectedBumps={selectedBumps} selectedShip={selectedShip}
@@ -610,7 +648,7 @@ export default function CheckoutPage() {
               intervalLabel={intervalLabel}
             />
           </div>
-        )}
+        </div>
       </div>
 
       {/* Layout principal */}
@@ -618,7 +656,23 @@ export default function CheckoutPage() {
 
         {/* Coluna esquerda — resumo (desktop/tablet) */}
         <div className="hidden lg:flex lg:w-[45%] bg-[#F6F9FC] justify-end border-r border-[#E0E6EB]">
-          <div className="w-full max-w-[480px] px-12 pt-16 pb-12">
+          <div className="w-full max-w-[480px] px-12 pt-10 pb-12">
+            {/* Header desktop: logo + marca */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-2.5">
+                {product.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={product.logoUrl} alt={brandName} className="w-8 h-8 rounded-full object-contain border border-[#E0E6EB] flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-[#E0E6EB] flex items-center justify-center flex-shrink-0">
+                    <svg focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M14.9977 8.19089C15.6092 7.64898 16.0002 6.87952 16.0002 6V5.90012C16.0002 5.58415 15.9687 5.26896 15.9061 4.95925L15.2757 1.83964L15.2729 1.82792C15.1493 1.3036 14.9237 0.814761 14.4989 0.46826C14.0702 0.118638 13.5447 2.32458e-05 13 2.20537e-05L3 0C2.45536 0 1.92982 0.118541 1.50106 0.46812C1.0761 0.814602 0.850422 1.30347 0.726786 1.8279L0.72402 1.83963L0.0936206 4.95927C0.0310375 5.26897 -0.000488281 5.58414 -0.000488281 5.90011V6C-0.000488281 6.87964 0.390631 7.64918 1.00228 8.19109C1.00077 8.21053 1 8.23017 1 8.25V13.75C1 14.9926 2.00736 16 3.25 16H12.75C13.9926 16 15 14.9926 15 13.75V8.25C15 8.2301 14.9992 8.21039 14.9977 8.19089Z" fill="#1A1A1A" fillOpacity="0.5"/>
+                    </svg>
+                  </div>
+                )}
+                <span className="text-[14px] font-medium text-[#30313D] truncate">{brandName}</span>
+              </div>
+            </div>
             <OrderSummary
               product={product} total={total}
               selectedBumps={selectedBumps} selectedShip={selectedShip}
