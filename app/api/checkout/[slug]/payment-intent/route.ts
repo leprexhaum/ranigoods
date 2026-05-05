@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { checkoutService } from '@/lib/services/checkout.service'
+import { productService } from '@/lib/services/product.service'
 import { stripeLogger } from '@/lib/services/stripe-logger.service'
 import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
 import type { CreatePaymentIntentRequest } from '@/lib/types/checkout'
@@ -40,6 +41,12 @@ export async function POST(
     const product = await checkoutService.getProductBySlug(params.slug)
     if (!product) {
       return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 })
+    }
+
+    // Verificar estoque antes de criar o PI
+    const stockCheck = await productService.checkStock(product.id, 1)
+    if (!stockCheck.available) {
+      return NextResponse.json({ error: 'Produto esgotado. Não há unidades disponíveis.' }, { status: 409 })
     }
 
     let total = product.price

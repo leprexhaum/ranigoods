@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   Activity,
   GitFork,
+  ShoppingBag,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/dashboard',             label: 'Dashboard',           icon: LayoutDashboard },
   { href: '/produtos',              label: 'Produtos',            icon: Package         },
   { href: '/pagamentos',            label: 'Pagamentos',          icon: CreditCard      },
+  { href: '/orders',                label: 'Pedidos',             icon: ShoppingBag     },
   { href: '/pixels',                label: 'Pixels',              icon: Cpu             },
   { href: '/funis',                 label: 'Funis',               icon: GitFork         },
   { href: '/carrinhos-abandonados', label: 'Carrinhos',           icon: ShoppingCart    },

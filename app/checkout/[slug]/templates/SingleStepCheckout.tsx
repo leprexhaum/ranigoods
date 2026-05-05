@@ -302,6 +302,7 @@ interface CheckoutFormProps {
   email: string; setEmail: (v: string) => void
   name: string;  setName:  (v: string) => void
   phone: string; setPhone: (v: string) => void
+  countryCode: string; callingCode: string
   selectedShip: string; setSelectedShip: (v: string) => void
   selectedBumps: string[]
   formError: string
@@ -317,6 +318,7 @@ interface CheckoutFormProps {
 function CheckoutForm({
   product, brandName,
   email, setEmail, name, setName, phone, setPhone,
+  countryCode, callingCode,
   selectedShip, setSelectedShip,
   formError, submitting, handleProceed,
   clientSecret, stripePromise, paymentId, paymentAmount,
@@ -368,11 +370,16 @@ function CheckoutForm({
               onBlur={e => { if (e.target.value.trim()) updatePayment({ customerName: e.target.value.trim() }) }}
             />
           </div>
-          {/* Telefone com bandeira PT */}
+          {/* Telefone com bandeira dinâmica via geo-ip */}
           <div className={fieldWrapBottom}>
             <span className="pl-3 flex-shrink-0 flex items-center gap-1.5">
-              <img src="https://js.stripe.com/v3/fingerprinted/img/FlagIcon-PT-06923ff565a419d109f1f09ade4e9bd3.svg" alt="PT" className="w-5 h-auto" />
-              <span className="text-[13px] text-[#30313D]">+351</span>
+              <img
+                src={`https://flagcdn.com/w20/${countryCode.toLowerCase()}.png`}
+                alt={countryCode}
+                className="w-5 h-auto"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+              />
+              <span className="text-[13px] text-[#30313D]">{callingCode}</span>
             </span>
             <input className={inputBase} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="912 345 678" required={product.requirePhone} autoComplete="tel"
               onBlur={e => { if (e.target.value.trim()) updatePayment({ customerPhone: e.target.value.trim() }) }}
@@ -497,6 +504,8 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
   const [submitting,    setSubmitting]    = useState(false)
   const [descExpanded,  setDescExpanded]  = useState(false)
   const [summaryOpen,   setSummaryOpen]   = useState(false)
+  const [countryCode,   setCountryCode]   = useState('PT')
+  const [callingCode,   setCallingCode]   = useState('+351')
 
   const [clientSecret,   setClientSecret]   = useState('')
   const [publishableKey, setPublishableKey] = useState('')
@@ -509,6 +518,11 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
     if (ship) setSelectedShip(ship)
     createPaymentIntent(product, ship)
     trackEvent('InitiateCheckout', { value: product.price, currency: product.currency, content_ids: [product.id] })
+    // Detectar país via geo-ip para bandeira e código de chamada dinâmicos
+    fetch('/api/geo-ip').then(r => r.json()).then(d => {
+      if (d.countryCode) setCountryCode(d.countryCode)
+      if (d.callingCode) setCallingCode(d.callingCode)
+    }).catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -661,6 +675,7 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
               email={email} setEmail={setEmail}
               name={name} setName={setName}
               phone={phone} setPhone={setPhone}
+              countryCode={countryCode} callingCode={callingCode}
               selectedShip={selectedShip} setSelectedShip={setSelectedShip}
               selectedBumps={selectedBumps}
               formError={formError} submitting={submitting}

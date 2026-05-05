@@ -128,6 +128,69 @@ export async function POST(req: NextRequest) {
       case 'payment_intent.succeeded': {
         const pi     = event.data.object as Stripe.PaymentIntent
         const charge = await getCharge(pi)
+
+        // Se é um PI de upsell, tratar separadamente
+        if (pi.metadata?.upsellFor) {
+          const originalPaymentId = pi.metadata.upsellFor
+          const upsellProductId   = pi.metadata.productId ?? ''
+          const upsellProductName = pi.metadata.productName ?? 'Upsell'
+
+          // Atualizar o CheckoutPayment original com status do upsell
+          await prisma.checkoutPayment.update({
+            where: { id: originalPaymentId },
+            data:  { upsellStatus: 'accepted', upsellAmount: pi.amount, upsellPiId: pi.id },
+          })
+
+          // Decrementar estoque do produto de upsell
+          if (upsellProductId) {
+            await productService.decrementStock(upsellProductId, 1)
+          }
+
+          // Registar na tabela Payment para aparecer no painel
+          const isoDate   = new Date().toISOString().slice(0, 10)
+          const dateLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+          await prisma.payment.upsert({
+            where:  { id: pi.id },
+            create: {
+              id: pi.id, customer: pi.metadata?.customerName ?? 'Cliente',
+              email: pi.metadata?.customerEmail ?? '', amount: pi.amount,
+              status: 'succeeded', date: isoDate, product: `Upsell: ${upsellProductName}`, method: resolveMethod(charge),
+            },
+            update: { status: 'succeeded' },
+          })
+          await prisma.dailySale.upsert({
+            where:  { isoDate },
+            create: { date: dateLabel, isoDate, receita: pi.amount, vendas: 1, falhas: 0 },
+            update: { receita: { increment: pi.amount }, vendas: { increment: 1 } },
+          })
+
+          // Disparar pixel Purchase para o upsell
+          const originalCp = await prisma.checkoutPayment.findUnique({
+            where:  { id: originalPaymentId },
+            select: { customerEmail: true, customerPhone: true, urlParams: true },
+          })
+          const urlParamsUp = (originalCp?.urlParams ?? {}) as Record<string, string>
+          await pixelService.trackEvent('Purchase', {
+            event: 'Purchase',
+            data: {
+              value: pi.amount, currency: pi.currency.toUpperCase(), order_id: pi.id,
+              content_type: 'product', num_items: 1,
+              content_ids: [upsellProductId],
+              items: [{ id: upsellProductId, name: upsellProductName, quantity: 1, price: pi.amount }],
+            },
+            userData: {
+              ip, userAgent,
+              email: originalCp?.customerEmail || undefined,
+              phone: originalCp?.customerPhone || undefined,
+              fbp:    urlParamsUp.fbp,
+              fbc:    urlParamsUp.fbclid ? `fb.1.${Date.now()}.${urlParamsUp.fbclid}` : undefined,
+              ttp:    urlParamsUp.ttp,
+              ttclid: urlParamsUp.ttclid,
+            },
+          })
+          break
+        }
+
         await persistPayment(pi)
         await checkoutService.updatePaymentStatus(pi.id, 'paid', resolveMethodRaw(charge))
 
@@ -138,6 +201,12 @@ export async function POST(req: NextRequest) {
           data:  { stripeChargeId: chargeId, isAbandoned: false, lastStripeEventId: event.id },
         })
         await abandonedCartService.markRecovered(pi.id)
+
+        // Decrementar estoque do produto (pagamento direto, não carrinho)
+        const productId = pi.metadata?.productId
+        if (productId) {
+          await productService.decrementStock(productId, 1)
+        }
 
         const cpRecord = await prisma.checkoutPayment.findFirst({
           where:  { stripePaymentIntentId: pi.id },
