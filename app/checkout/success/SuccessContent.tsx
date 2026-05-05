@@ -47,8 +47,23 @@ export default function SuccessContent() {
           setTimeout(poll, 3000)
         } else {
           setLoading(false)
-          if (data.status === 'paid' && data.successUrl) {
-            window.location.href = data.successUrl
+          if (data.status === 'paid') {
+            // Verifica se há upsell disponível antes de redirecionar
+            try {
+              const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
+              if (upsellRes.ok) {
+                const upsell = await upsellRes.json()
+                if (upsell?.available) {
+                  window.location.href = `/checkout/upsell/${paymentId}`
+                  return
+                }
+              }
+            } catch {
+              // Se falhar a verificação de upsell, segue para successUrl normalmente
+            }
+            if (data.successUrl) {
+              window.location.href = data.successUrl
+            }
           }
         }
       } catch {

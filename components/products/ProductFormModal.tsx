@@ -34,6 +34,7 @@ type FormData = {
   utmfyApiToken:    string
   successUrl:       string
   metaPixelId:      string
+  customDomain:     string
   status:           'active' | 'archived'
   stock:            string
   pixelIds:         string[]
@@ -168,6 +169,7 @@ function toForm(p?: Product | null): FormData {
     utmfyApiToken:    p?.utmfyApiToken    ?? '',
     successUrl:       p?.successUrl       ?? '',
     metaPixelId:      p?.metaPixelId      ?? '',
+    customDomain:     p?.customDomain     ?? '',
     status:           p?.status           ?? 'active',
     stock:            String(p?.stock     ?? -1),
     pixelIds:         (p?.pixelIds        ?? []) as string[],
@@ -342,6 +344,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         utmfyApiToken:    form.utmfyApiToken.trim(),
         successUrl:       form.successUrl.trim(),
         metaPixelId:      form.metaPixelId.trim(),
+        customDomain:     form.customDomain.trim(),
         status:           form.status,
         stock:            parseInt(form.stock) || -1,
         pixelIds:         form.pixelIds,
@@ -637,6 +640,12 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             </Field>
             <Field label="Meta Pixel ID (opcional)" hint="Para rastreamento de conversões do Facebook/Meta">
               <Input value={form.metaPixelId} onChange={v => set('metaPixelId', v)} placeholder="123456789012345" />
+            </Field>
+            <Field
+              label="Domínio customizado (opcional)"
+              hint="Ex: checkout.suamarca.com — configure um CNAME na Cloudflare apontando para o seu domínio Railway com proxy desligado (DNS only)."
+            >
+              <Input value={form.customDomain} onChange={v => set('customDomain', v)} placeholder="checkout.suamarca.com" />
             </Field>
             <ToggleRow checked={form.status === 'active'} onChange={v => set('status', v ? 'active' : 'archived')}
               label="Ativo" desc="Produtos inativos não aparecem no checkout" />

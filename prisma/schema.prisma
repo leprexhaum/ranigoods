@@ -76,6 +76,7 @@ model Product {
   countdownMinutes Int      @default(15) @map("countdown_minutes")
   stock            Int      @default(-1)
   pixelIds         Json     @default("[]") @map("pixel_ids")
+  customDomain     String   @default("") @map("custom_domain")
   checkoutPayments CheckoutPayment[]
   cartItems        CartItem[]
 
@@ -97,6 +98,9 @@ model CheckoutPayment {
   disputeStatus         String   @default("") @map("dispute_status")
   lastStripeEventId     String   @default("") @map("last_stripe_event_id")
   isAbandoned           Boolean  @default(false) @map("is_abandoned")
+  upsellStatus          String   @default("none") @map("upsell_status")
+  upsellAmount          Int      @default(0) @map("upsell_amount")
+  upsellPiId            String   @default("") @map("upsell_pi_id")
   customerName          String   @default("") @map("customer_name")
   customerEmail         String   @default("") @map("customer_email")
   customerPhone         String   @default("") @map("customer_phone")
@@ -309,4 +313,21 @@ model OrderItem {
   order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("order_items")
+}
+
+model Funnel {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  name         String
+  productId    String   @map("product_id")
+  upsellId     String   @map("upsell_id")
+  upsellPrice  Int      @default(0) @map("upsell_price")
+  upsellTitle  String   @default("") @map("upsell_title")
+  upsellDesc   String   @default("") @map("upsell_desc")
+  upsellImage  String   @default("") @map("upsell_image")
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("funnels")
 }

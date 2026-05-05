@@ -13,6 +13,7 @@ import {
   Webhook,
   ShoppingCart,
   Activity,
+  GitFork,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/produtos',              label: 'Produtos',            icon: Package         },
   { href: '/pagamentos',            label: 'Pagamentos',          icon: CreditCard      },
   { href: '/pixels',                label: 'Pixels',              icon: Cpu             },
+  { href: '/funis',                 label: 'Funis',               icon: GitFork         },
   { href: '/carrinhos-abandonados', label: 'Carrinhos',           icon: ShoppingCart    },
   { href: '/webhooks',              label: 'Webhooks',            icon: Webhook         },
   { href: '/stripe-eventos',        label: 'Eventos Stripe',      icon: Activity        },

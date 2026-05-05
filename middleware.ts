@@ -14,6 +14,24 @@ function getKey() {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
+  const host = req.headers.get('host') ?? ''
+  const appHost = process.env.NEXT_PUBLIC_APP_HOST ?? ''
+
+  // Domínio customizado: se o host não é o domínio principal, procura produto e reescreve
+  if (appHost && host && host !== appHost && !host.includes('localhost') && pathname === '/') {
+    try {
+      const baseUrl = req.nextUrl.origin
+      const res = await fetch(`${baseUrl}/api/products/by-domain?domain=${encodeURIComponent(host)}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data?.slug) {
+          return NextResponse.rewrite(new URL(`/checkout/${data.slug}`, req.url))
+        }
+      }
+    } catch {
+      // Se falhar, segue o fluxo normal
+    }
+  }
 
   // Sempre permitir rotas públicas de API, páginas de checkout e next internals
   if (
