@@ -119,7 +119,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
 
       {/* Legal */}
       <p className="text-[13px] text-[#6B7280] leading-relaxed">
-        Ao confirmar a inscrição, o senhor concede permissão à <strong className="font-medium">{brandName}</strong> para efetuar cobranças conforme as condições estipuladas, até que ocorra o cancelamento.
+        Ao confirmar a inscrição, o senhor concede permissão à <strong className="font-medium">{brandName}</strong> para efetuar cobranças conforme as condiçções estipuladas, até que ocorra o cancelamento.
       </p>
 
       {/* Footer */}
@@ -135,114 +135,32 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Order Summary ────────────────────────────────────────────────────────────
 
-export default function CheckoutPage() {
-  const { slug } = useParams<{ slug: string }>()
+interface OrderSummaryProps {
+  product: CheckoutProduct
+  total: number
+  selectedBumps: string[]
+  selectedShip: string
+  promoCode: string
+  setPromoCode: (v: string) => void
+  descExpanded: boolean
+  setDescExpanded: React.Dispatch<React.SetStateAction<boolean>>
+  intervalLabel: string | null
+}
 
-  const [product,        setProduct]        = useState<CheckoutProduct | null>(null)
-  const [pageLoading,    setPageLoading]    = useState(true)
-  const [pageError,      setPageError]      = useState('')
-  const [step,           setStep]           = useState<'form' | 'payment'>('form')
-
-  // Form
-  const [name,           setName]           = useState('')
-  const [email,          setEmail]          = useState('')
-  const [phone,          setPhone]          = useState('')
-  const [selectedBumps,  setSelectedBumps]  = useState<string[]>([])
-  const [selectedShip,   setSelectedShip]   = useState('')
-  const [formError,      setFormError]      = useState('')
-  const [submitting,     setSubmitting]     = useState(false)
-  const [promoCode,      setPromoCode]      = useState('')
-  const [descExpanded,   setDescExpanded]   = useState(false)
-  const [summaryOpen,    setSummaryOpen]    = useState(false)
-  const [saveInfo,       setSaveInfo]       = useState(false)
-  const [payMethod,      setPayMethod]      = useState<'card' | 'googlepay'>('card')
-
-  // Payment
-  const [clientSecret,   setClientSecret]   = useState('')
-  const [publishableKey, setPublishableKey] = useState('')
-  const [paymentId,      setPaymentId]      = useState('')
-  const [paymentAmount,  setPaymentAmount]  = useState(0)
-
-  useEffect(() => {
-    fetch(`/api/checkout/${slug}`)
-      .then(r => r.json())
-      .then((d: CheckoutProduct) => {
-        setProduct(d)
-        if (d.shippingOptions?.length > 0) setSelectedShip(d.shippingOptions[0].id)
-      })
-      .catch(() => setPageError('Produto não encontrado'))
-      .finally(() => setPageLoading(false))
-  }, [slug])
-
-  const total = product
-    ? product.price
-      + selectedBumps.reduce((s, id) => s + (product.orderBumps.find(b => b.id === id)?.price ?? 0), 0)
-      + (product.shippingOptions.find(s => s.id === selectedShip)?.price ?? 0)
-    : 0
-
-  const handleProceed = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!product) return
-    setFormError('')
-    if (!name.trim()) { setFormError('Nome é obrigatório'); return }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setFormError('Email inválido'); return }
-
-    setSubmitting(true)
-    try {
-      const res = await fetch(`/api/checkout/${slug}/payment-intent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerName: name, customerEmail: email, customerPhone: phone, bumpIds: selectedBumps, shippingId: selectedShip || undefined }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setFormError(data.error ?? 'Erro ao iniciar pagamento'); return }
-      setClientSecret(data.clientSecret)
-      setPublishableKey(data.publishableKey)
-      setPaymentId(data.paymentId)
-      setPaymentAmount(data.amount)
-      setStep('payment')
-    } catch {
-      setFormError('Erro de ligação. Tente novamente.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const intervalLabel = product?.interval && product.interval !== 'unit'
-    ? product.interval === 'month' ? 'por mês'
-    : product.interval === 'year' ? 'por ano'
-    : product.interval === 'week' ? 'por semana'
-    : `por ${product.interval}`
-    : null
-
-  // ── Loading ──
-  if (pageLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-[#1A56DB]" />
-      </div>
-    )
-  }
-
-  // ── Error ──
-  if (pageError || !product) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="text-center space-y-2">
-          <p className="text-[#1A1A1A] font-medium text-lg">Produto não encontrado</p>
-          <p className="text-[#6B7280] text-sm">Verifique o link e tente novamente.</p>
-        </div>
-      </div>
-    )
-  }
-
-  const stripePromise = publishableKey ? loadStripe(publishableKey) : null
-  const brandName = product.brandName || product.name
-
-  // ── Order Summary (left column) ──
-  const OrderSummary = () => (
+function OrderSummary({
+  product,
+  total,
+  selectedBumps,
+  selectedShip,
+  promoCode,
+  setPromoCode,
+  descExpanded,
+  setDescExpanded,
+  intervalLabel,
+}: OrderSummaryProps) {
+  return (
     <div className="space-y-5">
       {/* Product name + price */}
       <div>
@@ -341,9 +259,63 @@ export default function CheckoutPage() {
       </div>
     </div>
   )
+}
 
-  // ── Right column: contact + payment form ──
-  const CheckoutForm = () => (
+// ─── Checkout Form ────────────────────────────────────────────────────────────
+
+interface CheckoutFormProps {
+  product: CheckoutProduct
+  brandName: string
+  step: 'form' | 'payment'
+  setStep: (v: 'form' | 'payment') => void
+  email: string
+  setEmail: (v: string) => void
+  name: string
+  setName: (v: string) => void
+  phone: string
+  setPhone: (v: string) => void
+  payMethod: 'card' | 'googlepay'
+  setPayMethod: (v: 'card' | 'googlepay') => void
+  saveInfo: boolean
+  setSaveInfo: (v: boolean) => void
+  selectedShip: string
+  setSelectedShip: (v: string) => void
+  selectedBumps: string[]
+  formError: string
+  submitting: boolean
+  handleProceed: (e: React.FormEvent) => void
+  clientSecret: string
+  stripePromise: ReturnType<typeof loadStripe> | null
+  paymentId: string
+  paymentAmount: number
+}
+
+function CheckoutForm({
+  product,
+  brandName,
+  step,
+  setStep,
+  email,
+  setEmail,
+  name,
+  setName,
+  phone,
+  setPhone,
+  payMethod,
+  setPayMethod,
+  saveInfo,
+  setSaveInfo,
+  selectedShip,
+  setSelectedShip,
+  formError,
+  submitting,
+  handleProceed,
+  clientSecret,
+  stripePromise,
+  paymentId,
+  paymentAmount,
+}: CheckoutFormProps) {
+  return (
     <div className="space-y-6">
       {step === 'form' ? (
         <form onSubmit={handleProceed} className="space-y-6">
@@ -644,6 +616,113 @@ export default function CheckoutPage() {
       )}
     </div>
   )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function CheckoutPage() {
+  const { slug } = useParams<{ slug: string }>()
+
+  const [product,        setProduct]        = useState<CheckoutProduct | null>(null)
+  const [pageLoading,    setPageLoading]    = useState(true)
+  const [pageError,      setPageError]      = useState('')
+  const [step,           setStep]           = useState<'form' | 'payment'>('form')
+
+  // Form
+  const [name,           setName]           = useState('')
+  const [email,          setEmail]          = useState('')
+  const [phone,          setPhone]          = useState('')
+  const [selectedBumps,  setSelectedBumps]  = useState<string[]>([])
+  const [selectedShip,   setSelectedShip]   = useState('')
+  const [formError,      setFormError]      = useState('')
+  const [submitting,     setSubmitting]     = useState(false)
+  const [promoCode,      setPromoCode]      = useState('')
+  const [descExpanded,   setDescExpanded]   = useState(false)
+  const [summaryOpen,    setSummaryOpen]    = useState(false)
+  const [saveInfo,       setSaveInfo]       = useState(false)
+  const [payMethod,      setPayMethod]      = useState<'card' | 'googlepay'>('card')
+
+  // Payment
+  const [clientSecret,   setClientSecret]   = useState('')
+  const [publishableKey, setPublishableKey] = useState('')
+  const [paymentId,      setPaymentId]      = useState('')
+  const [paymentAmount,  setPaymentAmount]  = useState(0)
+
+  useEffect(() => {
+    fetch(`/api/checkout/${slug}`)
+      .then(r => r.json())
+      .then((d: CheckoutProduct) => {
+        setProduct(d)
+        if (d.shippingOptions?.length > 0) setSelectedShip(d.shippingOptions[0].id)
+      })
+      .catch(() => setPageError('Produto não encontrado'))
+      .finally(() => setPageLoading(false))
+  }, [slug])
+
+  const total = product
+    ? product.price
+      + selectedBumps.reduce((s, id) => s + (product.orderBumps.find(b => b.id === id)?.price ?? 0), 0)
+      + (product.shippingOptions.find(s => s.id === selectedShip)?.price ?? 0)
+    : 0
+
+  const handleProceed = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!product) return
+    setFormError('')
+    if (!name.trim()) { setFormError('Nome é obrigatório'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setFormError('Email inválido'); return }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/checkout/${slug}/payment-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerName: name, customerEmail: email, customerPhone: phone, bumpIds: selectedBumps, shippingId: selectedShip || undefined }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setFormError(data.error ?? 'Erro ao iniciar pagamento'); return }
+      setClientSecret(data.clientSecret)
+      setPublishableKey(data.publishableKey)
+      setPaymentId(data.paymentId)
+      setPaymentAmount(data.amount)
+      setStep('payment')
+    } catch {
+      setFormError('Erro de ligação. Tente novamente.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const intervalLabel = product?.interval && product.interval !== 'unit'
+    ? product.interval === 'month' ? 'por mês'
+    : product.interval === 'year' ? 'por ano'
+    : product.interval === 'week' ? 'por semana'
+    : `por ${product.interval}`
+    : null
+
+  // ── Loading ──
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-[#1A56DB]" />
+      </div>
+    )
+  }
+
+  // ── Error ──
+  if (pageError || !product) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+        <div className="text-center space-y-2">
+          <p className="text-[#1A1A1A] font-medium text-lg">Produto não encontrado</p>
+          <p className="text-[#6B7280] text-sm">Verifique o link e tente novamente.</p>
+        </div>
+      </div>
+    )
+  }
+
+  const stripePromise = publishableKey ? loadStripe(publishableKey) : null
+  const brandName = product.brandName || product.name
 
   return (
     <>
@@ -699,7 +778,17 @@ export default function CheckoutPage() {
         {summaryOpen && (
           <div className="lg:hidden border-b border-[#E5E7EB] bg-white">
             <div className="max-w-[576px] mx-auto px-4 md:px-24 py-6">
-              <OrderSummary />
+              <OrderSummary
+                product={product}
+                total={total}
+                selectedBumps={selectedBumps}
+                selectedShip={selectedShip}
+                promoCode={promoCode}
+                setPromoCode={setPromoCode}
+                descExpanded={descExpanded}
+                setDescExpanded={setDescExpanded}
+                intervalLabel={intervalLabel}
+              />
             </div>
           </div>
         )}
@@ -710,14 +799,49 @@ export default function CheckoutPage() {
           {/* Left column — order summary, desktop only */}
           <div className="hidden lg:flex lg:w-[47%] justify-end border-r border-[#E5E7EB]">
             <div className="w-full max-w-[calc(50vw-24px)] px-12 py-12">
-              <OrderSummary />
+              <OrderSummary
+                product={product}
+                total={total}
+                selectedBumps={selectedBumps}
+                selectedShip={selectedShip}
+                promoCode={promoCode}
+                setPromoCode={setPromoCode}
+                descExpanded={descExpanded}
+                setDescExpanded={setDescExpanded}
+                intervalLabel={intervalLabel}
+              />
             </div>
           </div>
 
           {/* Right column — form */}
           <div className="lg:flex-1 lg:flex lg:justify-start">
             <div className="w-full lg:max-w-[calc(50vw-24px)] px-4 md:px-24 lg:px-12 py-8 lg:py-12">
-              <CheckoutForm />
+              <CheckoutForm
+                product={product}
+                brandName={brandName}
+                step={step}
+                setStep={setStep}
+                email={email}
+                setEmail={setEmail}
+                name={name}
+                setName={setName}
+                phone={phone}
+                setPhone={setPhone}
+                payMethod={payMethod}
+                setPayMethod={setPayMethod}
+                saveInfo={saveInfo}
+                setSaveInfo={setSaveInfo}
+                selectedShip={selectedShip}
+                setSelectedShip={setSelectedShip}
+                selectedBumps={selectedBumps}
+                formError={formError}
+                submitting={submitting}
+                handleProceed={handleProceed}
+                clientSecret={clientSecret}
+                stripePromise={stripePromise}
+                paymentId={paymentId}
+                paymentAmount={paymentAmount}
+              />
             </div>
           </div>
         </div>
