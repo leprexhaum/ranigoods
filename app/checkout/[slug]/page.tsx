@@ -559,8 +559,84 @@ export default function CheckoutPage() {
 
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-[#1A56DB]" />
+      <div className="min-h-screen bg-white font-sans">
+        <style>{`
+          @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+          }
+          .sk { background: #E5E7EB; border-radius: 4px; animation: skeleton-pulse 1.6s ease-in-out infinite; }
+        `}</style>
+
+        {/* Header skeleton */}
+        <div className="sticky top-0 z-20 bg-white border-b border-[#E5E7EB] h-14 flex items-center px-4 lg:px-0">
+          <div className="lg:w-[47%] lg:flex lg:justify-end w-full">
+            <div className="lg:w-full lg:max-w-[calc(50vw-24px)] lg:px-12 flex items-center gap-2">
+              <div className="sk w-4 h-4 rounded" />
+              <div className="sk w-24 h-3" />
+            </div>
+          </div>
+        </div>
+
+        {/* Main layout skeleton */}
+        <div className="lg:flex lg:min-h-[calc(100vh-56px)]">
+
+          {/* Left column — order summary */}
+          <div className="hidden lg:flex lg:w-[47%] justify-end border-r border-[#E5E7EB]">
+            <div className="w-full max-w-[calc(50vw-24px)] px-12 py-12 space-y-5">
+              <div className="sk w-40 h-4" />
+              <div className="sk w-28 h-8" />
+              <div className="space-y-2">
+                <div className="sk w-full h-3" />
+                <div className="sk w-4/5 h-3" />
+                <div className="sk w-3/5 h-3" />
+              </div>
+              <div className="sk w-24 h-7 rounded-[6px]" />
+              <div className="border-t border-[#E5E7EB]" />
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <div className="sk w-32 h-3" />
+                  <div className="sk w-16 h-3" />
+                </div>
+                <div className="flex justify-between">
+                  <div className="sk w-20 h-3" />
+                  <div className="sk w-16 h-3" />
+                </div>
+              </div>
+              <div className="border-t border-[#E5E7EB]" />
+              <div className="flex justify-between items-center">
+                <div className="sk w-28 h-3" />
+                <div className="sk w-20 h-4" />
+              </div>
+            </div>
+          </div>
+
+          {/* Right column — form */}
+          <div className="lg:flex-1 lg:flex lg:justify-start">
+            <div className="w-full lg:max-w-[calc(50vw-24px)] px-4 md:px-24 lg:px-12 py-8 lg:py-12 space-y-6">
+              <div className="sk w-28 h-3" />
+              {/* Contact fieldset */}
+              <div className="space-y-0">
+                <div className="sk w-full h-12 rounded-t-[6px] rounded-b-none" style={{ animationDelay: '0ms' }} />
+                <div className="sk w-full h-12 rounded-none mt-[1px]" style={{ animationDelay: '80ms' }} />
+                <div className="sk w-full h-12 rounded-b-[6px] rounded-t-none mt-[1px]" style={{ animationDelay: '160ms' }} />
+              </div>
+              {/* Submit button */}
+              <div className="sk w-full h-[52px] rounded-[6px]" style={{ animationDelay: '240ms' }} />
+              {/* Legal text */}
+              <div className="space-y-2">
+                <div className="sk w-full h-3" style={{ animationDelay: '320ms' }} />
+                <div className="sk w-3/4 h-3" style={{ animationDelay: '320ms' }} />
+              </div>
+              {/* Footer */}
+              <div className="flex items-center justify-center gap-4 pt-1">
+                <div className="sk w-24 h-3" />
+                <div className="sk w-10 h-3" />
+                <div className="sk w-10 h-3" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
