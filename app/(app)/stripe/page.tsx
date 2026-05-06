@@ -526,7 +526,8 @@ function RefundsTab() {
     setLoading(true)
     try {
       const r = await fetch(`/api/stripe/refunds?page=${p}&limit=${LIMIT}`).then(r => r.json())
-      setData(Array.isArray(r.data) ? r.data : []); setPages(r.pages ?? 1); setTotal(r.total ?? 0); setPage(p)
+      const rows = Array.isArray(r.data) ? r.data : Array.isArray(r) ? r : []
+      setData(rows); setPages(r.pages ?? 1); setTotal(r.total ?? (Array.isArray(r) ? r.length : 0)); setPage(p)
     } finally { setLoading(false) }
   }, [])
 
@@ -576,7 +577,8 @@ function DisputesTab() {
     setLoading(true)
     try {
       const r = await fetch(`/api/stripe/disputes?page=${p}&limit=${LIMIT}`).then(r => r.json())
-      setData(Array.isArray(r.data) ? r.data : []); setPages(r.pages ?? 1); setTotal(r.total ?? 0); setPage(p)
+      const rows = Array.isArray(r.data) ? r.data : Array.isArray(r) ? r : []
+      setData(rows); setPages(r.pages ?? 1); setTotal(r.total ?? (Array.isArray(r) ? r.length : 0)); setPage(p)
     } finally { setLoading(false) }
   }, [])
 
