@@ -8,7 +8,7 @@ import {
   Tag, ReceiptText, Scale, Layers, Search, Plus,
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
-import { formatEUR } from '@/lib/utils/currency'
+import { formatEUR, eurToBrlStr } from '@/lib/utils/currency'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -460,14 +460,17 @@ function TransactionsTab() {
         <div className="bg-ep-surface border border-ep-border-subtle rounded-lg p-3">
           <p className="text-ep-muted text-xs">Volume bruto (pagamentos)</p>
           <p className="text-ep-primary font-bold text-sm mt-1">{formatEUR(totalGross)}</p>
+          <p className="text-ep-muted text-[11px] mt-0.5">≈ {eurToBrlStr(totalGross)}</p>
         </div>
         <div className="bg-ep-surface border border-ep-border-subtle rounded-lg p-3">
           <p className="text-ep-muted text-xs">Fees Stripe</p>
           <p className="text-ep-danger font-bold text-sm mt-1">-{formatEUR(totalFee)}</p>
+          <p className="text-ep-muted text-[11px] mt-0.5">≈ -{eurToBrlStr(totalFee)}</p>
         </div>
         <div className="bg-ep-surface border border-ep-border-subtle rounded-lg p-3">
           <p className="text-ep-muted text-xs">Líquido</p>
           <p className="text-ep-success font-bold text-sm mt-1">{formatEUR(totalNet)}</p>
+          <p className="text-ep-muted text-[11px] mt-0.5">≈ {eurToBrlStr(totalNet)}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -499,9 +502,22 @@ function TransactionsTab() {
                 {displayed.map(t => (
                   <tr key={t.id} className="hover:bg-ep-raised/50 transition-colors">
                     <td className="px-4 py-2.5 text-ep-secondary font-mono">{t.type}</td>
-                    <td className={clsx('px-4 py-2.5 font-medium', t.amount >= 0 ? 'text-ep-primary' : 'text-ep-danger')}>{formatEUR(t.amount)}</td>
-                    <td className="px-4 py-2.5 text-ep-danger">{t.fee > 0 ? `-${formatEUR(t.fee)}` : '—'}</td>
-                    <td className={clsx('px-4 py-2.5 font-medium', t.net >= 0 ? 'text-ep-success' : 'text-ep-danger')}>{formatEUR(t.net)}</td>
+                    <td className="px-4 py-2.5">
+                      <p className={clsx('font-medium', t.amount >= 0 ? 'text-ep-primary' : 'text-ep-danger')}>{formatEUR(t.amount)}</p>
+                      <p className="text-ep-muted text-[11px]">≈ {eurToBrlStr(t.amount)}</p>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {t.fee > 0 ? (
+                        <>
+                          <p className="text-ep-danger">-{formatEUR(t.fee)}</p>
+                          <p className="text-ep-muted text-[11px]">≈ -{eurToBrlStr(t.fee)}</p>
+                        </>
+                      ) : <span className="text-ep-muted">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <p className={clsx('font-medium', t.net >= 0 ? 'text-ep-success' : 'text-ep-danger')}>{formatEUR(t.net)}</p>
+                      <p className="text-ep-muted text-[11px]">≈ {eurToBrlStr(t.net)}</p>
+                    </td>
                     <td className="px-4 py-2.5"><Pill label={t.status} cls={t.status === 'available' ? 'text-ep-success bg-ep-success/10 border-ep-success/20' : 'text-ep-warning bg-ep-warning/10 border-ep-warning/20'} /></td>
                     <td className="px-4 py-2.5 text-ep-muted">{fmt(t.createdAt)}</td>
                   </tr>
