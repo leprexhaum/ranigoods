@@ -167,10 +167,10 @@ export default function StripePage() {
       setFrauds(Array.isArray(fraudR) ? fraudR : [])
       setCoupons(Array.isArray(couR?.coupons) ? couR.coupons : [])
       setPromoCodes(Array.isArray(couR?.promoCodes) ? couR.promoCodes : [])
-      setOverviewPayouts(Array.isArray(payR?.data) ? payR.data : [])
-      setOverviewDisputes(Array.isArray(dispR?.data) ? dispR.data : [])
-      setOverviewRefunds(Array.isArray(refR?.data) ? refR.data : [])
-      setOverviewCustomers(Array.isArray(custR?.data) ? custR.data : [])
+      setOverviewPayouts(Array.isArray(payR?.data) ? payR.data : Array.isArray(payR) ? payR : [])
+      setOverviewDisputes(Array.isArray(dispR?.data) ? dispR.data : Array.isArray(dispR) ? dispR : [])
+      setOverviewRefunds(Array.isArray(refR?.data) ? refR.data : Array.isArray(refR) ? refR : [])
+      setOverviewCustomers(Array.isArray(custR?.data) ? custR.data : Array.isArray(custR) ? custR : [])
     } finally {
       setLoading(false)
     }
