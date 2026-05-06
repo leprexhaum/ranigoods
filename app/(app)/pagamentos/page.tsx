@@ -61,6 +61,7 @@ interface PaymentDetail {
   upsellStatus?: string; upsellAmount?: number
   disputeId?: string; disputeStatus?: string
   stripeChargeId?: string
+  urlParams?: Record<string, string>
 }
 
 const riskConfig: Record<string, { label: string; className: string }> = {
@@ -616,6 +617,41 @@ export default function PagamentosPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Parâmetros de URL / UTMs */}
+                  {detail.urlParams && Object.keys(detail.urlParams).length > 0 && (() => {
+                    const params = detail.urlParams as Record<string, string>
+                    const utm    = Object.entries(params).filter(([k]) => k.startsWith('utm_'))
+                    const meta   = Object.entries(params).filter(([k]) => ['fbclid','fbp','fbc'].includes(k))
+                    const google = Object.entries(params).filter(([k]) => ['gclid','gclsrc','dclid','wbraid','gbraid'].includes(k))
+                    const tiktok = Object.entries(params).filter(([k]) => ['ttclid','ttp'].includes(k))
+                    const other  = Object.entries(params).filter(([k]) => !k.startsWith('utm_') && !['fbclid','fbp','fbc','gclid','gclsrc','dclid','wbraid','gbraid','ttclid','ttp'].includes(k))
+
+                    const ParamSection = ({ title, entries }: { title: string; entries: [string, string][] }) =>
+                      entries.length === 0 ? null : (
+                        <div className="space-y-1">
+                          <p className="text-ep-muted text-xs font-medium uppercase tracking-wide">{title}</p>
+                          <div className="bg-ep-raised rounded-md divide-y divide-ep-border-subtle">
+                            {entries.map(([k, v]) => (
+                              <div key={k} className="flex justify-between gap-2 px-3 py-2">
+                                <span className="text-ep-muted text-xs font-mono shrink-0">{k}</span>
+                                <span className="text-ep-primary text-xs font-mono truncate max-w-[160px]" title={v}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+
+                    return (
+                      <>
+                        <ParamSection title="UTM" entries={utm} />
+                        <ParamSection title="Meta / Facebook" entries={meta} />
+                        <ParamSection title="Google Ads" entries={google} />
+                        <ParamSection title="TikTok" entries={tiktok} />
+                        <ParamSection title="Outros parâmetros" entries={other} />
+                      </>
+                    )
+                  })()}
                 </>
               )}
             </div>

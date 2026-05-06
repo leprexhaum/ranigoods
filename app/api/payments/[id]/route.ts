@@ -24,6 +24,7 @@ export async function GET(
       upsellStatus: true, upsellAmount: true,
       disputeId: true, disputeStatus: true,
       stripeChargeId: true,
+      urlParams: true,
     },
   })
 
