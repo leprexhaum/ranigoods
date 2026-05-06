@@ -628,8 +628,8 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
   return (
     <div className="min-h-screen bg-[#F6F9FC] font-sans">
 
-      {/* Mobile — header sticky com logo + marca + botão detalhes */}
-      <div className="lg:hidden sticky top-0 z-20 bg-white border-b border-[#E0E6EB]">
+      {/* Mobile — header com logo + marca + botão detalhes */}
+      <div className="lg:hidden bg-white border-b border-[#E0E6EB]">
         <div className="flex items-center justify-between px-4 h-14">
           {/* Logo */}
           <div className="flex items-center gap-2 min-w-0">
