@@ -311,21 +311,29 @@ export default function PagamentosPage() {
         ) : paginated.map((p) => {
           const s = statusConfig[p.status] ?? statusConfig.pending
           return (
-            <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <p className="text-ep-primary text-sm font-medium truncate">{p.customer}</p>
-                  <span className={clsx('inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-medium border flex-shrink-0', s.className)}>
-                    {s.label}
-                  </span>
+            <div key={p.id} className="px-4 py-3 cursor-pointer" onClick={() => openDetail(p)}>
+              <div className="flex items-start justify-between gap-3 mb-1.5">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-ep-primary text-sm font-medium truncate">{p.customer}</p>
+                    <span className={clsx('inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-medium border flex-shrink-0', s.className)}>
+                      {s.label}
+                    </span>
+                  </div>
+                  <p className="text-ep-muted text-xs truncate mt-0.5">{p.product} · {p.method}</p>
+                  <p className="text-ep-muted text-xs">{new Date(p.createdAt).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
-                <p className="text-ep-muted text-xs truncate">{p.product} · {p.method}</p>
-                <p className="text-ep-muted text-xs">{new Date(p.createdAt).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                <div className="flex-shrink-0 text-right">
+                  <p className="text-ep-primary text-sm font-bold">{formatEUR(p.amount)}</p>
+                  <p className="text-ep-muted text-xs">≈ {eurToBrlStr(p.amount)}</p>
+                </div>
               </div>
-              <div className="flex-shrink-0 text-right">
-                <p className="text-ep-primary text-sm font-bold">{formatEUR(p.amount)}</p>
-                <p className="text-ep-muted text-xs">≈ {eurToBrlStr(p.amount)}</p>
-              </div>
+              {(p.fee > 0 || p.net > 0) && (
+                <div className="flex items-center gap-3 mt-1 pt-1.5 border-t border-ep-border-subtle">
+                  <span className="text-ep-muted text-xs">Fee: <span className="text-ep-danger">-{formatEUR(p.fee)}</span> <span className="text-ep-muted">≈ -{eurToBrlStr(p.fee)}</span></span>
+                  <span className="text-ep-muted text-xs">Líq: <span className="text-ep-success font-medium">{formatEUR(p.net)}</span> <span className="text-ep-muted">≈ {eurToBrlStr(p.net)}</span></span>
+                </div>
+              )}
             </div>
           )
         })}

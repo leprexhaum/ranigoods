@@ -115,8 +115,52 @@ export default function StripeEventosPage() {
         </div>
       </div>
 
-      {/* Tabela */}
-      <div className="bg-ep-surface border border-ep-border-default rounded-lg overflow-hidden">
+      {/* Mobile: cards */}
+      <div className="md:hidden bg-ep-surface border border-ep-border-default rounded-lg overflow-hidden divide-y divide-ep-border-subtle">
+        {loading ? (
+          <div className="px-4 py-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 py-2">
+                <div className="h-3 bg-ep-raised rounded animate-pulse w-1/2" />
+                <div className="h-3 bg-ep-raised rounded animate-pulse w-1/4 ml-auto" />
+              </div>
+            ))}
+          </div>
+        ) : data.length === 0 ? (
+          <div className="px-4 py-10 flex flex-col items-center gap-3">
+            <Zap size={24} className="text-ep-muted" />
+            <p className="text-ep-muted text-sm">Nenhum evento encontrado</p>
+          </div>
+        ) : data.map(ev => (
+          <div key={ev.id} className="px-4 py-3 cursor-pointer" onClick={() => toggleExpand(ev.id)}>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-ep-primary text-xs font-mono truncate">{ev.type}</span>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className={clsx('inline-flex items-center px-1.5 py-0.5 rounded-sm text-[10px] font-medium border',
+                  ev.livemode ? 'text-ep-success bg-ep-success/10 border-ep-success/20' : 'text-ep-warning bg-ep-warning/10 border-ep-warning/20')}>
+                  {ev.livemode ? 'Live' : 'Test'}
+                </span>
+                {ev.processed
+                  ? <CheckCircle2 size={12} className="text-ep-success" />
+                  : <XCircle size={12} className="text-ep-danger" />}
+              </div>
+            </div>
+            <p className="text-ep-muted text-[11px] font-mono truncate">{ev.objectId || '—'}</p>
+            <p className="text-ep-muted text-[11px]">{new Date(ev.receivedAt).toLocaleString('pt-PT')}</p>
+            {ev.id in expanded && expanded[ev.id] && (
+              <div className="mt-2 pt-2 border-t border-ep-border-subtle">
+                {ev.error && <p className="text-ep-danger text-xs mb-2">Erro: {ev.error}</p>}
+                <pre className="text-[10px] text-ep-secondary bg-ep-raised border border-ep-border-subtle rounded p-2 overflow-x-auto max-h-48 font-mono">
+                  {JSON.stringify(expanded[ev.id]?.payload, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: tabela */}
+      <div className="hidden md:block bg-ep-surface border border-ep-border-default rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -220,6 +264,23 @@ export default function StripeEventosPage() {
           </div>
         )}
       </div>
+
+      {/* Paginação mobile */}
+      {totalPages > 1 && (
+        <div className="md:hidden flex items-center justify-between">
+          <span className="text-ep-muted text-xs">Página {page} de {totalPages} · {total} eventos</span>
+          <div className="flex gap-1">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-3 py-1.5 rounded text-xs text-ep-secondary border border-ep-border-default hover:border-ep-accent hover:text-ep-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              ← Ant.
+            </button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              className="px-3 py-1.5 rounded text-xs text-ep-secondary border border-ep-border-default hover:border-ep-accent hover:text-ep-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              Próx. →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

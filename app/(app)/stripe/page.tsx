@@ -388,10 +388,29 @@ function PayoutsTab() {
 
   return (
     <div className="bg-ep-surface border border-ep-border-subtle rounded-lg overflow-hidden">
-      <div className="px-4 py-3 border-b border-ep-border-subtle flex items-center justify-between">
-        <span className="text-ep-primary text-xs font-medium">{total} transferências · <span className="text-ep-accent">{formatEUR(totalPaid)}</span> pago</span>
+      {/* Mobile: cards */}
+      <div className="md:hidden divide-y divide-ep-border-subtle">
+        {loading ? <TableSkeleton rows={5} cols={3} /> : data.length === 0 ? (
+          <p className="text-ep-muted text-xs text-center py-8">Nenhuma transferência</p>
+        ) : data.map(p => {
+          const s = payoutCfg[p.status] ?? { label: p.status, cls: 'text-ep-muted bg-ep-raised border-ep-border-default' }
+          return (
+            <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-ep-muted text-[11px] font-mono truncate">{p.id.slice(0, 16)}…</p>
+                <p className="text-ep-secondary text-xs mt-0.5">{fmt(p.arrivalDate)}</p>
+                {p.description && <p className="text-ep-muted text-[11px] truncate">{p.description}</p>}
+              </div>
+              <div className="flex-shrink-0 text-right space-y-1">
+                <p className="text-ep-primary text-sm font-bold">{formatEUR(p.amount)}</p>
+                <Pill label={s.label} cls={s.cls} />
+              </div>
+            </div>
+          )
+        })}
       </div>
-      <div className="overflow-x-auto">
+      {/* Desktop: tabela */}
+      <div className="hidden md:block overflow-x-auto">
         {loading ? <TableSkeleton rows={8} cols={5} /> : (
           <table className="w-full text-xs">
             <thead><tr className="border-b border-ep-border-subtle">
@@ -456,7 +475,7 @@ function TransactionsTab() {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-ep-surface border border-ep-border-subtle rounded-lg p-3">
           <p className="text-ep-muted text-xs">Volume bruto (pagamentos)</p>
           <p className="text-ep-primary font-bold text-sm mt-1">{formatEUR(totalGross)}</p>
@@ -486,7 +505,41 @@ function TransactionsTab() {
         </button>
       </div>
       <div className="bg-ep-surface border border-ep-border-subtle rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile: cards */}
+        <div className="md:hidden divide-y divide-ep-border-subtle">
+          {loading ? <TableSkeleton rows={6} cols={3} /> : displayed.length === 0 ? (
+            <p className="text-ep-muted text-xs text-center py-8">Nenhuma transação</p>
+          ) : displayed.map(t => (
+            <div key={t.id} className="px-4 py-3 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-ep-secondary text-xs font-mono truncate">{t.type}</span>
+                <Pill label={t.status} cls={t.status === 'available' ? 'text-ep-success bg-ep-success/10 border-ep-success/20' : 'text-ep-warning bg-ep-warning/10 border-ep-warning/20'} />
+              </div>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-ep-muted text-[11px]">Bruto</p>
+                  <p className={clsx('text-xs font-medium', t.amount >= 0 ? 'text-ep-primary' : 'text-ep-danger')}>{formatEUR(t.amount)}</p>
+                  <p className="text-ep-muted text-[11px]">≈ {eurToBrlStr(t.amount)}</p>
+                </div>
+                {t.fee > 0 && (
+                  <div>
+                    <p className="text-ep-muted text-[11px]">Fee</p>
+                    <p className="text-ep-danger text-xs">-{formatEUR(t.fee)}</p>
+                    <p className="text-ep-muted text-[11px]">≈ -{eurToBrlStr(t.fee)}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-ep-muted text-[11px]">Líquido</p>
+                  <p className={clsx('text-xs font-medium', t.net >= 0 ? 'text-ep-success' : 'text-ep-danger')}>{formatEUR(t.net)}</p>
+                  <p className="text-ep-muted text-[11px]">≈ {eurToBrlStr(t.net)}</p>
+                </div>
+              </div>
+              <p className="text-ep-muted text-[11px]">{fmt(t.createdAt)}</p>
+            </div>
+          ))}
+        </div>
+        {/* Desktop: tabela */}
+        <div className="hidden md:block overflow-x-auto">
           {loading ? <TableSkeleton rows={8} cols={6} /> : (
             <table className="w-full text-xs">
               <thead><tr className="border-b border-ep-border-subtle">
@@ -553,7 +606,26 @@ function RefundsTab() {
 
   return (
     <div className="bg-ep-surface border border-ep-border-subtle rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Mobile: cards */}
+      <div className="md:hidden divide-y divide-ep-border-subtle">
+        {loading ? <TableSkeleton rows={5} cols={3} /> : data.length === 0 ? (
+          <p className="text-ep-muted text-xs text-center py-8">Nenhum reembolso</p>
+        ) : data.map(r => (
+          <div key={r.id} className="px-4 py-3 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-ep-muted text-[11px] font-mono truncate">{r.id.slice(0, 16)}…</p>
+              <p className="text-ep-muted text-xs mt-0.5">{r.reason || '—'}</p>
+              <p className="text-ep-muted text-[11px]">{fmt(r.createdAt)}</p>
+            </div>
+            <div className="flex-shrink-0 text-right space-y-1">
+              <p className="text-ep-primary text-sm font-bold">{formatEUR(r.amount)}</p>
+              <Pill label={r.status} cls={r.status === 'succeeded' ? 'text-ep-success bg-ep-success/10 border-ep-success/20' : 'text-ep-warning bg-ep-warning/10 border-ep-warning/20'} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Desktop: tabela */}
+      <div className="hidden md:block overflow-x-auto">
         {loading ? <TableSkeleton rows={8} cols={5} /> : (
           <table className="w-full text-xs">
             <thead><tr className="border-b border-ep-border-subtle">
@@ -604,7 +676,29 @@ function DisputesTab() {
 
   return (
     <div className="bg-ep-surface border border-ep-border-subtle rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Mobile: cards */}
+      <div className="md:hidden divide-y divide-ep-border-subtle">
+        {loading ? <TableSkeleton rows={5} cols={3} /> : data.length === 0 ? (
+          <p className="text-ep-muted text-xs text-center py-8">Nenhuma disputa</p>
+        ) : data.map(d => {
+          const s = disputeCfg[d.status] ?? { label: d.status, cls: 'text-ep-muted bg-ep-raised border-ep-border-default' }
+          return (
+            <div key={d.id} className="px-4 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-ep-muted text-[11px] font-mono truncate">{d.id.slice(0, 16)}…</p>
+                <p className="text-ep-secondary text-xs mt-0.5">{d.reason}</p>
+                {d.evidenceDueBy && <p className="text-ep-warning text-[11px]">Prazo: {fmt(d.evidenceDueBy)}</p>}
+              </div>
+              <div className="flex-shrink-0 text-right space-y-1">
+                <p className="text-ep-primary text-sm font-bold">{formatEUR(d.amount)}</p>
+                <Pill label={s.label} cls={s.cls} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      {/* Desktop: tabela */}
+      <div className="hidden md:block overflow-x-auto">
         {loading ? <TableSkeleton rows={8} cols={5} /> : (
           <table className="w-full text-xs">
             <thead><tr className="border-b border-ep-border-subtle">
@@ -657,7 +751,28 @@ function EventsTab() {
 
   return (
     <div className="bg-ep-surface border border-ep-border-subtle rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Mobile: cards */}
+      <div className="md:hidden divide-y divide-ep-border-subtle">
+        {loading ? <TableSkeleton rows={6} cols={3} /> : data.length === 0 ? (
+          <p className="text-ep-muted text-xs text-center py-8">Nenhum evento</p>
+        ) : data.map(e => (
+          <div key={e.id} className="px-4 py-3 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-ep-primary text-xs font-mono truncate">{e.type}</span>
+              {e.livemode ? <Pill label="Live" cls="text-ep-success bg-ep-success/10 border-ep-success/20" /> : <Pill label="Test" cls="text-ep-warning bg-ep-warning/10 border-ep-warning/20" />}
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-ep-muted text-[11px] font-mono truncate">{e.id.slice(0, 20)}…</p>
+              {e.error ? <Pill label="Erro" cls="text-ep-danger bg-ep-danger/10 border-ep-danger/20" />
+                : e.processed ? <Pill label="OK" cls="text-ep-success bg-ep-success/10 border-ep-success/20" />
+                : <Pill label="Pendente" cls="text-ep-warning bg-ep-warning/10 border-ep-warning/20" />}
+            </div>
+            <p className="text-ep-muted text-[11px]">{fmt(e.receivedAt)}</p>
+          </div>
+        ))}
+      </div>
+      {/* Desktop: tabela */}
+      <div className="hidden md:block overflow-x-auto">
         {loading ? <TableSkeleton rows={10} cols={5} /> : (
           <table className="w-full text-xs">
             <thead><tr className="border-b border-ep-border-subtle">
@@ -730,7 +845,25 @@ function CouponsTab({ coupons, promoCodes, loading, onRefresh }: {
       </div>
 
       <div className="bg-ep-surface border border-ep-border-subtle rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile: cards cupões */}
+        <div className="md:hidden divide-y divide-ep-border-subtle">
+          {loading ? <TableSkeleton rows={4} cols={3} /> : coupons.length === 0 ? (
+            <p className="text-ep-muted text-xs text-center py-8">Nenhum cupão</p>
+          ) : coupons.map(c => (
+            <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-ep-primary text-sm font-medium truncate">{c.name || c.id}</p>
+                <p className="text-ep-secondary text-xs">{c.percentOff != null ? `${c.percentOff}% off` : c.amountOff != null ? formatEUR(c.amountOff) + ' off' : '—'} · {c.duration} · {c.timesRedeemed} usos</p>
+                <p className="text-ep-muted text-[11px]">{fmt(c.createdAt)}</p>
+              </div>
+              {c.valid
+                ? <Pill label="Ativo" cls="text-ep-success bg-ep-success/10 border-ep-success/20" />
+                : <Pill label="Inativo" cls="text-ep-muted bg-ep-raised border-ep-border-default" />}
+            </div>
+          ))}
+        </div>
+        {/* Desktop: tabela cupões */}
+        <div className="hidden md:block overflow-x-auto">
           {loading ? <TableSkeleton rows={5} cols={6} /> : (
             <table className="w-full text-xs">
               <thead><tr className="border-b border-ep-border-subtle">
@@ -898,7 +1031,26 @@ function CustomersTab() {
       </form>
 
       <div className="bg-ep-surface border border-ep-border-subtle rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile: cards */}
+        <div className="md:hidden divide-y divide-ep-border-subtle">
+          {loading ? <TableSkeleton rows={6} cols={3} /> : data.length === 0 ? (
+            <p className="text-ep-muted text-xs text-center py-8">Nenhum cliente</p>
+          ) : data.map(c => (
+            <div key={c.id} className="px-4 py-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-ep-accent/20 border border-ep-accent/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-ep-accent text-xs font-bold">{(c.name || c.email || '?')[0].toUpperCase()}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-ep-primary text-sm font-medium truncate">{c.name || '—'}</p>
+                <p className="text-ep-muted text-xs truncate">{c.email || '—'}</p>
+                {c.phone && <p className="text-ep-muted text-[11px]">{c.phone}</p>}
+              </div>
+              <p className="text-ep-muted text-[11px] flex-shrink-0">{fmt(c.createdAt)}</p>
+            </div>
+          ))}
+        </div>
+        {/* Desktop: tabela */}
+        <div className="hidden md:block overflow-x-auto">
           {loading ? <TableSkeleton rows={10} cols={4} /> : (
             <table className="w-full text-xs">
               <thead><tr className="border-b border-ep-border-subtle">
@@ -932,7 +1084,25 @@ function CustomersTab() {
 function FraudsTab({ frauds, loading }: { frauds: FraudWarning[]; loading: boolean }) {
   return (
     <div className="bg-ep-surface border border-ep-border-subtle rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Mobile: cards */}
+      <div className="md:hidden divide-y divide-ep-border-subtle">
+        {loading ? <TableSkeleton rows={4} cols={3} /> : frauds.length === 0 ? (
+          <p className="text-ep-muted text-xs text-center py-8">Nenhum alerta de fraude</p>
+        ) : frauds.map(f => (
+          <div key={f.id} className="px-4 py-3 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-ep-secondary text-xs capitalize">{f.fraudType.replace(/_/g, ' ')}</p>
+              <p className="text-ep-muted text-[11px] font-mono truncate">{f.paymentIntentId ? f.paymentIntentId.slice(0, 20) + '…' : '—'}</p>
+              <p className="text-ep-muted text-[11px]">{fmt(f.createdAt)}</p>
+            </div>
+            {f.actionable
+              ? <Pill label="Acionável" cls="text-ep-danger bg-ep-danger/10 border-ep-danger/20" />
+              : <Pill label="Info" cls="text-ep-muted bg-ep-raised border-ep-border-default" />}
+          </div>
+        ))}
+      </div>
+      {/* Desktop: tabela */}
+      <div className="hidden md:block overflow-x-auto">
         {loading ? <TableSkeleton rows={5} cols={5} /> : (
           <table className="w-full text-xs">
             <thead><tr className="border-b border-ep-border-subtle">
