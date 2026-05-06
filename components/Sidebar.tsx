@@ -12,10 +12,8 @@ import {
   Zap,
   Webhook,
   ShoppingCart,
-  Activity,
   GitFork,
   ShoppingBag,
-  Banknote,
   Layers,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -29,9 +27,7 @@ const navItems = [
   { href: '/funis',                 label: 'Funis',               icon: GitFork         },
   { href: '/carrinhos-abandonados', label: 'Carrinhos',           icon: ShoppingCart    },
   { href: '/webhooks',              label: 'Webhooks',            icon: Webhook         },
-  { href: '/stripe-eventos',        label: 'Eventos Stripe',      icon: Activity        },
-  { href: '/stripe-payouts',        label: 'Transferências',       icon: Banknote        },
-  { href: '/stripe',                label: 'Stripe',               icon: Layers          },
+  { href: '/stripe',                label: 'Stripe',              icon: Layers          },
   { href: '/calculadora',           label: 'Calculadora',         icon: Calculator      },
   { href: '/configuracoes',         label: 'Configurações',       icon: Settings        },
 ]

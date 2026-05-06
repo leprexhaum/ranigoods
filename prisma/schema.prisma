@@ -396,3 +396,60 @@ model FraudWarning {
 
   @@map("fraud_warnings")
 }
+
+model StripeDispute {
+  id              String   @id
+  chargeId        String   @default("") @map("charge_id")
+  paymentIntentId String   @default("") @map("payment_intent_id")
+  amount          Int      @default(0)
+  currency        String   @default("EUR")
+  status          String   @default("")
+  reason          String   @default("")
+  evidenceDueBy   DateTime? @map("evidence_due_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("stripe_disputes")
+}
+
+model StripeRefund {
+  id              String   @id
+  chargeId        String   @default("") @map("charge_id")
+  paymentIntentId String   @default("") @map("payment_intent_id")
+  amount          Int      @default(0)
+  currency        String   @default("EUR")
+  status          String   @default("")
+  reason          String   @default("")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("stripe_refunds")
+}
+
+model StripeCoupon {
+  id               String   @id
+  name             String   @default("")
+  amountOff        Int?     @map("amount_off")
+  percentOff       Float?   @map("percent_off")
+  currency         String   @default("")
+  duration         String   @default("")
+  durationMonths   Int?     @map("duration_months")
+  maxRedemptions   Int?     @map("max_redemptions")
+  timesRedeemed    Int      @default(0) @map("times_redeemed")
+  valid            Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("stripe_coupons")
+}
+
+model StripePromoCode {
+  id            String   @id
+  couponId      String   @map("coupon_id")
+  code          String   @unique
+  active        Boolean  @default(true)
+  timesRedeemed Int      @default(0) @map("times_redeemed")
+  maxRedemptions Int?    @map("max_redemptions")
+  expiresAt     DateTime? @map("expires_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("stripe_promo_codes")
+}

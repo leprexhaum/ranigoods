@@ -342,12 +342,6 @@ export async function POST(req: NextRequest) {
         break
       }
 
-      case 'charge.refunded': {
-        const charge = event.data.object as Stripe.Charge
-        await persistRefund(charge)
-        break
-      }
-
       case 'charge.dispute.created':
       case 'charge.dispute.updated':
       case 'charge.dispute.closed': {
@@ -610,14 +604,49 @@ export async function POST(req: NextRequest) {
 
       case 'charge.dispute.funds_withdrawn':
       case 'charge.dispute.funds_reinstated': {
-        const dispute  = event.data.object as Stripe.Dispute
-        const piId     = typeof dispute.payment_intent === 'string' ? dispute.payment_intent : dispute.payment_intent?.id ?? ''
+        const dispute   = event.data.object as Stripe.Dispute
+        const piId      = typeof dispute.payment_intent === 'string' ? dispute.payment_intent : dispute.payment_intent?.id ?? ''
         const newStatus = event.type === 'charge.dispute.funds_withdrawn' ? 'disputed' : 'dispute_won'
         if (piId) {
           await prisma.checkoutPayment.updateMany({
             where: { stripePaymentIntentId: piId },
             data:  { disputeStatus: newStatus },
           })
+        }
+        await prisma.stripeDispute.upsert({
+          where:  { id: dispute.id },
+          create: {
+            id:              dispute.id,
+            chargeId:        typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id ?? '',
+            paymentIntentId: piId,
+            amount:          dispute.amount,
+            currency:        dispute.currency.toUpperCase(),
+            status:          dispute.status,
+            reason:          dispute.reason,
+            evidenceDueBy:   dispute.evidence_details?.due_by ? new Date(dispute.evidence_details.due_by * 1000) : null,
+          },
+          update: { status: dispute.status },
+        }).catch(() => {})
+        break
+      }
+
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge
+        const piId   = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id ?? ''
+        for (const r of charge.refunds?.data ?? []) {
+          await prisma.stripeRefund.upsert({
+            where:  { id: r.id },
+            create: {
+              id:              r.id,
+              chargeId:        charge.id,
+              paymentIntentId: piId,
+              amount:          r.amount,
+              currency:        r.currency.toUpperCase(),
+              status:          r.status ?? '',
+              reason:          r.reason ?? '',
+            },
+            update: { status: r.status ?? '' },
+          }).catch(() => {})
         }
         break
       }
@@ -691,6 +720,53 @@ export async function POST(req: NextRequest) {
           data:  { status: 'requires_action' },
         })
         console.log(`[webhook] payment_intent.requires_action: ${pi.id} email=${email}`)
+        break
+      }
+
+      case 'coupon.created':
+      case 'coupon.updated': {
+        const c = event.data.object as Stripe.Coupon
+        await prisma.stripeCoupon.upsert({
+          where:  { id: c.id },
+          create: {
+            id:             c.id,
+            name:           c.name ?? c.id,
+            amountOff:      c.amount_off ?? null,
+            percentOff:     c.percent_off ?? null,
+            currency:       c.currency?.toUpperCase() ?? '',
+            duration:       c.duration,
+            durationMonths: c.duration_in_months ?? null,
+            maxRedemptions: c.max_redemptions ?? null,
+            timesRedeemed:  c.times_redeemed,
+            valid:          c.valid,
+          },
+          update: { timesRedeemed: c.times_redeemed, valid: c.valid, name: c.name ?? c.id },
+        }).catch(() => {})
+        break
+      }
+
+      case 'coupon.deleted': {
+        const c = event.data.object as Stripe.Coupon
+        await prisma.stripeCoupon.updateMany({ where: { id: c.id }, data: { valid: false } }).catch(() => {})
+        break
+      }
+
+      case 'promotion_code.created':
+      case 'promotion_code.updated': {
+        const p = event.data.object as Stripe.PromotionCode
+        await prisma.stripePromoCode.upsert({
+          where:  { id: p.id },
+          create: {
+            id:             p.id,
+            couponId:       typeof p.coupon === 'string' ? p.coupon : p.coupon.id,
+            code:           p.code,
+            active:         p.active,
+            timesRedeemed:  p.times_redeemed,
+            maxRedemptions: p.max_redemptions ?? null,
+            expiresAt:      p.expires_at ? new Date(p.expires_at * 1000) : null,
+          },
+          update: { active: p.active, timesRedeemed: p.times_redeemed },
+        }).catch(() => {})
         break
       }
 
