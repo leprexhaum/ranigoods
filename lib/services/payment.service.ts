@@ -1,16 +1,17 @@
 import { prisma } from '@/lib/prisma'
 import type { Payment, PaymentsQuery, PaymentsResponse } from '@/lib/types/payment'
 
-function toPayment(r: { id: string; customer: string; email: string; amount: number; status: string; date: string; product: string; method: string }): Payment {
+function toPayment(r: { id: string; customer: string; email: string; amount: number; status: string; date: string; createdAt: Date; product: string; method: string }): Payment {
   return {
-    id:       r.id,
-    customer: r.customer,
-    email:    r.email,
-    amount:   r.amount,
-    status:   r.status as Payment['status'],
-    date:     r.date,
-    product:  r.product,
-    method:   r.method as Payment['method'],
+    id:        r.id,
+    customer:  r.customer,
+    email:     r.email,
+    amount:    r.amount,
+    status:    r.status as Payment['status'],
+    date:      r.date,
+    createdAt: r.createdAt.toISOString(),
+    product:   r.product,
+    method:    r.method as Payment['method'],
   }
 }
 
@@ -24,7 +25,10 @@ export const paymentService = {
 
     if (status && status !== 'all') where.status = status
     if (method && method !== 'all') where.method = method
-    if (start || end) where.date = { ...(start ? { gte: start } : {}), ...(end ? { lte: end } : {}) }
+    if (start || end) where.createdAt = {
+      ...(start ? { gte: new Date(start + 'T00:00:00.000Z') } : {}),
+      ...(end   ? { lte: new Date(end   + 'T23:59:59.999Z') } : {}),
+    }
     if (q) {
       where.OR = [
         { customer: { contains: q, mode: 'insensitive' } },
@@ -38,7 +42,7 @@ export const paymentService = {
       prisma.payment.count({ where }),
       prisma.payment.findMany({
         where,
-        orderBy: { date: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip:  (page - 1) * limit,
         take:  limit,
       }),

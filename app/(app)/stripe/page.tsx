@@ -183,7 +183,9 @@ export default function StripePage() {
     setBackfillMsg('')
     try {
       const d = await fetch('/api/stripe/backfill', { method: 'POST' }).then(r => r.json())
-      setBackfillMsg(`Backfill: ${d.payouts ?? 0} transferências, ${d.charges ?? 0} charges, ${d.disputes ?? 0} disputas, ${d.refunds ?? 0} reembolsos, ${d.customers ?? 0} clientes`)
+      setBackfillMsg(`Backfill: ${d.payouts ?? 0} transferências, ${d.charges ?? 0} charges, ${d.disputes ?? 0} disputas, ${d.refunds ?? 0} reembolsos, ${d.customers ?? 0} clientes, ${d.payments_created ?? 0} pagamentos criados`)
+      // Corrigir datas e nomes automaticamente após backfill
+      await fetch('/api/stripe/backfill', { method: 'GET' })
       await loadOverview()
     } finally {
       setBackfilling(false)

@@ -21,9 +21,9 @@ function buildDateRange(start?: string, end?: string) {
 function buildPaymentDateRange(start?: string, end?: string) {
   const where: Record<string, unknown> = {}
   if (start || end) {
-    where.date = {
-      ...(start ? { gte: start } : {}),
-      ...(end   ? { lte: end   } : {}),
+    where.createdAt = {
+      ...(start ? { gte: new Date(start + 'T00:00:00.000Z') } : {}),
+      ...(end   ? { lte: new Date(end   + 'T23:59:59.999Z') } : {}),
     }
   }
   return where
@@ -163,7 +163,7 @@ export const dashboardService = {
     const where = buildPaymentDateRange(start, end)
     const rows  = await prisma.payment.findMany({
       where,
-      orderBy: { date: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take:    limit,
     })
     return rows.map(r => ({
@@ -172,9 +172,10 @@ export const dashboardService = {
       email:    r.email,
       amount:   r.amount,
       status:   r.status as Payment['status'],
-      date:     r.date,
-      product:  r.product,
-      method:   r.method as Payment['method'],
+      date:      r.date,
+      createdAt: r.createdAt.toISOString(),
+      product:   r.product,
+      method:    r.method as Payment['method'],
     }))
   },
 }

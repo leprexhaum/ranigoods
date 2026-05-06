@@ -37,15 +37,24 @@ async function persistPayment(pi: Stripe.PaymentIntent): Promise<void> {
   const charge      = await getCharge(pi)
   const customer    = charge?.billing_details?.name  ?? pi.metadata?.customerName  ?? 'Cliente'
   const email       = charge?.billing_details?.email ?? pi.metadata?.customerEmail ?? ''
-  const productName = pi.metadata?.productName ?? pi.description ?? 'Produto'
   const method      = resolveMethod(charge)
-  const isoDate     = new Date().toISOString().slice(0, 10)
-  const dateLabel   = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  // Usar timestamp real do Stripe
+  const stripeDate  = new Date(pi.created * 1000)
+  const isoDate     = stripeDate.toISOString().slice(0, 10)
+  const dateLabel   = stripeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  // Tentar obter nome real do produto via checkout_payment
+  const cpName = await prisma.checkoutPayment.findFirst({
+    where:  { stripePaymentIntentId: pi.id },
+    select: { product: { select: { name: true } } },
+  })
+  const productName = cpName?.product?.name ?? pi.metadata?.productName ?? pi.description ?? 'Produto'
 
   await prisma.payment.upsert({
     where:  { id: pi.id },
-    create: { id: pi.id, customer, email, amount: pi.amount, status: 'succeeded', date: isoDate, product: productName, method },
-    update: { status: 'succeeded', method },
+    create: { id: pi.id, customer, email, amount: pi.amount, status: 'succeeded', date: isoDate, createdAt: stripeDate, product: productName, method },
+    update: { status: 'succeeded', method, product: productName },
   })
 
   await prisma.dailySale.upsert({
@@ -61,15 +70,16 @@ async function persistPayment(pi: Stripe.PaymentIntent): Promise<void> {
 }
 
 async function persistFailedPayment(pi: Stripe.PaymentIntent): Promise<void> {
-  const isoDate   = new Date().toISOString().slice(0, 10)
-  const dateLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+  const stripeDate = new Date(pi.created * 1000)
+  const isoDate    = stripeDate.toISOString().slice(0, 10)
+  const dateLabel  = stripeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 
   await prisma.payment.upsert({
     where:  { id: pi.id },
     create: {
       id: pi.id, customer: pi.metadata?.customerName ?? 'Cliente',
       email: pi.metadata?.customerEmail ?? '', amount: pi.amount,
-      status: 'failed', date: isoDate,
+      status: 'failed', date: isoDate, createdAt: stripeDate,
       product: pi.metadata?.productName ?? pi.description ?? 'Produto', method: 'Cartão',
     },
     update: { status: 'failed' },

@@ -117,18 +117,25 @@ export async function POST() {
           : null
         const customer  = (charge as Stripe.Charge | null)?.billing_details?.name  ?? pi.metadata?.customerName  ?? 'Cliente'
         const email     = (charge as Stripe.Charge | null)?.billing_details?.email ?? pi.metadata?.customerEmail ?? ''
-        const product   = pi.metadata?.productName ?? pi.description ?? 'Produto'
         const typeRaw   = (charge as Stripe.Charge | null)?.payment_method_details?.type ?? ''
         const methodMap: Record<string, string> = { card: 'Cartão', mb_way: 'MB WAY', multibanco: 'Multibanco', sepa_debit: 'SEPA', paypal: 'PayPal', pix: 'Pix', boleto: 'Boleto' }
         const method    = methodMap[typeRaw] ?? 'Cartão'
-        const isoDate   = new Date(pi.created * 1000).toISOString().slice(0, 10)
-        const dateLabel = new Date(pi.created * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+        const stripeDate = new Date(pi.created * 1000)
+        const isoDate   = stripeDate.toISOString().slice(0, 10)
+        const dateLabel = stripeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+
+        // Tentar obter nome real do produto via checkout_payment
+        const cpName = await prisma.checkoutPayment.findFirst({
+          where:  { stripePaymentIntentId: pi.id },
+          select: { product: { select: { name: true } } },
+        }).catch(() => null)
+        const product = cpName?.product?.name ?? pi.metadata?.productName ?? pi.description ?? 'Produto'
 
         const existing = await prisma.payment.findUnique({ where: { id: pi.id } })
         await prisma.payment.upsert({
           where:  { id: pi.id },
-          create: { id: pi.id, customer, email, amount: pi.amount, status: 'succeeded', date: isoDate, product, method },
-          update: { status: 'succeeded', method },
+          create: { id: pi.id, customer, email, amount: pi.amount, status: 'succeeded', date: isoDate, createdAt: stripeDate, product, method },
+          update: { status: 'succeeded', method, product, createdAt: stripeDate },
         }).catch(() => {})
 
         if (!existing) {
@@ -170,5 +177,47 @@ export async function POST() {
   } catch (err) {
     console.error('[stripe/backfill]', err)
     return NextResponse.json({ error: 'Erro interno', partial: results }, { status: 500 })
+  }
+}
+
+// GET — corrige createdAt e nomes dos payments existentes usando dados reais do Stripe
+export async function GET() {
+  const auth = await requireAuth()
+  if (auth instanceof NextResponse) return auth
+
+  let fixed = 0; let errors = 0
+  try {
+    // Buscar todos os payments que têm id começando por pi_ (PaymentIntents)
+    const payments = await prisma.payment.findMany({
+      where: { id: { startsWith: 'pi_' } },
+      select: { id: true, createdAt: true, product: true },
+    })
+
+    for (const p of payments) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(p.id)
+        const stripeDate = new Date(pi.created * 1000)
+
+        // Obter nome real do produto
+        const cpName = await prisma.checkoutPayment.findFirst({
+          where:  { stripePaymentIntentId: p.id },
+          select: { product: { select: { name: true } } },
+        }).catch(() => null)
+        const productName = cpName?.product?.name ?? pi.metadata?.productName ?? pi.description ?? p.product
+
+        await prisma.payment.update({
+          where: { id: p.id },
+          data:  { createdAt: stripeDate, product: productName },
+        })
+        fixed++
+      } catch {
+        errors++
+      }
+    }
+
+    return NextResponse.json({ success: true, fixed, errors, total: payments.length })
+  } catch (err) {
+    console.error('[stripe/backfill GET]', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
