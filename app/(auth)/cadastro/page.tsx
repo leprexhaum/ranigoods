@@ -80,7 +80,7 @@ export default function CadastroPage() {
       <div className="bg-ep-surface border border-ep-border-default rounded-lg p-8 shadow-2xl">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <Image src="/logo.png" alt="RaniGoods" width={160} height={42} className="object-contain" priority />
+          <Image src="/logo.png" alt="TechPags" width={160} height={42} className="object-contain" priority />
         </div>
 
         <div className="mb-6">
@@ -185,7 +185,7 @@ export default function CadastroPage() {
 
       {/* Rodapé */}
       <p className="text-center text-ep-muted text-xs mt-5 opacity-60">
-        © 2026 RaniGoods. Todos os direitos reservados.
+        © 2026 TechPags. Todos os direitos reservados.
       </p>
     </div>
   )

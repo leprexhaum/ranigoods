@@ -81,7 +81,7 @@ function AdvancedTab({ pixels }: { pixels: PixelConfig[] }) {
       <div className="bg-ep-surface border border-ep-border-default rounded-lg p-4 md:p-5 space-y-3">
         <h3 className="text-ep-primary font-semibold text-sm">Deduplicação de Eventos</h3>
         <p className="text-ep-secondary text-xs leading-relaxed">
-          O RaniGoods usa <code className="bg-ep-raised px-1 rounded text-ep-accent">event_id</code> único
+          O TechPags usa <code className="bg-ep-raised px-1 rounded text-ep-accent">event_id</code> único
           em cada disparo para evitar contagem dupla quando client-side e server-side (CAPI) estão ambos ativos.
         </p>
         {metaPixel?.testEventCode && (

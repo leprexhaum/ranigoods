@@ -87,7 +87,7 @@ export const emailService = {
   }): Promise<void> {
     try {
       await getResend().emails.send({
-        from:    process.env.RESEND_FROM_EMAIL ?? 'noreply@ranigoods.com',
+        from:    process.env.RESEND_FROM_EMAIL ?? 'noreply@techpags.com',
         to:      params.to,
         subject: `Instruções de pagamento Multibanco — Ref. ${params.reference}`,
         html:    multibancoHtml(params),

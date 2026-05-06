@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'RaniGoods — Gestão de Pagamentos',
+  title: 'TechPags — Gestão de Pagamentos',
   description: 'Plataforma de gestão de pagamentos integrada com Stripe',
   icons: {
     icon:     '/favicon.png',
@@ -10,14 +10,14 @@ export const metadata: Metadata = {
     shortcut: '/favicon.png',
   },
   openGraph: {
-    title:       'RaniGoods — Gestão de Pagamentos',
+    title:       'TechPags — Gestão de Pagamentos',
     description: 'Plataforma de gestão de pagamentos integrada com Stripe',
     images:      [{ url: '/socialmediapreview.png', width: 1200, height: 630 }],
     type:        'website',
   },
   twitter: {
     card:        'summary_large_image',
-    title:       'RaniGoods — Gestão de Pagamentos',
+    title:       'TechPags — Gestão de Pagamentos',
     description: 'Plataforma de gestão de pagamentos integrada com Stripe',
     images:      ['/socialmediapreview.png'],
   },

@@ -36,7 +36,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         <Link href="/dashboard" onClick={onClose} className="min-w-0">
           <Image
             src="/logo.png"
-            alt="RaniGoods"
+            alt="TechPags"
             width={140}
             height={36}
             className="object-contain"
@@ -150,7 +150,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard">
             <Image
               src="/logo.png"
-              alt="RaniGoods"
+              alt="TechPags"
               width={120}
               height={32}
               className="object-contain"

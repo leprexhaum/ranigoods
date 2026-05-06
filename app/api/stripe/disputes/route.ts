@@ -1,36 +1,24 @@
-import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
   try {
-    // Sync from Stripe then return from DB
-    const list = await stripe.disputes.list({ limit: 50 })
-    for (const d of list.data) {
-      const piId = typeof d.payment_intent === 'string' ? d.payment_intent : d.payment_intent?.id ?? ''
-      await prisma.stripeDispute.upsert({
-        where:  { id: d.id },
-        create: {
-          id:              d.id,
-          chargeId:        typeof d.charge === 'string' ? d.charge : d.charge?.id ?? '',
-          paymentIntentId: piId,
-          amount:          d.amount,
-          currency:        d.currency.toUpperCase(),
-          status:          d.status,
-          reason:          d.reason,
-          evidenceDueBy:   d.evidence_details?.due_by ? new Date(d.evidence_details.due_by * 1000) : null,
-        },
-        update: { status: d.status },
-      })
-    }
-    const disputes = await prisma.stripeDispute.findMany({ orderBy: { createdAt: 'desc' }, take: 50 })
-    return NextResponse.json(disputes)
+    const { searchParams } = new URL(req.url)
+    const page  = Math.max(1, Number(searchParams.get('page')  ?? '1'))
+    const limit = Math.min(100, Number(searchParams.get('limit') ?? '20'))
+    const skip  = (page - 1) * limit
+
+    const [data, total] = await Promise.all([
+      prisma.stripeDispute.findMany({ orderBy: { createdAt: 'desc' }, skip, take: limit }),
+      prisma.stripeDispute.count(),
+    ])
+
+    return NextResponse.json({ data, total, pages: Math.ceil(total / limit), page })
   } catch (err) {
     console.error('[stripe/disputes]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

@@ -43,7 +43,7 @@ export default function Sidebar() {
           <Zap size={16} className="text-ep-base" strokeWidth={2.5} />
         </div>
         <span className="text-ep-primary font-semibold text-md tracking-tight">
-          Rani<span className="text-ep-accent">Goods</span>
+          Tech<span className="text-ep-accent">Pags</span>
         </span>
       </div>
 
@@ -80,7 +80,7 @@ export default function Sidebar() {
             <span className="text-ep-accent text-xs font-bold">R</span>
           </div>
           <div className="min-w-0">
-            <p className="text-ep-primary text-xs font-medium truncate">RaniGoods</p>
+            <p className="text-ep-primary text-xs font-medium truncate">TechPags</p>
             <p className="text-ep-muted text-xs truncate">Plano Pro</p>
           </div>
         </div>

@@ -1,34 +1,24 @@
-import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
   try {
-    const list = await stripe.refunds.list({ limit: 50 })
-    for (const r of list.data) {
-      const piId = typeof r.payment_intent === 'string' ? r.payment_intent : r.payment_intent?.id ?? ''
-      await prisma.stripeRefund.upsert({
-        where:  { id: r.id },
-        create: {
-          id:              r.id,
-          chargeId:        typeof r.charge === 'string' ? r.charge : r.charge?.id ?? '',
-          paymentIntentId: piId,
-          amount:          r.amount,
-          currency:        r.currency.toUpperCase(),
-          status:          r.status ?? '',
-          reason:          r.reason ?? '',
-        },
-        update: { status: r.status ?? '' },
-      })
-    }
-    const refunds = await prisma.stripeRefund.findMany({ orderBy: { createdAt: 'desc' }, take: 50 })
-    return NextResponse.json(refunds)
+    const { searchParams } = new URL(req.url)
+    const page  = Math.max(1, Number(searchParams.get('page')  ?? '1'))
+    const limit = Math.min(100, Number(searchParams.get('limit') ?? '20'))
+    const skip  = (page - 1) * limit
+
+    const [data, total] = await Promise.all([
+      prisma.stripeRefund.findMany({ orderBy: { createdAt: 'desc' }, skip, take: limit }),
+      prisma.stripeRefund.count(),
+    ])
+
+    return NextResponse.json({ data, total, pages: Math.ceil(total / limit), page })
   } catch (err) {
     console.error('[stripe/refunds]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

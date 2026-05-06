@@ -468,9 +468,9 @@ export const pixelService = {
         items:        [{ id: 'produto-teste', name: 'Produto Teste', quantity: 1, price: 9990 }],
       },
       userData: {
-        email:    'teste@ranigoods.com',
+        email:    'teste@techpags.com',
         clientId: 'GA1.1.000000000.000000000',
-        pageUrl:  'https://ranigoods.com/checkout/teste',
+        pageUrl:  'https://techpags.com/checkout/teste',
       },
     }
 
