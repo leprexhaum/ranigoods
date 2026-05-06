@@ -339,7 +339,7 @@ export default function PagamentosPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-ep-border-subtle">
-                {['ID', 'Cliente', 'Produto', 'Método', 'Valor (EUR / BRL)', 'Status', 'Data'].map((h) => (
+                {['ID', 'Cliente', 'Produto', 'Método', 'Valor (EUR / BRL)', 'Fee / Líquido', 'Status', 'Data'].map((h) => (
                   <th key={h} className="text-left text-ep-muted text-xs font-medium px-5 py-3 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -348,7 +348,7 @@ export default function PagamentosPage() {
               {loading ? (
                 <TableSkeleton rows={7} cols={7} />
               ) : paginated.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-ep-muted text-sm">Nenhum pagamento no período selecionado</td></tr>
+                <tr><td colSpan={8} className="px-5 py-12 text-center text-ep-muted text-sm">Nenhum pagamento no período selecionado</td></tr>
               ) : paginated.map((p) => {
                 const s = statusConfig[p.status] ?? statusConfig.pending
                 return (
@@ -363,6 +363,14 @@ export default function PagamentosPage() {
                     <td className="px-5 py-3">
                       <p className="text-ep-primary text-sm font-semibold whitespace-nowrap">{formatEUR(p.amount)}</p>
                       <p className="text-ep-muted text-xs">≈ {eurToBrlStr(p.amount)}</p>
+                    </td>
+                    <td className="px-5 py-3">
+                      {p.fee > 0 || p.net > 0 ? (
+                        <div className="space-y-0.5">
+                          <p className="text-ep-danger text-xs whitespace-nowrap">-{formatEUR(p.fee)} <span className="text-ep-muted">≈ -{eurToBrlStr(p.fee)}</span></p>
+                          <p className="text-ep-success text-xs font-medium whitespace-nowrap">{formatEUR(p.net)} <span className="text-ep-muted font-normal">≈ {eurToBrlStr(p.net)}</span></p>
+                        </div>
+                      ) : <span className="text-ep-muted text-xs">—</span>}
                     </td>
                     <td className="px-5 py-3">
                       <span className={clsx('inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium border', s.className)}>{s.label}</span>
@@ -584,11 +592,17 @@ export default function PagamentosPage() {
                       <div className="bg-ep-raised rounded-md divide-y divide-ep-border-subtle">
                         <div className="flex justify-between px-3 py-2">
                           <span className="text-ep-secondary text-xs">Taxa Stripe</span>
-                          <span className="text-ep-danger text-xs font-medium">- {formatEUR(detail.fee ?? 0)}</span>
+                          <div className="text-right">
+                            <p className="text-ep-danger text-xs font-medium">- {formatEUR(detail.fee ?? 0)}</p>
+                            <p className="text-ep-muted text-[11px]">≈ -{eurToBrlStr(detail.fee ?? 0)}</p>
+                          </div>
                         </div>
                         <div className="flex justify-between px-3 py-2">
                           <span className="text-ep-secondary text-xs">Valor líquido</span>
-                          <span className="text-ep-success text-xs font-medium">{formatEUR(detail.net ?? 0)}</span>
+                          <div className="text-right">
+                            <p className="text-ep-success text-xs font-medium">{formatEUR(detail.net ?? 0)}</p>
+                            <p className="text-ep-muted text-[11px]">≈ {eurToBrlStr(detail.net ?? 0)}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
