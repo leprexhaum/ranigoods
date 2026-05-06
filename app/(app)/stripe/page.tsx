@@ -139,7 +139,7 @@ export default function StripePage() {
     setBackfillMsg('')
     try {
       const d = await fetch('/api/stripe/backfill', { method: 'POST' }).then(r => r.json())
-      setBackfillMsg(`Backfill: ${d.updated} atualizados, ${d.errors} erros`)
+      setBackfillMsg(`Backfill: ${d.payouts ?? 0} transferências, ${d.charges ?? 0} charges, ${d.disputes ?? 0} disputas, ${d.refunds ?? 0} reembolsos, ${d.customers ?? 0} clientes`)
       await load()
     } finally {
       setBackfilling(false)
@@ -356,15 +356,22 @@ function PayoutsTab({ payouts, loading }: { payouts: Payout[]; loading: boolean 
 
 // ─── TransactionsTab ──────────────────────────────────────────────────────────
 
+const REVENUE_TYPES = ['payment', 'charge', 'payout_reversal', 'adjustment']
+
 function TransactionsTab({ txns, loading }: { txns: BalanceTx[]; loading: boolean }) {
-  const totalNet = txns.reduce((s, t) => s + t.net, 0)
-  const totalFee = txns.reduce((s, t) => s + t.fee, 0)
+  const [filter, setFilter] = useState<'all' | 'revenue'>('revenue')
+  const displayed  = filter === 'revenue' ? txns.filter(t => REVENUE_TYPES.includes(t.type)) : txns
+  const revTxns    = txns.filter(t => ['payment', 'charge'].includes(t.type))
+  const totalGross = revTxns.reduce((s, t) => s + t.amount, 0)
+  const totalFee   = revTxns.reduce((s, t) => s + t.fee, 0)
+  const totalNet   = revTxns.reduce((s, t) => s + t.net, 0)
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-ep-surface border border-ep-border-subtle rounded-lg p-3">
-          <p className="text-ep-muted text-xs">Volume bruto</p>
-          <p className="text-ep-primary font-bold text-sm mt-1">{formatEUR(txns.reduce((s, t) => s + t.amount, 0))}</p>
+          <p className="text-ep-muted text-xs">Volume bruto (pagamentos)</p>
+          <p className="text-ep-primary font-bold text-sm mt-1">{formatEUR(totalGross)}</p>
         </div>
         <div className="bg-ep-surface border border-ep-border-subtle rounded-lg p-3">
           <p className="text-ep-muted text-xs">Fees Stripe</p>
@@ -374,6 +381,18 @@ function TransactionsTab({ txns, loading }: { txns: BalanceTx[]; loading: boolea
           <p className="text-ep-muted text-xs">Líquido</p>
           <p className="text-ep-success font-bold text-sm mt-1">{formatEUR(totalNet)}</p>
         </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button onClick={() => setFilter('revenue')}
+          className={clsx('px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+            filter === 'revenue' ? 'bg-ep-accent/10 text-ep-accent border-ep-accent/20' : 'bg-ep-raised text-ep-secondary border-ep-border-default hover:text-ep-primary')}>
+          Só pagamentos
+        </button>
+        <button onClick={() => setFilter('all')}
+          className={clsx('px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+            filter === 'all' ? 'bg-ep-accent/10 text-ep-accent border-ep-accent/20' : 'bg-ep-raised text-ep-secondary border-ep-border-default hover:text-ep-primary')}>
+          Todas ({txns.length})
+        </button>
       </div>
       <div className="bg-ep-surface border border-ep-border-subtle rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
@@ -388,13 +407,13 @@ function TransactionsTab({ txns, loading }: { txns: BalanceTx[]; loading: boolea
                 <th className="text-left px-4 py-2.5 text-ep-muted font-medium">Data</th>
               </tr></thead>
               <tbody className="divide-y divide-ep-border-subtle">
-                {txns.length === 0 && <tr><td colSpan={6} className="text-center text-ep-muted py-8">Nenhuma transação</td></tr>}
-                {txns.map(t => (
+                {displayed.length === 0 && <tr><td colSpan={6} className="text-center text-ep-muted py-8">Nenhuma transação</td></tr>}
+                {displayed.map(t => (
                   <tr key={t.id} className="hover:bg-ep-raised/50 transition-colors">
                     <td className="px-4 py-2.5 text-ep-secondary font-mono">{t.type}</td>
-                    <td className="px-4 py-2.5 text-ep-primary font-medium">{formatEUR(t.amount)}</td>
-                    <td className="px-4 py-2.5 text-ep-danger">-{formatEUR(t.fee)}</td>
-                    <td className="px-4 py-2.5 text-ep-success">{formatEUR(t.net)}</td>
+                    <td className={clsx('px-4 py-2.5 font-medium', t.amount >= 0 ? 'text-ep-primary' : 'text-ep-danger')}>{formatEUR(t.amount)}</td>
+                    <td className="px-4 py-2.5 text-ep-danger">{t.fee > 0 ? `-${formatEUR(t.fee)}` : '—'}</td>
+                    <td className={clsx('px-4 py-2.5 font-medium', t.net >= 0 ? 'text-ep-success' : 'text-ep-danger')}>{formatEUR(t.net)}</td>
                     <td className="px-4 py-2.5">
                       <Pill label={t.status} cls={t.status === 'available' ? 'text-ep-success bg-ep-success/10 border-ep-success/20' : 'text-ep-warning bg-ep-warning/10 border-ep-warning/20'} />
                     </td>
