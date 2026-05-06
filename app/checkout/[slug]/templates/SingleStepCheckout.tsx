@@ -10,7 +10,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { Loader2, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
+import { Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import clsx from 'clsx'
 import type { CheckoutProduct, ShippingOption } from '@/lib/types/checkout'
 
@@ -211,8 +211,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, onAdd
         }
       </button>
       <div className="flex items-center justify-center gap-1.5 text-[12px] text-[#8792A2] pt-1">
-        <ShieldCheck size={13} className="text-[#8792A2]" />
-        <span>Pagamento seguro via</span>
+        <span>Powered by</span>
         <StripeLogo />
       </div>
       <p className="text-[12px] text-[#6D6E78] leading-relaxed text-center">

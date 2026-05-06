@@ -8,7 +8,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { Loader2, ShieldCheck, Truck } from 'lucide-react'
+import { Loader2, Truck } from 'lucide-react'
 import clsx from 'clsx'
 import type { CheckoutProduct, ShippingOption } from '@/lib/types/checkout'
 import { captureUrlParams, getStoredUrlParams } from '@/lib/url-params'
@@ -97,8 +97,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
         {loading ? <><Loader2 size={16} className="animate-spin" /> A processar…</> : <>Pagar {fmt(amount, currency)}</>}
       </button>
       <div className="flex items-center justify-center gap-1.5 text-[12px] text-[#8792A2] pt-1">
-        <ShieldCheck size={13} />
-        <span>Pagamento seguro via Stripe</span>
+        <span>Powered by Stripe</span>
       </div>
       <p className="text-[12px] text-[#6D6E78] leading-relaxed text-center">
         Ao confirmar, autoriza a <strong className="font-medium text-[#30313D]">{brandName}</strong> a efetuar cobranças conforme as condições acordadas.
