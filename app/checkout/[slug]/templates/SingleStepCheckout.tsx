@@ -243,7 +243,7 @@ function OrderSummary({ product, total, selectedBumps, selectedShip, descExpande
       {/* Imagem do produto */}
       {product.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={product.imageUrl} alt={product.name} className="w-full rounded-lg object-cover mb-5 border border-[#E0E6EB]" />
+        <img src={product.imageUrl} alt={product.name} className="w-32 h-32 rounded-lg object-cover mb-4 border border-[#E0E6EB]" />
       )}
 
       {/* Nome do produto + preço */}
@@ -662,7 +662,7 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
         <div
           className={clsx(
             'overflow-hidden transition-all duration-300 ease-in-out',
-            summaryOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0',
+            summaryOpen ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0',
           )}
         >
           <div className="px-4 pb-5 pt-2 bg-[#F6F9FC] border-t border-[#E0E6EB]">
