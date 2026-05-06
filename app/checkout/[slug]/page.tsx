@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
 import type { CheckoutProduct } from '@/lib/types/checkout'
 import SingleStepCheckout   from './templates/SingleStepCheckout'
 import PromoCheckout         from './templates/PromoCheckout'
@@ -32,8 +31,22 @@ export default function CheckoutPage() {
 
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-[#F6F9FC] flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-[#635bff]" />
+      <div className="min-h-screen bg-[#F6F9FC]">
+        <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <div className="h-6 w-32 bg-[#e5e7eb] rounded animate-pulse" />
+            <div className="h-10 w-full bg-[#e5e7eb] rounded animate-pulse" />
+            <div className="h-10 w-full bg-[#e5e7eb] rounded animate-pulse" />
+            <div className="h-10 w-full bg-[#e5e7eb] rounded animate-pulse" />
+            <div className="h-12 w-full bg-[#d1d5db] rounded animate-pulse mt-4" />
+          </div>
+          <div className="space-y-4">
+            <div className="h-48 w-full bg-[#e5e7eb] rounded-xl animate-pulse" />
+            <div className="h-5 w-3/4 bg-[#e5e7eb] rounded animate-pulse" />
+            <div className="h-4 w-1/2 bg-[#e5e7eb] rounded animate-pulse" />
+            <div className="h-8 w-1/3 bg-[#e5e7eb] rounded animate-pulse" />
+          </div>
+        </div>
       </div>
     )
   }
