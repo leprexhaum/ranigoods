@@ -372,9 +372,10 @@ function PayoutsTab() {
     setLoading(true)
     try {
       const r = await fetch(`/api/stripe/payouts?page=${p}&limit=${LIMIT}`).then(r => r.json())
-      setData(Array.isArray(r.data) ? r.data : [])
+      const rows = Array.isArray(r.data) ? r.data : Array.isArray(r) ? r : []
+      setData(rows)
       setPages(r.pages ?? 1)
-      setTotal(r.total ?? 0)
+      setTotal(r.total ?? (Array.isArray(r) ? r.length : 0))
       setPage(p)
     } finally { setLoading(false) }
   }, [])
