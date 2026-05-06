@@ -48,7 +48,7 @@ export default function LoginPage() {
       <div className="bg-ep-surface border border-ep-border-default rounded-lg p-8 shadow-2xl">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <Image src="/logo.png" alt="TechPags" width={160} height={42} className="object-contain" priority />
+          <Image src="/logotechpags.png" alt="TechPags" width={160} height={42} className="object-contain" priority />
         </div>
 
         <div className="mb-6">

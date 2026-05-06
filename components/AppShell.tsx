@@ -35,7 +35,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-ep-border-subtle">
         <Link href="/dashboard" onClick={onClose} className="min-w-0">
           <Image
-            src="/logo.png"
+            src="/logotechpags.png"
             alt="TechPags"
             width={140}
             height={36}
@@ -149,7 +149,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </button>
           <Link href="/dashboard">
             <Image
-              src="/logo.png"
+              src="/logotechpags.png"
               alt="TechPags"
               width={120}
               height={32}
