@@ -25,6 +25,7 @@ type FormData = {
   reviews:          CheckoutReview[]
   logoUrl:          string
   brandName:        string
+  legalName:        string
   showReviews:      boolean
   paymentMethods:   string[]
   checkoutTemplate: string
@@ -160,6 +161,7 @@ function toForm(p?: Product | null): FormData {
     reviews:          p?.reviews          ?? [],
     logoUrl:          p?.logoUrl          ?? '',
     brandName:        p?.brandName        ?? '',
+    legalName:        p?.legalName        ?? '',
     showReviews:      p?.showReviews      ?? false,
     paymentMethods:   p?.paymentMethods?.length ? p.paymentMethods : ['card'],
     checkoutTemplate: p?.checkoutTemplate ?? 'single_step',
@@ -335,6 +337,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         reviews:          form.reviews,
         logoUrl:          form.logoUrl.trim(),
         brandName:        form.brandName.trim(),
+        legalName:        form.legalName.trim(),
         showReviews:      form.showReviews,
         paymentMethods:   form.paymentMethods,
         checkoutTemplate: form.checkoutTemplate,
@@ -476,8 +479,11 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             <Field label="URL do Logo (opcional)" hint="Logo exibido no cabeçalho do checkout (altura recomendada: 32px)">
               <Input value={form.logoUrl} onChange={v => set('logoUrl', v)} placeholder="https://seusite.com/logo.png" />
             </Field>
-            <Field label="Nome da Marca (opcional)" hint="Exibido ao lado do logo ou como texto alternativo">
+            <Field label="Nome da Marca (opcional)" hint="Exibido ao lado do logo ou como texto alternativo no cabeçalho">
               <Input value={form.brandName} onChange={v => set('brandName', v)} placeholder="Nome da sua marca" />
+            </Field>
+            <Field label="Nome Legal / Rodapé (opcional)" hint="Usado no texto: «Ao confirmar, autoriza a [nome] a efetuar cobranças…». Se vazio, usa o Nome da Marca.">
+              <Input value={form.legalName} onChange={v => set('legalName', v)} placeholder="Ex: Empresa Lda. ou Nome Comercial" />
             </Field>
           </Section>
 

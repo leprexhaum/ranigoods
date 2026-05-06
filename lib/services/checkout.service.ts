@@ -11,7 +11,7 @@ function toCheckoutProduct(r: {
   orderBumps: unknown; reviews: unknown; showReviews: boolean;
   checkoutTemplate: string; checkoutLanguage: string; countdownMinutes: number;
   active: boolean; successUrl: string;
-  logoUrl: string; brandName: string; requirePhone: boolean; requireAddress: boolean;
+  logoUrl: string; brandName: string; legalName: string; requirePhone: boolean; requireAddress: boolean;
 }): CheckoutProduct {
   return {
     id:               r.id,
@@ -34,6 +34,7 @@ function toCheckoutProduct(r: {
     successUrl:       r.successUrl ?? '',
     logoUrl:          r.logoUrl ?? '',
     brandName:        r.brandName ?? '',
+    legalName:        r.legalName ?? '',
     requirePhone:     r.requirePhone ?? false,
     requireAddress:   r.requireAddress ?? false,
   }
@@ -50,7 +51,7 @@ export const checkoutService = {
         orderBumps: true, reviews: true, showReviews: true,
         checkoutTemplate: true, checkoutLanguage: true, countdownMinutes: true,
         active: true, successUrl: true,
-        logoUrl: true, brandName: true, requirePhone: true, requireAddress: true,
+        logoUrl: true, brandName: true, legalName: true, requirePhone: true, requireAddress: true,
       },
     })
     return r ? toCheckoutProduct(r) : null

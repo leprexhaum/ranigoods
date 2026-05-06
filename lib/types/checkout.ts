@@ -42,6 +42,7 @@ export interface CheckoutProduct {
   successUrl:       string
   logoUrl:          string
   brandName:        string
+  legalName:        string
   requirePhone:     boolean
   requireAddress:   boolean
 }

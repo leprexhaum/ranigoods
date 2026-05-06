@@ -127,8 +127,8 @@ function CheckoutSkeleton() {
 
 // ─── Payment Form (dentro de Elements) ───────────────────────────────────────
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName, onAddPaymentInfo }: {
-  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; onAddPaymentInfo?: () => void
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo }: {
+  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; legalName: string; onAddPaymentInfo?: () => void
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -215,7 +215,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, onAdd
         <StripeLogo />
       </div>
       <p className="text-[12px] text-[#6D6E78] leading-relaxed text-center">
-        Ao confirmar, autoriza a <strong className="font-medium text-[#30313D]">{brandName}</strong> a efetuar cobranças conforme as condições acordadas.
+        Ao confirmar, autoriza a <strong className="font-medium text-[#30313D]">{legalName || brandName}</strong> a efetuar cobranças conforme as condições acordadas.
       </p>
     </form>
   )
@@ -510,6 +510,7 @@ function CheckoutForm({
                 amount={paymentAmount}
                 currency={product.currency}
                 brandName={brandName}
+                legalName={product.legalName || ''}
                 onAddPaymentInfo={onAddPaymentInfo}
               />
             </Elements>

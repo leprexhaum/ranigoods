@@ -17,8 +17,8 @@ function fmt(cents: number, currency: string) {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
 }
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
-  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName }: {
+  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; legalName: string
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -99,7 +99,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
         <span>Powered by Stripe</span>
       </div>
       <p className="text-[12px] text-[#6D6E78] leading-relaxed text-center">
-        Ao confirmar, autoriza a <strong className="font-medium text-[#30313D]">{brandName}</strong> a efetuar cobranças conforme as condições acordadas.
+        Ao confirmar, autoriza a <strong className="font-medium text-[#30313D]">{legalName || brandName}</strong> a efetuar cobranças conforme as condições acordadas.
       </p>
     </form>
   )
@@ -261,7 +261,7 @@ export default function InfoProductCheckout({ product }: { product: CheckoutProd
                     },
                   },
                 }}>
-                  <PaymentForm paymentId={paymentId} successUrl={product.successUrl} amount={paymentAmount} currency={product.currency} brandName={brandName} />
+                  <PaymentForm paymentId={paymentId} successUrl={product.successUrl} amount={paymentAmount} currency={product.currency} brandName={brandName} legalName={product.legalName || ''} />
                 </Elements>
               )
             )}

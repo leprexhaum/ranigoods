@@ -26,6 +26,7 @@ export interface Product {
   requireAddress:   boolean
   logoUrl:          string
   brandName:        string
+  legalName:        string
   successUrl:       string
   metaPixelId:      string
   utmfyApiToken:    string
@@ -42,7 +43,7 @@ type ProductRow = {
   orderBumps: unknown; reviews: unknown; showReviews: boolean;
   checkoutTemplate: string; checkoutLanguage: string;
   requirePhone: boolean; requireAddress: boolean;
-  logoUrl: string; brandName: string; successUrl: string;
+  logoUrl: string; brandName: string; legalName: string; successUrl: string;
   metaPixelId: string; utmfyApiToken: string; stock: number; pixelIds: unknown; customDomain: string;
 }
 
@@ -72,6 +73,7 @@ function toProduct(r: ProductRow): Product {
     requireAddress:   r.requireAddress,
     logoUrl:          r.logoUrl,
     brandName:        r.brandName,
+    legalName:        r.legalName,
     successUrl:       r.successUrl,
     metaPixelId:      r.metaPixelId,
     utmfyApiToken:    r.utmfyApiToken,
@@ -128,7 +130,7 @@ export const productService = {
         requireAddress:   data.requireAddress ?? false,
         logoUrl:          data.logoUrl ?? '',
         brandName:        data.brandName ?? '',
-        successUrl:       data.successUrl ?? '',
+        legalName:        data.legalName ?? '',
         metaPixelId:      data.metaPixelId ?? '',
         utmfyApiToken:    data.utmfyApiToken ?? '',
         stock:            data.stock ?? -1,

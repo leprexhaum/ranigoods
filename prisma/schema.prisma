@@ -78,6 +78,7 @@ model Product {
   requireAddress   Boolean  @default(false) @map("require_address")
   logoUrl          String   @default("") @map("logo_url")
   brandName        String   @default("") @map("brand_name")
+  legalName        String   @default("") @map("legal_name")
   successUrl       String   @default("") @map("success_url")
   metaPixelId      String   @default("") @map("meta_pixel_id")
   utmfyApiToken    String   @default("") @map("utmfy_api_token")
