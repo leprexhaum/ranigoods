@@ -10,7 +10,7 @@ export async function POST() {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
 
-  const results: Record<string, number> = { payouts: 0, charges: 0, disputes: 0, refunds: 0, customers: 0, transactions: 0 }
+  const results: Record<string, number> = { payouts: 0, charges: 0, disputes: 0, refunds: 0, customers: 0, transactions: 0, payments_created: 0, payments_updated: 0 }
 
   try {
     // ── Payouts ──────────────────────────────────────────────────────────────
@@ -100,6 +100,53 @@ export async function POST() {
       hasMore = list.has_more
       if (list.data.length) startingAfter = list.data[list.data.length - 1].id
     }
+
+    // ── PaymentIntents → Payment + DailySale (recupera pagamentos em falta) ──
+    hasMore = true; startingAfter = undefined
+    const piResults = { created: 0, updated: 0 }
+    while (hasMore) {
+      const piParams: Stripe.PaymentIntentListParams = { limit: 100 }
+      if (startingAfter) piParams.starting_after = startingAfter
+      const list = await stripe.paymentIntents.list(piParams)
+      for (const pi of list.data) {
+        if (pi.status !== 'succeeded') continue
+        const charge = pi.latest_charge
+          ? (typeof pi.latest_charge === 'string'
+              ? await stripe.charges.retrieve(pi.latest_charge).catch(() => null)
+              : pi.latest_charge)
+          : null
+        const customer  = (charge as Stripe.Charge | null)?.billing_details?.name  ?? pi.metadata?.customerName  ?? 'Cliente'
+        const email     = (charge as Stripe.Charge | null)?.billing_details?.email ?? pi.metadata?.customerEmail ?? ''
+        const product   = pi.metadata?.productName ?? pi.description ?? 'Produto'
+        const typeRaw   = (charge as Stripe.Charge | null)?.payment_method_details?.type ?? ''
+        const methodMap: Record<string, string> = { card: 'Cartão', mb_way: 'MB WAY', multibanco: 'Multibanco', sepa_debit: 'SEPA', paypal: 'PayPal', pix: 'Pix', boleto: 'Boleto' }
+        const method    = methodMap[typeRaw] ?? 'Cartão'
+        const isoDate   = new Date(pi.created * 1000).toISOString().slice(0, 10)
+        const dateLabel = new Date(pi.created * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+
+        const existing = await prisma.payment.findUnique({ where: { id: pi.id } })
+        await prisma.payment.upsert({
+          where:  { id: pi.id },
+          create: { id: pi.id, customer, email, amount: pi.amount, status: 'succeeded', date: isoDate, product, method },
+          update: { status: 'succeeded', method },
+        }).catch(() => {})
+
+        if (!existing) {
+          await prisma.dailySale.upsert({
+            where:  { isoDate },
+            create: { date: dateLabel, isoDate, receita: pi.amount, vendas: 1, falhas: 0 },
+            update: { receita: { increment: pi.amount }, vendas: { increment: 1 } },
+          }).catch(() => {})
+          piResults.created++
+        } else {
+          piResults.updated++
+        }
+      }
+      hasMore = list.has_more
+      if (list.data.length) startingAfter = list.data[list.data.length - 1].id
+    }
+    results.payments_created = piResults.created
+    results.payments_updated = piResults.updated
 
     // ── Balance Transactions ──────────────────────────────────────────────────
     hasMore = true; startingAfter = undefined
