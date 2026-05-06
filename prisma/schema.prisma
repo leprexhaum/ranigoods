@@ -67,6 +67,7 @@ model Product {
   stripeId         String   @map("stripe_id")
   slug             String?  @unique
   currency         String   @default("EUR")
+  createdAt        DateTime @default(now()) @map("created_at")
   defaultShipping  Int      @default(0) @map("default_shipping")
   paymentMethods   Json     @default("[]") @map("payment_methods")
   shippingOptions  Json     @default("[]") @map("shipping_options")

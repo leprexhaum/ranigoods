@@ -11,6 +11,16 @@ export interface Payment {
   createdAt: string
   product: string
   method: PaymentMethod
+  cardLast4: string
+  cardBrand: string
+  cardCountry: string
+  riskLevel: string
+  riskScore: number
+  fee: number
+  net: number
+  stripeCustomerId: string
+  balanceTxId: string
+  refundedAmount: number
 }
 
 export interface PaymentsQuery {

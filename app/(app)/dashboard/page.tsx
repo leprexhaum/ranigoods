@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   DollarSign, CreditCard, CheckCircle,
-  XCircle, Percent, Receipt,
+  XCircle, Percent, Receipt, AlertTriangle, Clock,
 } from 'lucide-react'
 import StatsCard      from '@/components/dashboard/StatsCard'
 import SalesChart     from '@/components/dashboard/SalesChart'
@@ -55,8 +55,10 @@ export default function DashboardPage() {
   const sales    = data?.sales    ?? []
   const payments = data?.payments ?? []
 
-  const pendentes  = stats?.pendentes  ?? 0
-  const reembolsos = stats?.reembolsos ?? 0
+  const pendentes   = stats?.pendentes   ?? 0
+  const reembolsos  = stats?.reembolsos  ?? 0
+  const disputados  = stats?.disputados  ?? 0
+  const processando = stats?.processando ?? 0
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -79,8 +81,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stats — 2 no mobile, 3 no md/xl, 6 no 2xl */}
-      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 md:gap-4">
+      {/* Stats — 2 no mobile, 3 no md/xl, 8 no 2xl */}
+      <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-8 gap-3 md:gap-4">
         <StatsCard
           title="Receita Total"
           value={formatEUR(stats?.receitaTotal ?? 0)}
@@ -118,6 +120,16 @@ export default function DashboardPage() {
           subValue={eurToBrlStr(stats?.ticketMedio ?? 0)}
           change={stats?.ticketChange} changeLabel="vs período ant."
           icon={Receipt} accent="default" loading={loading}
+        />
+        <StatsCard
+          title="Disputados"
+          value={(disputados).toLocaleString('pt-PT')}
+          icon={AlertTriangle} accent="danger" loading={loading}
+        />
+        <StatsCard
+          title="Processando"
+          value={(processando).toLocaleString('pt-PT')}
+          icon={Clock} accent="warning" loading={loading}
         />
       </div>
       {/* Charts — sempre visíveis, com zeros se não houver dados */}

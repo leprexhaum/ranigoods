@@ -62,6 +62,11 @@ interface PaymentDetail {
   disputeId?: string; disputeStatus?: string
   stripeChargeId?: string
   urlParams?: Record<string, string>
+  paymentMethod?: string
+  stripeErrorCode?: string; stripeErrorMsg?: string
+  isAbandoned?: boolean
+  createdAt?: string; updatedAt?: string
+  metadata?: Record<string, unknown>
 }
 
 const riskConfig: Record<string, { label: string; className: string }> = {

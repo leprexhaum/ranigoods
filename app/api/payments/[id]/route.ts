@@ -25,6 +25,11 @@ export async function GET(
       disputeId: true, disputeStatus: true,
       stripeChargeId: true,
       urlParams: true,
+      paymentMethod: true,
+      stripeErrorCode: true, stripeErrorMsg: true,
+      isAbandoned: true,
+      createdAt: true, updatedAt: true,
+      metadata: true,
     },
   })
 

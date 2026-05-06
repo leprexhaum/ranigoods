@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       skip:    (page - 1) * limit,
       take:    limit,
       select: {
-        id: true, type: true, livemode: true, objectId: true, objectType: true,
+        id: true, type: true, livemode: true, apiVersion: true, objectId: true, objectType: true,
         processed: true, error: true, receivedAt: true,
       },
     }),

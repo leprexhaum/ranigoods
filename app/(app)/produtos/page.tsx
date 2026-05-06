@@ -229,6 +229,22 @@ export default function ProdutosPage() {
                   <span className="text-ep-secondary text-xs">Receita total</span>
                   <span className="text-ep-accent text-sm font-semibold">{formatCurrency(product.revenue, product.currency)}</span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-ep-secondary text-xs">Estoque</span>
+                  <span className="text-ep-primary text-sm font-semibold">
+                    {product.stock === -1 ? <span className="text-ep-muted text-xs">Ilimitado</span> : product.stock.toLocaleString('pt-BR')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-ep-secondary text-xs">Template</span>
+                  <span className="text-ep-muted text-xs font-mono">{product.checkoutTemplate}</span>
+                </div>
+                {product.customDomain && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-ep-secondary text-xs">Domínio</span>
+                    <span className="text-ep-muted text-xs font-mono truncate max-w-[140px]">{product.customDomain}</span>
+                  </div>
+                )}
               </div>
 
               <div className="mt-4 pt-4 border-t border-ep-border-subtle flex items-center justify-between">

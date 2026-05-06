@@ -1,17 +1,33 @@
 import { prisma } from '@/lib/prisma'
 import type { Payment, PaymentsQuery, PaymentsResponse } from '@/lib/types/payment'
 
-function toPayment(r: { id: string; customer: string; email: string; amount: number; status: string; date: string; createdAt: Date; product: string; method: string }): Payment {
+function toPayment(r: {
+  id: string; customer: string; email: string; amount: number; status: string;
+  date: string; createdAt: Date; product: string; method: string;
+  cardLast4: string; cardBrand: string; cardCountry: string;
+  riskLevel: string; riskScore: number; fee: number; net: number;
+  stripeCustomerId: string; balanceTxId: string; refundedAmount: number;
+}): Payment {
   return {
-    id:        r.id,
-    customer:  r.customer,
-    email:     r.email,
-    amount:    r.amount,
-    status:    r.status as Payment['status'],
-    date:      r.date,
-    createdAt: r.createdAt.toISOString(),
-    product:   r.product,
-    method:    r.method as Payment['method'],
+    id:               r.id,
+    customer:         r.customer,
+    email:            r.email,
+    amount:           r.amount,
+    status:           r.status as Payment['status'],
+    date:             r.date,
+    createdAt:        r.createdAt.toISOString(),
+    product:          r.product,
+    method:           r.method as Payment['method'],
+    cardLast4:        r.cardLast4,
+    cardBrand:        r.cardBrand,
+    cardCountry:      r.cardCountry,
+    riskLevel:        r.riskLevel,
+    riskScore:        r.riskScore,
+    fee:              r.fee,
+    net:              r.net,
+    stripeCustomerId: r.stripeCustomerId,
+    balanceTxId:      r.balanceTxId,
+    refundedAmount:   r.refundedAmount,
   }
 }
 

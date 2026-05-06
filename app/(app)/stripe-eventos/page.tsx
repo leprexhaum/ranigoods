@@ -9,6 +9,7 @@ interface StripeEventRow {
   id:         string
   type:       string
   livemode:   boolean
+  apiVersion: string
   objectId:   string
   objectType: string
   processed:  boolean
@@ -121,7 +122,7 @@ export default function StripeEventosPage() {
             <thead>
               <tr className="border-b border-ep-border-subtle">
                 <th className="w-8 px-3 py-3" />
-                {['Tipo', 'Object ID', 'Modo', 'Status', 'Recebido em'].map(h => (
+                {['Tipo', 'Object ID', 'API Version', 'Modo', 'Status', 'Recebido em'].map(h => (
                   <th key={h} className="text-left text-ep-muted text-xs font-medium px-4 py-3 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -131,7 +132,7 @@ export default function StripeEventosPage() {
                 <TableSkeleton rows={6} cols={6} />
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center">
+                  <td colSpan={7} className="px-5 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Zap size={24} className="text-ep-muted" />
                       <p className="text-ep-muted text-sm">Nenhum evento encontrado</p>
@@ -160,6 +161,9 @@ export default function StripeEventosPage() {
                       <span className="text-ep-muted text-xs font-mono">{ev.objectId || '—'}</span>
                     </td>
                     <td className="px-4 py-3">
+                      <span className="text-ep-muted text-xs font-mono">{ev.apiVersion || '—'}</span>
+                    </td>
+                    <td className="px-4 py-3">
                       <span className={clsx(
                         'inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-medium border',
                         ev.livemode
@@ -181,7 +185,7 @@ export default function StripeEventosPage() {
                   </tr>
                   {ev.id in expanded && expanded[ev.id] && (
                     <tr key={`${ev.id}-expanded`} className="border-b border-ep-border-subtle bg-ep-raised/30">
-                      <td colSpan={6} className="px-5 py-4">
+                      <td colSpan={7} className="px-5 py-4">
                         {ev.error && (
                           <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-xs font-mono">
                             Erro: {ev.error}

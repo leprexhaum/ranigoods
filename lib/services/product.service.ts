@@ -14,6 +14,7 @@ export interface Product {
   stripeId:         string
   slug:             string | null
   currency:         string
+  createdAt:        string
   defaultShipping:  number
   paymentMethods:   string[]
   shippingOptions:  ShippingOption[]
@@ -39,6 +40,7 @@ type ProductRow = {
   id: string; name: string; description: string; imageUrl: string;
   price: number; interval: string; sales: number; revenue: bigint;
   status: string; stripeId: string; slug: string | null; currency: string;
+  createdAt: Date;
   defaultShipping: number; paymentMethods: unknown; shippingOptions: unknown;
   orderBumps: unknown; reviews: unknown; showReviews: boolean;
   checkoutTemplate: string; checkoutLanguage: string;
@@ -61,6 +63,7 @@ function toProduct(r: ProductRow): Product {
     stripeId:         r.stripeId,
     slug:             r.slug,
     currency:         r.currency,
+    createdAt:        r.createdAt.toISOString(),
     defaultShipping:  r.defaultShipping,
     paymentMethods:   (r.paymentMethods as string[]) ?? [],
     shippingOptions:  (r.shippingOptions as ShippingOption[]) ?? [],
@@ -97,7 +100,7 @@ export const productService = {
     return r ? toProduct(r) : null
   },
 
-  async create(data: Omit<Product, 'id' | 'sales' | 'revenue'>): Promise<Product> {
+  async create(data: Omit<Product, 'id' | 'sales' | 'revenue' | 'createdAt'>): Promise<Product> {
     const id = `prod_${Date.now()}`
     const r = await prisma.product.create({
       data: {
