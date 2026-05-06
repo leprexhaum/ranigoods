@@ -16,6 +16,7 @@ import {
   GitFork,
   ShoppingBag,
   Banknote,
+  Layers,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/webhooks',              label: 'Webhooks',            icon: Webhook         },
   { href: '/stripe-eventos',        label: 'Eventos Stripe',      icon: Activity        },
   { href: '/stripe-payouts',        label: 'Transferências',       icon: Banknote        },
+  { href: '/stripe',                label: 'Stripe',               icon: Layers          },
   { href: '/calculadora',           label: 'Calculadora',         icon: Calculator      },
   { href: '/configuracoes',         label: 'Configurações',       icon: Settings        },
 ]

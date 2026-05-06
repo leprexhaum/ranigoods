@@ -608,6 +608,92 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'charge.dispute.funds_withdrawn':
+      case 'charge.dispute.funds_reinstated': {
+        const dispute  = event.data.object as Stripe.Dispute
+        const piId     = typeof dispute.payment_intent === 'string' ? dispute.payment_intent : dispute.payment_intent?.id ?? ''
+        const newStatus = event.type === 'charge.dispute.funds_withdrawn' ? 'disputed' : 'dispute_won'
+        if (piId) {
+          await prisma.checkoutPayment.updateMany({
+            where: { stripePaymentIntentId: piId },
+            data:  { disputeStatus: newStatus },
+          })
+        }
+        break
+      }
+
+      case 'payment_method.attached': {
+        const pm   = event.data.object as Stripe.PaymentMethod
+        const cust = typeof pm.customer === 'string' ? pm.customer : pm.customer?.id ?? ''
+        if (cust) {
+          await prisma.stripeCustomer.updateMany({
+            where: { stripeCustomerId: cust },
+            data:  { updatedAt: new Date() },
+          })
+        }
+        break
+      }
+
+      case 'customer.updated': {
+        const cust = event.data.object as Stripe.Customer
+        await prisma.stripeCustomer.updateMany({
+          where: { stripeCustomerId: cust.id },
+          data:  {
+            name:  cust.name  ?? '',
+            email: cust.email ?? '',
+            phone: cust.phone ?? '',
+          },
+        })
+        break
+      }
+
+      case 'customer.deleted': {
+        const cust = event.data.object as Stripe.Customer
+        await prisma.stripeCustomer.deleteMany({ where: { stripeCustomerId: cust.id } })
+        break
+      }
+
+      case 'balance.available': {
+        const bal = event.data.object as Stripe.Balance
+        const available = bal.available.reduce((s, b) => s + b.amount, 0)
+        const pending   = bal.pending.reduce((s, b) => s + b.amount, 0)
+        const currency  = bal.available[0]?.currency?.toUpperCase() ?? 'EUR'
+        await prisma.stripeBalance.upsert({
+          where:  { id: 1 },
+          create: { id: 1, available, pending, currency },
+          update: { available, pending, currency },
+        })
+        break
+      }
+
+      case 'payout.reconciliation_completed': {
+        const payout = event.data.object as Stripe.Payout
+        await prisma.payout.upsert({
+          where:  { id: payout.id },
+          create: {
+            id:          payout.id,
+            amount:      payout.amount,
+            currency:    payout.currency.toUpperCase(),
+            status:      'reconciled',
+            arrivalDate: new Date(payout.arrival_date * 1000),
+            description: payout.description ?? '',
+          },
+          update: { status: 'reconciled' },
+        })
+        break
+      }
+
+      case 'payment_intent.requires_action': {
+        const pi    = event.data.object as Stripe.PaymentIntent
+        const email = pi.metadata?.customerEmail ?? ''
+        await prisma.checkoutPayment.updateMany({
+          where: { stripePaymentIntentId: pi.id },
+          data:  { status: 'requires_action' },
+        })
+        console.log(`[webhook] payment_intent.requires_action: ${pi.id} email=${email}`)
+        break
+      }
+
       default:
         console.log(`Evento não tratado: ${event.type}`)
     }
