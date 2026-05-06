@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Package, Plus, ExternalLink, MoreVertical, Link2, Check, Pencil, Copy } from 'lucide-react'
+import { Package, Plus, ExternalLink, MoreVertical, Check, Pencil, Copy } from 'lucide-react'
 import clsx from 'clsx'
 import DateFilter from '@/components/ui/DateFilter'
 import type { DatePreset } from '@/components/ui/DateFilter'
@@ -26,14 +26,24 @@ function CopyLinkButton({ slug }: { slug: string }) {
   }
 
   return (
-    <button
-      onClick={copy}
-      className="flex items-center gap-1 text-ep-muted hover:text-ep-accent text-xs transition-colors"
-      title={url}
-    >
-      {copied ? <Check size={11} className="text-ep-success" /> : <Link2 size={11} />}
-      {copied ? 'Copiado!' : 'Link checkout'}
-    </button>
+    <div className="flex items-center gap-1.5">
+      <button
+        onClick={copy}
+        className="text-ep-muted hover:text-ep-accent transition-colors"
+        title="Copiar link do checkout"
+      >
+        {copied ? <Check size={13} className="text-ep-success" /> : <Copy size={13} />}
+      </button>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-ep-muted hover:text-ep-accent transition-colors"
+        title="Abrir checkout"
+      >
+        <ExternalLink size={13} />
+      </a>
+    </div>
   )
 }
 
