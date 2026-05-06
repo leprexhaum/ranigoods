@@ -15,6 +15,7 @@ import {
   Activity,
   GitFork,
   ShoppingBag,
+  Banknote,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -28,6 +29,7 @@ const navItems = [
   { href: '/carrinhos-abandonados', label: 'Carrinhos',           icon: ShoppingCart    },
   { href: '/webhooks',              label: 'Webhooks',            icon: Webhook         },
   { href: '/stripe-eventos',        label: 'Eventos Stripe',      icon: Activity        },
+  { href: '/stripe-payouts',        label: 'Transferências',       icon: Banknote        },
   { href: '/calculadora',           label: 'Calculadora',         icon: Calculator      },
   { href: '/configuracoes',         label: 'Configurações',       icon: Settings        },
 ]

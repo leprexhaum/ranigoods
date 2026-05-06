@@ -64,6 +64,7 @@ export const checkoutService = {
     customerName:          string
     customerEmail:         string
     customerPhone:         string
+    stripeCustomerId?:     string
     urlParams:             Record<string, string>
     metadata:              Record<string, unknown>
     address?:              CheckoutAddress
@@ -77,6 +78,7 @@ export const checkoutService = {
         customerName:          data.customerName,
         customerEmail:         data.customerEmail,
         customerPhone:         data.customerPhone,
+        stripeCustomerId:      data.stripeCustomerId ?? '',
         addressLine1:          data.address?.line1      ?? '',
         addressLine2:          data.address?.line2      ?? '',
         addressCity:           data.address?.city       ?? '',

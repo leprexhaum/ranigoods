@@ -495,6 +495,119 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'charge.succeeded': {
+        const charge = event.data.object as Stripe.Charge
+        const piId   = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id
+        if (!piId) break
+
+        const card    = charge.payment_method_details?.card
+        const outcome = charge.outcome
+        const last4   = card?.last4 ?? ''
+        const brand   = card?.brand ?? ''
+        const country = card?.country ?? ''
+        const risk    = outcome?.risk_level ?? ''
+
+        let fee = 0; let net = 0; let balanceTxId = ''
+        if (charge.balance_transaction && typeof charge.balance_transaction === 'string') {
+          try {
+            const bt = await stripe.balanceTransactions.retrieve(charge.balance_transaction)
+            fee = bt.fee; net = bt.net; balanceTxId = bt.id
+          } catch { /* ignorar */ }
+        }
+
+        await prisma.payment.updateMany({
+          where: { id: piId },
+          data:  { cardLast4: last4, cardBrand: brand, cardCountry: country, riskLevel: risk, fee, net, balanceTxId },
+        })
+        await prisma.checkoutPayment.updateMany({
+          where: { stripePaymentIntentId: piId },
+          data:  { cardLast4: last4, cardBrand: brand, cardCountry: country, riskLevel: risk, fee, net, balanceTxId },
+        })
+        break
+      }
+
+      case 'radar.early_fraud_warning.created': {
+        const efw    = event.data.object as Stripe.Radar.EarlyFraudWarning
+        const piId   = typeof efw.payment_intent === 'string' ? efw.payment_intent : efw.payment_intent?.id ?? ''
+        const chargeId = typeof efw.charge === 'string' ? efw.charge : efw.charge?.id ?? ''
+        await prisma.fraudWarning.create({
+          data: {
+            id:              efw.id,
+            paymentIntentId: piId,
+            chargeId,
+            fraudType:       efw.fraud_type,
+            actionable:      efw.actionable,
+          },
+        }).catch(() => { /* ignorar duplicados */ })
+        if (piId) {
+          await prisma.payment.updateMany({ where: { id: piId }, data: { riskLevel: 'highest' } })
+          await prisma.checkoutPayment.updateMany({ where: { stripePaymentIntentId: piId }, data: { riskLevel: 'highest' } })
+        }
+        break
+      }
+
+      case 'payout.created':
+      case 'payout.paid':
+      case 'payout.failed': {
+        const payout = event.data.object as Stripe.Payout
+        await prisma.payout.upsert({
+          where:  { id: payout.id },
+          create: {
+            id:          payout.id,
+            amount:      payout.amount,
+            currency:    payout.currency.toUpperCase(),
+            status:      payout.status,
+            arrivalDate: new Date(payout.arrival_date * 1000),
+            description: payout.description ?? '',
+          },
+          update: { status: payout.status },
+        })
+        break
+      }
+
+      case 'invoice.payment_succeeded': {
+        const invoice   = event.data.object as Stripe.Invoice
+        const subId     = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id ?? ''
+        const custId    = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? ''
+        const isoDate   = new Date().toISOString().slice(0, 10)
+        const dateLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+        if (invoice.amount_paid > 0) {
+          await prisma.payment.upsert({
+            where:  { id: invoice.id },
+            create: {
+              id:       invoice.id,
+              customer: invoice.customer_name ?? custId,
+              email:    invoice.customer_email ?? '',
+              amount:   invoice.amount_paid,
+              status:   'succeeded',
+              date:     isoDate,
+              product:  `Assinatura ${subId}`,
+              method:   'Cartão',
+            },
+            update: { status: 'succeeded' },
+          })
+          await prisma.dailySale.upsert({
+            where:  { isoDate },
+            create: { date: dateLabel, isoDate, receita: invoice.amount_paid, vendas: 1, falhas: 0 },
+            update: { receita: { increment: invoice.amount_paid }, vendas: { increment: 1 } },
+          })
+        }
+        break
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice   = event.data.object as Stripe.Invoice
+        const isoDate   = new Date().toISOString().slice(0, 10)
+        const dateLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+        await prisma.dailySale.upsert({
+          where:  { isoDate },
+          create: { date: dateLabel, isoDate, receita: 0, vendas: 0, falhas: 1 },
+          update: { falhas: { increment: 1 } },
+        })
+        console.log(`[webhook] invoice.payment_failed: ${invoice.id}`)
+        break
+      }
+
       default:
         console.log(`Evento não tratado: ${event.type}`)
     }

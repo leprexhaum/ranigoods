@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import clsx from 'clsx'
-import { Search, Download, ShoppingCart, CreditCard } from 'lucide-react'
+import { Search, Download, ShoppingCart, CreditCard, X, AlertTriangle } from 'lucide-react'
 import type { Payment, PaymentStatus } from '@/lib/types/payment'
 import DateFilter, { getRange } from '@/components/ui/DateFilter'
 import type { DatePreset } from '@/components/ui/DateFilter'
@@ -53,6 +53,23 @@ interface Order {
 }
 interface OrdersResponse { data: Order[]; total: number; pages: number; page: number }
 
+interface PaymentDetail {
+  customerEmail?: string; customerPhone?: string; customerName?: string
+  addressLine1?: string; addressCity?: string; addressCountry?: string; addressPostalCode?: string
+  cardLast4?: string; cardBrand?: string; cardCountry?: string
+  riskLevel?: string; fee?: number; net?: number; balanceTxId?: string
+  upsellStatus?: string; upsellAmount?: number
+  disputeId?: string; disputeStatus?: string
+  stripeChargeId?: string
+}
+
+const riskConfig: Record<string, { label: string; className: string }> = {
+  normal:   { label: 'Normal',   className: 'text-ep-success bg-ep-success/10 border-ep-success/20' },
+  elevated: { label: 'Elevado',  className: 'text-ep-warning bg-ep-warning/10 border-ep-warning/20' },
+  highest:  { label: 'Máximo',   className: 'text-ep-danger  bg-ep-danger/10  border-ep-danger/20'  },
+  unknown:  { label: 'Desconhecido', className: 'text-ep-muted bg-ep-raised border-ep-border-default' },
+}
+
 export default function PagamentosPage() {
   const [source,       setSource]       = useState<'checkout' | 'cart'>('checkout')
   const [activeFilter, setActiveFilter] = useState<PaymentStatus | 'all'>('all')
@@ -65,6 +82,13 @@ export default function PagamentosPage() {
   const [result,       setResult]       = useState<ApiResponse>({ data: [], total: 0, pages: 1, page: 1 })
   const [orders,       setOrders]       = useState<OrdersResponse>({ data: [], total: 0, pages: 1, page: 1 })
   const [loading,      setLoading]      = useState(true)
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
+  const [detail,       setDetail]       = useState<PaymentDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refunding,    setRefunding]    = useState(false)
+  const [refundError,  setRefundError]  = useState('')
+  const [showRefundModal, setShowRefundModal] = useState(false)
 
   const range = getRange(preset, customStart, customEnd)
 
@@ -129,6 +153,46 @@ export default function PagamentosPage() {
     setSource(s); setPage(1); setSearch(''); setActiveFilter('all'); setOrderFilter('all')
   }
 
+  const openDetail = useCallback(async (p: Payment) => {
+    setSelectedPayment(p)
+    setDetail(null)
+    setRefundAmount('')
+    setRefundError('')
+    setShowRefundModal(false)
+    setDetailLoading(true)
+    try {
+      const res  = await fetch(`/api/payments/${p.id}`)
+      const json = await res.json() as { detail?: PaymentDetail }
+      setDetail(json.detail ?? null)
+    } catch { /* ignorar */ } finally {
+      setDetailLoading(false)
+    }
+  }, [])
+
+  const handleRefund = async () => {
+    if (!selectedPayment) return
+    setRefunding(true)
+    setRefundError('')
+    try {
+      const body: Record<string, unknown> = {}
+      if (refundAmount && Number(refundAmount) > 0) body.amount = Math.round(Number(refundAmount) * 100)
+      const res  = await fetch(`/api/payments/${selectedPayment.id}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json() as { success?: boolean; error?: string }
+      if (!res.ok) { setRefundError(json.error ?? 'Erro ao reembolsar'); return }
+      setShowRefundModal(false)
+      setSelectedPayment(null)
+      fetchPayments()
+    } catch (err) {
+      setRefundError(err instanceof Error ? err.message : 'Erro ao reembolsar')
+    } finally {
+      setRefunding(false)
+    }
+  }
+
   const totalReceita = useMemo(
     () => result.data.filter(p => p.status === 'succeeded').reduce((s, p) => s + p.amount, 0),
     [result.data],
@@ -143,6 +207,7 @@ export default function PagamentosPage() {
   const { data: orderData, total: orderTotal, pages: orderPages }    = orders
 
   return (
+    <>
     <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -281,7 +346,7 @@ export default function PagamentosPage() {
               ) : paginated.map((p) => {
                 const s = statusConfig[p.status] ?? statusConfig.pending
                 return (
-                  <tr key={p.id} className="border-b border-ep-border-subtle last:border-0 hover:bg-ep-raised/50 transition-colors">
+                  <tr key={p.id} className="border-b border-ep-border-subtle last:border-0 hover:bg-ep-raised/50 transition-colors cursor-pointer" onClick={() => openDetail(p)}>
                     <td className="px-5 py-3"><span className="text-ep-muted text-xs font-mono">{p.id.slice(0, 14)}…</span></td>
                     <td className="px-5 py-3">
                       <p className="text-ep-primary text-sm font-medium whitespace-nowrap">{p.customer}</p>
@@ -403,5 +468,221 @@ export default function PagamentosPage() {
         </div>
       )}
     </div>
+
+      {/* Detail Drawer */}
+      {selectedPayment && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedPayment(null)} />
+          <div className="relative w-full max-w-md bg-ep-surface border-l border-ep-border-default h-full overflow-y-auto shadow-xl flex flex-col">
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-ep-border-subtle">
+              <div>
+                <p className="text-ep-primary font-semibold text-sm">{selectedPayment.customer}</p>
+                <p className="text-ep-muted text-xs font-mono">{selectedPayment.id}</p>
+              </div>
+              <button onClick={() => setSelectedPayment(null)} className="text-ep-muted hover:text-ep-primary transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Drawer body */}
+            <div className="flex-1 px-5 py-4 space-y-5">
+              {/* Amount + status */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-ep-primary text-2xl font-bold">{formatEUR(selectedPayment.amount)}</p>
+                  <p className="text-ep-muted text-xs">≈ {eurToBrlStr(selectedPayment.amount)}</p>
+                </div>
+                <span className={clsx('inline-flex items-center px-2.5 py-1 rounded text-xs font-medium border', (statusConfig[selectedPayment.status] ?? statusConfig.pending).className)}>
+                  {(statusConfig[selectedPayment.status] ?? statusConfig.pending).label}
+                </span>
+              </div>
+
+              {/* Basic info */}
+              <div className="space-y-2">
+                <p className="text-ep-muted text-xs font-medium uppercase tracking-wide">Pagamento</p>
+                <div className="bg-ep-raised rounded-md divide-y divide-ep-border-subtle">
+                  <div className="flex justify-between px-3 py-2">
+                    <span className="text-ep-secondary text-xs">Produto</span>
+                    <span className="text-ep-primary text-xs font-medium text-right max-w-[60%] truncate">{selectedPayment.product}</span>
+                  </div>
+                  <div className="flex justify-between px-3 py-2">
+                    <span className="text-ep-secondary text-xs">Método</span>
+                    <span className="text-ep-primary text-xs font-medium">{selectedPayment.method}</span>
+                  </div>
+                  <div className="flex justify-between px-3 py-2">
+                    <span className="text-ep-secondary text-xs">Data</span>
+                    <span className="text-ep-primary text-xs font-medium">{new Date(selectedPayment.date + 'T00:00:00').toLocaleDateString('pt-PT')}</span>
+                  </div>
+                  <div className="flex justify-between px-3 py-2">
+                    <span className="text-ep-secondary text-xs">E-mail</span>
+                    <span className="text-ep-primary text-xs font-medium">{selectedPayment.email || '—'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {detailLoading && (
+                <div className="space-y-2 animate-pulse">
+                  {[1,2,3].map(i => <div key={i} className="h-8 bg-ep-raised rounded-md" />)}
+                </div>
+              )}
+
+              {detail && !detailLoading && (
+                <>
+                  {/* Card info */}
+                  {(detail.cardLast4 || detail.cardBrand) && (
+                    <div className="space-y-2">
+                      <p className="text-ep-muted text-xs font-medium uppercase tracking-wide">Cartão</p>
+                      <div className="bg-ep-raised rounded-md divide-y divide-ep-border-subtle">
+                        {detail.cardBrand && (
+                          <div className="flex justify-between px-3 py-2">
+                            <span className="text-ep-secondary text-xs">Bandeira</span>
+                            <span className="text-ep-primary text-xs font-medium capitalize">{detail.cardBrand}</span>
+                          </div>
+                        )}
+                        {detail.cardLast4 && (
+                          <div className="flex justify-between px-3 py-2">
+                            <span className="text-ep-secondary text-xs">Últimos 4</span>
+                            <span className="text-ep-primary text-xs font-mono">•••• {detail.cardLast4}</span>
+                          </div>
+                        )}
+                        {detail.cardCountry && (
+                          <div className="flex justify-between px-3 py-2">
+                            <span className="text-ep-secondary text-xs">País</span>
+                            <span className="text-ep-primary text-xs font-medium">{detail.cardCountry}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Risk */}
+                  {detail.riskLevel && (
+                    <div className="space-y-2">
+                      <p className="text-ep-muted text-xs font-medium uppercase tracking-wide">Risco Stripe</p>
+                      <div className="flex items-center gap-2">
+                        {(detail.riskLevel === 'elevated' || detail.riskLevel === 'highest') && (
+                          <AlertTriangle size={14} className="text-ep-warning flex-shrink-0" />
+                        )}
+                        <span className={clsx('inline-flex items-center px-2.5 py-1 rounded text-xs font-medium border', (riskConfig[detail.riskLevel] ?? riskConfig.unknown).className)}>
+                          {(riskConfig[detail.riskLevel] ?? riskConfig.unknown).label}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fee / Net */}
+                  {(detail.fee !== undefined || detail.net !== undefined) && (
+                    <div className="space-y-2">
+                      <p className="text-ep-muted text-xs font-medium uppercase tracking-wide">Taxas Stripe</p>
+                      <div className="bg-ep-raised rounded-md divide-y divide-ep-border-subtle">
+                        <div className="flex justify-between px-3 py-2">
+                          <span className="text-ep-secondary text-xs">Taxa Stripe</span>
+                          <span className="text-ep-danger text-xs font-medium">- {formatEUR(detail.fee ?? 0)}</span>
+                        </div>
+                        <div className="flex justify-between px-3 py-2">
+                          <span className="text-ep-secondary text-xs">Valor líquido</span>
+                          <span className="text-ep-success text-xs font-medium">{formatEUR(detail.net ?? 0)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer address */}
+                  {(detail.addressLine1 || detail.addressCity) && (
+                    <div className="space-y-2">
+                      <p className="text-ep-muted text-xs font-medium uppercase tracking-wide">Endereço</p>
+                      <div className="bg-ep-raised rounded-md px-3 py-2 space-y-0.5">
+                        {detail.addressLine1 && <p className="text-ep-primary text-xs">{detail.addressLine1}</p>}
+                        {detail.addressCity && <p className="text-ep-secondary text-xs">{detail.addressCity}{detail.addressPostalCode ? ` · ${detail.addressPostalCode}` : ''}</p>}
+                        {detail.addressCountry && <p className="text-ep-muted text-xs">{detail.addressCountry}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dispute */}
+                  {detail.disputeId && (
+                    <div className="space-y-2">
+                      <p className="text-ep-muted text-xs font-medium uppercase tracking-wide">Disputa</p>
+                      <div className="bg-ep-raised rounded-md divide-y divide-ep-border-subtle">
+                        <div className="flex justify-between px-3 py-2">
+                          <span className="text-ep-secondary text-xs">ID</span>
+                          <span className="text-ep-primary text-xs font-mono">{detail.disputeId}</span>
+                        </div>
+                        <div className="flex justify-between px-3 py-2">
+                          <span className="text-ep-secondary text-xs">Status</span>
+                          <span className="text-ep-warning text-xs font-medium">{detail.disputeStatus}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Drawer footer — refund button */}
+            {selectedPayment.status === 'succeeded' && (
+              <div className="px-5 py-4 border-t border-ep-border-subtle">
+                <button
+                  onClick={() => { setShowRefundModal(true); setRefundError('') }}
+                  className="w-full px-4 py-2.5 rounded-md bg-ep-danger/10 border border-ep-danger/30 text-ep-danger text-sm font-medium hover:bg-ep-danger/20 transition-colors"
+                >
+                  Reembolsar pagamento
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Refund Modal */}
+      {showRefundModal && selectedPayment && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowRefundModal(false)} />
+          <div className="relative bg-ep-surface border border-ep-border-default rounded-lg shadow-xl w-full max-w-sm p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-ep-primary font-semibold text-sm">Reembolsar pagamento</p>
+              <button onClick={() => setShowRefundModal(false)} className="text-ep-muted hover:text-ep-primary transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-ep-secondary text-xs">
+              Valor total: <span className="font-semibold text-ep-primary">{formatEUR(selectedPayment.amount)}</span>.
+              Deixe o campo vazio para reembolso total.
+            </p>
+            <div>
+              <label className="block text-ep-secondary text-xs mb-1.5">Valor a reembolsar (EUR)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder={`Máx. ${(selectedPayment.amount / 100).toFixed(2)}`}
+                value={refundAmount}
+                onChange={e => setRefundAmount(e.target.value)}
+                className="w-full px-3 py-2 bg-ep-raised border border-ep-border-default rounded-md text-ep-primary text-sm placeholder-ep-muted focus:outline-none focus:border-ep-accent transition-colors"
+              />
+            </div>
+            {refundError && (
+              <p className="text-ep-danger text-xs">{refundError}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRefundModal(false)}
+                className="flex-1 px-4 py-2 rounded-md border border-ep-border-default text-ep-secondary text-sm hover:text-ep-primary transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRefund}
+                disabled={refunding}
+                className="flex-1 px-4 py-2 rounded-md bg-ep-danger text-white text-sm font-medium hover:bg-ep-danger/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {refunding ? 'Processando…' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

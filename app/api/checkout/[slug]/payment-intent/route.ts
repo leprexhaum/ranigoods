@@ -76,6 +76,23 @@ export async function POST(
     const customerEmail = body.customerEmail?.trim() || ''
     const urlParams     = body.urlParams ?? {}
 
+    // Criar ou recuperar Customer na Stripe para habilitar upsell robusto
+    let stripeCustomerId: string | undefined
+    try {
+      const existing = await stripe.customers.list({ email: customerEmail, limit: 1 })
+      if (existing.data.length > 0) {
+        stripeCustomerId = existing.data[0].id
+      } else if (customerEmail) {
+        const customer = await stripe.customers.create({
+          name:  customerName,
+          email: customerEmail,
+          phone: body.customerPhone ?? undefined,
+          metadata: { productId: product.id, productSlug: product.slug ?? '' },
+        })
+        stripeCustomerId = customer.id
+      }
+    } catch { /* não bloquear o checkout se falhar */ }
+
     const upMeta: Record<string, string> = {}
     for (const [k, v] of Object.entries(urlParams)) {
       upMeta[`up_${k}`] = String(v).slice(0, 500)
@@ -85,6 +102,7 @@ export async function POST(
       amount:               total,
       currency:             product.currency.toLowerCase(),
       payment_method_types: paymentMethodTypes,
+      customer:             stripeCustomerId,
       metadata: {
         productId: product.id, productSlug: product.slug, productName: product.name,
         customerName, customerEmail, ...upMeta,
@@ -107,6 +125,7 @@ export async function POST(
       customerName,
       customerEmail,
       customerPhone:         body.customerPhone ?? '',
+      stripeCustomerId:      stripeCustomerId ?? '',
       urlParams,
       address:               body.address,
       metadata: {

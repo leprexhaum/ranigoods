@@ -20,14 +20,24 @@ model User {
 }
 
 model Payment {
-  id       String @id
-  customer String
-  email    String
-  amount   Int
-  status   String
-  date     String
-  product  String
-  method   String
+  id               String   @id
+  customer         String
+  email            String
+  amount           Int
+  status           String
+  date             String
+  product          String
+  method           String
+  cardLast4        String   @default("") @map("card_last4")
+  cardBrand        String   @default("") @map("card_brand")
+  cardCountry      String   @default("") @map("card_country")
+  riskLevel        String   @default("") @map("risk_level")
+  riskScore        Int      @default(0) @map("risk_score")
+  fee              Int      @default(0)
+  net              Int      @default(0)
+  stripeCustomerId String   @default("") @map("stripe_customer_id")
+  balanceTxId      String   @default("") @map("balance_tx_id")
+  refundedAmount   Int      @default(0) @map("refunded_amount")
 
   @@map("payments")
 }
@@ -101,6 +111,14 @@ model CheckoutPayment {
   upsellStatus          String   @default("none") @map("upsell_status")
   upsellAmount          Int      @default(0) @map("upsell_amount")
   upsellPiId            String   @default("") @map("upsell_pi_id")
+  stripeCustomerId      String   @default("") @map("stripe_customer_id")
+  cardLast4             String   @default("") @map("card_last4")
+  cardBrand             String   @default("") @map("card_brand")
+  cardCountry           String   @default("") @map("card_country")
+  riskLevel             String   @default("") @map("risk_level")
+  fee                   Int      @default(0)
+  net                   Int      @default(0)
+  balanceTxId           String   @default("") @map("balance_tx_id")
   customerName          String   @default("") @map("customer_name")
   customerEmail         String   @default("") @map("customer_email")
   customerPhone         String   @default("") @map("customer_phone")
@@ -330,4 +348,51 @@ model Funnel {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("funnels")
+}
+
+model StripeBalance {
+  id        Int      @id @default(1)
+  available Int      @default(0)
+  pending   Int      @default(0)
+  currency  String   @default("EUR")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("stripe_balance")
+}
+
+model StripeCustomer {
+  id               String   @id
+  userId           String   @default("") @map("user_id")
+  name             String   @default("")
+  email            String   @default("")
+  phone            String   @default("")
+  stripeCustomerId String   @unique @map("stripe_customer_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("stripe_customers")
+}
+
+model Payout {
+  id          String   @id
+  amount      Int
+  currency    String   @default("EUR")
+  status      String
+  arrivalDate DateTime @map("arrival_date")
+  description String   @default("")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("payouts")
+}
+
+model FraudWarning {
+  id              String   @id
+  paymentIntentId String   @default("") @map("payment_intent_id")
+  chargeId        String   @default("") @map("charge_id")
+  fraudType       String   @default("") @map("fraud_type")
+  actionable      Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("fraud_warnings")
 }
