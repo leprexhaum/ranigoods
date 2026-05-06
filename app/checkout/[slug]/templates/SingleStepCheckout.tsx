@@ -195,6 +195,12 @@ function OrderSummary({ product, total, selectedBumps, selectedShip, descExpande
   return (
     <div className="space-y-0">
 
+      {/* Imagem do produto */}
+      {product.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={product.imageUrl} alt={product.name} className="w-full rounded-lg object-cover mb-5 border border-[#E0E6EB]" />
+      )}
+
       {/* Nome do produto + preço */}
       <div className="pb-5">
         <h2 className="text-[16px] font-medium text-[#6D6E78] mb-2">{product.name}</h2>
@@ -283,12 +289,6 @@ function OrderSummary({ product, total, selectedBumps, selectedShip, descExpande
           <span className="text-[14px] font-medium text-[#30313D]">Total devido hoje</span>
           <span className="text-[16px] font-semibold text-[#30313D] tabular-nums">{fmt(total, product.currency)}</span>
         </div>
-      </div>
-
-      {/* Powered by Stripe */}
-      <div className="flex items-center gap-1 text-[12px] text-[#8792A2] pt-6">
-        <span>Powered by</span>
-        <StripeLogo />
       </div>
     </div>
   )
@@ -586,19 +586,14 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
       {/* Mobile — header sticky com logo + marca + botão detalhes */}
       <div className="lg:hidden sticky top-0 z-20 bg-white border-b border-[#E0E6EB]">
         <div className="flex items-center justify-between px-4 h-14">
-          {/* Logo + nome da marca */}
+          {/* Logo */}
           <div className="flex items-center gap-2 min-w-0">
             {product.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={product.logoUrl} alt={brandName} className="w-7 h-7 rounded-full object-contain border border-[#E0E6EB] flex-shrink-0" />
+              <img src={product.logoUrl} alt={brandName} className="h-8 w-auto max-w-[140px] object-contain flex-shrink-0" />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-[#E0E6EB] flex items-center justify-center flex-shrink-0">
-                <svg focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M14.9977 8.19089C15.6092 7.64898 16.0002 6.87952 16.0002 6V5.90012C16.0002 5.58415 15.9687 5.26896 15.9061 4.95925L15.2757 1.83964L15.2729 1.82792C15.1493 1.3036 14.9237 0.814761 14.4989 0.46826C14.0702 0.118638 13.5447 2.32458e-05 13 2.20537e-05L3 0C2.45536 0 1.92982 0.118541 1.50106 0.46812C1.0761 0.814602 0.850422 1.30347 0.726786 1.8279L0.72402 1.83963L0.0936206 4.95927C0.0310375 5.26897 -0.000488281 5.58414 -0.000488281 5.90011V6C-0.000488281 6.87964 0.390631 7.64918 1.00228 8.19109C1.00077 8.21053 1 8.23017 1 8.25V13.75C1 14.9926 2.00736 16 3.25 16H12.75C13.9926 16 15 14.9926 15 13.75V8.25C15 8.2301 14.9992 8.21039 14.9977 8.19089Z" fill="#1A1A1A" fillOpacity="0.5"/>
-                </svg>
-              </div>
+              <span className="text-[14px] font-medium text-[#30313D] truncate">{brandName}</span>
             )}
-            <span className="text-[14px] font-medium text-[#30313D] truncate">{brandName}</span>
           </div>
 
           {/* Botão Detalhes */}
