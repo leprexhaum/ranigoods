@@ -96,9 +96,10 @@ export const productService = {
   },
 
   async create(data: Omit<Product, 'id' | 'sales' | 'revenue'>): Promise<Product> {
+    const id = `prod_${Date.now()}`
     const r = await prisma.product.create({
       data: {
-        id:               `prod_${Date.now()}`,
+        id,
         name:             data.name,
         description:      data.description ?? '',
         imageUrl:         data.imageUrl ?? '',
@@ -108,7 +109,8 @@ export const productService = {
         revenue:          BigInt(0),
         status:           data.status ?? 'active',
         stripeId:         data.stripeId ?? '',
-        slug:             data.slug || null,
+        // Se slug não fornecido, usa o ID como slug (garante unicidade)
+        slug:             data.slug || id,
         currency:         data.currency ?? 'EUR',
         defaultShipping:  data.defaultShipping ?? 0,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -169,6 +171,55 @@ export const productService = {
     } catch {
       return false
     }
+  },
+
+  async duplicate(id: string): Promise<Product | null> {
+    const original = await prisma.product.findUnique({ where: { id } })
+    if (!original) return null
+    const newId = `prod_${Date.now()}`
+    const r = await prisma.product.create({
+      data: {
+        id:               newId,
+        slug:             newId,
+        name:             `${original.name} (cópia)`,
+        description:      original.description,
+        imageUrl:         original.imageUrl,
+        price:            original.price,
+        interval:         original.interval,
+        sales:            0,
+        revenue:          BigInt(0),
+        status:           'active',
+        stripeId:         '',
+        currency:         original.currency,
+        defaultShipping:  original.defaultShipping,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        paymentMethods:   original.paymentMethods as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        shippingOptions:  original.shippingOptions as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        orderBumps:       original.orderBumps as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        reviews:          original.reviews as any,
+        showReviews:      original.showReviews,
+        checkoutTemplate: original.checkoutTemplate,
+        checkoutLanguage: original.checkoutLanguage,
+        requirePhone:     original.requirePhone,
+        requireAddress:   original.requireAddress,
+        logoUrl:          original.logoUrl,
+        brandName:        original.brandName,
+        successUrl:       original.successUrl,
+        metaPixelId:      original.metaPixelId,
+        utmfyApiToken:    original.utmfyApiToken,
+        stock:            original.stock,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        pixelIds:         original.pixelIds as any,
+        customDomain:     '',
+        active:           true,
+        countdownMinutes: original.countdownMinutes,
+        userId:           original.userId,
+      },
+    })
+    return toProduct(r)
   },
 
   async incrementSales(stripeId: string, amount: number): Promise<void> {

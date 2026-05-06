@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Package, Plus, ExternalLink, MoreVertical, Link2, Check, Pencil } from 'lucide-react'
+import { Package, Plus, ExternalLink, MoreVertical, Link2, Check, Pencil, Copy } from 'lucide-react'
 import clsx from 'clsx'
 import DateFilter from '@/components/ui/DateFilter'
 import type { DatePreset } from '@/components/ui/DateFilter'
@@ -47,6 +47,7 @@ export default function ProdutosPage() {
   const [error,       setError]       = useState('')
   const [modalOpen,   setModalOpen]   = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
+  const [duplicating, setDuplicating] = useState<string | null>(null)
   const { confirmProps, confirm }     = useConfirm()
 
   const fetchProducts = useCallback(async () => {
@@ -94,6 +95,16 @@ export default function ProdutosPage() {
         fetchProducts()
       },
     })
+  }
+
+  const handleDuplicate = async (id: string) => {
+    setDuplicating(id)
+    try {
+      await fetch(`/api/products/${id}/duplicate`, { method: 'POST' })
+      fetchProducts()
+    } finally {
+      setDuplicating(null)
+    }
   }
 
   return (
@@ -186,6 +197,13 @@ export default function ProdutosPage() {
                       className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
                     >
                       <Pencil size={11} /> Editar
+                    </button>
+                    <button
+                      onClick={() => handleDuplicate(product.id)}
+                      disabled={duplicating === product.id}
+                      className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <Copy size={11} /> {duplicating === product.id ? 'Duplicando…' : 'Duplicar'}
                     </button>
                     <button
                       onClick={() => handleArchive(product.id, product.status)}

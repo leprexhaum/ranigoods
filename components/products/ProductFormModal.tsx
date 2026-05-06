@@ -430,8 +430,11 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
                   <option value="ano">Anual</option>
                 </select>
               </Field>
-              <Field label="Slug (URL do checkout)" hint="/checkout/[slug]">
-                <Input value={form.slug} onChange={v => set('slug', v)} placeholder="meu-produto" />
+              <Field
+                label="Slug (URL do checkout)"
+                hint={form.slug ? `/checkout/${form.slug}` : isEdit ? '' : 'Gerado automaticamente com o ID se vazio'}
+              >
+                <Input value={form.slug} onChange={v => set('slug', v)} placeholder="meu-produto (ou deixe vazio)" />
               </Field>
             </div>
             <Field label="Frete Padrão (opcional)" hint="Usado quando não há opções de envio. Deixe vazio para frete grátis.">
