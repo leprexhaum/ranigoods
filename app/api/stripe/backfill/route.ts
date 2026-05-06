@@ -10,7 +10,7 @@ export async function POST() {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
 
-  const results: Record<string, number> = { payouts: 0, charges: 0, disputes: 0, refunds: 0, customers: 0 }
+  const results: Record<string, number> = { payouts: 0, charges: 0, disputes: 0, refunds: 0, customers: 0, transactions: 0 }
 
   try {
     // ── Payouts ──────────────────────────────────────────────────────────────
@@ -29,10 +29,10 @@ export async function POST() {
       if (list.data.length) startingAfter = list.data[list.data.length - 1].id
     }
 
-    // ── Charges (card info + fees) ────────────────────────────────────────────
+    // ── Charges (card info + fees + refunds embutidos) ────────────────────────
     hasMore = true; startingAfter = undefined
     while (hasMore) {
-      const chargeParams: Stripe.ChargeListParams = { limit: 100, expand: ['data.balance_transaction'] }
+      const chargeParams: Stripe.ChargeListParams = { limit: 100, expand: ['data.balance_transaction', 'data.refunds'] }
       if (startingAfter) chargeParams.starting_after = startingAfter
       const list: Stripe.ApiList<Stripe.Charge> = await stripe.charges.list(chargeParams)
       for (const charge of list.data) {
@@ -45,6 +45,17 @@ export async function POST() {
             where: { stripePaymentIntentId: piId },
             data:  { cardLast4: card?.last4 ?? '', cardBrand: card?.brand ?? '', cardCountry: card?.country ?? '', riskLevel: outcome?.risk_level ?? '', fee: bt?.fee ?? 0, net: bt?.net ?? 0, balanceTxId: bt?.id ?? '' },
           }).catch(() => {})
+        }
+        // Extrair reembolsos embutidos no charge
+        const refundList = charge.refunds as Stripe.ApiList<Stripe.Refund> | undefined
+        for (const r of refundList?.data ?? []) {
+          const rPiId = typeof r.payment_intent === 'string' ? r.payment_intent : r.payment_intent?.id ?? ''
+          await prisma.stripeRefund.upsert({
+            where:  { id: r.id },
+            create: { id: r.id, chargeId: typeof r.charge === 'string' ? r.charge : r.charge?.id ?? '', paymentIntentId: rPiId, amount: r.amount, currency: r.currency.toUpperCase(), status: r.status ?? '', reason: r.reason ?? '' },
+            update: { status: r.status ?? '' },
+          }).catch(() => {})
+          results.refunds++
         }
         results.charges++
       }
@@ -71,25 +82,6 @@ export async function POST() {
       if (list.data.length) startingAfter = list.data[list.data.length - 1].id
     }
 
-    // ── Refunds ───────────────────────────────────────────────────────────────
-    hasMore = true; startingAfter = undefined
-    while (hasMore) {
-      const refundParams: Stripe.RefundListParams = { limit: 100 }
-      if (startingAfter) refundParams.starting_after = startingAfter
-      const list: Stripe.ApiList<Stripe.Refund> = await stripe.refunds.list(refundParams)
-      for (const r of list.data) {
-        const piId = typeof r.payment_intent === 'string' ? r.payment_intent : r.payment_intent?.id ?? ''
-        await prisma.stripeRefund.upsert({
-          where:  { id: r.id },
-          create: { id: r.id, chargeId: typeof r.charge === 'string' ? r.charge : r.charge?.id ?? '', paymentIntentId: piId, amount: r.amount, currency: r.currency.toUpperCase(), status: r.status ?? '', reason: r.reason ?? '' },
-          update: { status: r.status ?? '' },
-        }).catch(() => {})
-        results.refunds++
-      }
-      hasMore = list.has_more
-      if (list.data.length) startingAfter = list.data[list.data.length - 1].id
-    }
-
     // ── Customers ─────────────────────────────────────────────────────────────
     hasMore = true; startingAfter = undefined
     while (hasMore) {
@@ -104,6 +96,24 @@ export async function POST() {
           update: { name: c.name ?? '', email: c.email ?? '', phone: c.phone ?? '' },
         }).catch(() => {})
         results.customers++
+      }
+      hasMore = list.has_more
+      if (list.data.length) startingAfter = list.data[list.data.length - 1].id
+    }
+
+    // ── Balance Transactions ──────────────────────────────────────────────────
+    hasMore = true; startingAfter = undefined
+    while (hasMore) {
+      const btParams: Stripe.BalanceTransactionListParams = { limit: 100 }
+      if (startingAfter) btParams.starting_after = startingAfter
+      const list = await stripe.balanceTransactions.list(btParams)
+      for (const bt of list.data) {
+        await prisma.stripeBalanceTransaction.upsert({
+          where:  { id: bt.id },
+          create: { id: bt.id, type: bt.type, amount: bt.amount, fee: bt.fee, net: bt.net, currency: bt.currency.toUpperCase(), status: bt.status, description: bt.description ?? '', createdAt: new Date(bt.created * 1000) },
+          update: { status: bt.status },
+        }).catch(() => {})
+        results.transactions++
       }
       hasMore = list.has_more
       if (list.data.length) startingAfter = list.data[list.data.length - 1].id

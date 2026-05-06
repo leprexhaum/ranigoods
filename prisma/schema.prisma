@@ -453,3 +453,18 @@ model StripePromoCode {
 
   @@map("stripe_promo_codes")
 }
+
+model StripeBalanceTransaction {
+  id          String   @id
+  type        String
+  amount      Int
+  fee         Int      @default(0)
+  net         Int      @default(0)
+  currency    String   @default("EUR")
+  status      String   @default("")
+  description String   @default("")
+  createdAt   DateTime @map("created_at")
+  syncedAt    DateTime @default(now()) @map("synced_at")
+
+  @@map("stripe_balance_transactions")
+}

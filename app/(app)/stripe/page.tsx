@@ -28,7 +28,10 @@ interface Paginated<T> { data: T[]; total: number; pages: number; page: number }
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(d: string) {
-  return new Date(d).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })
+  const dt = new Date(d)
+  const day = String(dt.getUTCDate()).padStart(2, '0')
+  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+  return `${day} ${months[dt.getUTCMonth()]} ${dt.getUTCFullYear()}`
 }
 
 const payoutCfg: Record<string, { label: string; cls: string }> = {
@@ -418,43 +421,29 @@ function PayoutsTab() {
   )
 }
 
-// ─── TransactionsTab (cursor paginado) ───────────────────────────────────────
+// ─── TransactionsTab (paginado, lê do banco) ─────────────────────────────────
 
 function TransactionsTab() {
   const [data,    setData]    = useState<BalanceTx[]>([])
+  const [page,    setPage]    = useState(1)
+  const [pages,   setPages]   = useState(1)
+  const [total,   setTotal]   = useState(0)
   const [loading, setLoading] = useState(true)
-  const [hasMore, setHasMore] = useState(false)
-  const [cursors, setCursors] = useState<string[]>([])
   const [filter,  setFilter]  = useState<'all' | 'revenue'>('revenue')
   const LIMIT = 50
 
-  const load = useCallback(async (startingAfter?: string, endingBefore?: string) => {
+  const load = useCallback(async (p: number) => {
     setLoading(true)
     try {
-      let url = `/api/stripe/transactions?limit=${LIMIT}`
-      if (startingAfter) url += `&starting_after=${startingAfter}`
-      if (endingBefore)  url += `&ending_before=${endingBefore}`
-      const r = await fetch(url).then(r => r.json())
+      const r = await fetch(`/api/stripe/transactions?page=${p}&limit=${LIMIT}`).then(r => r.json())
       setData(Array.isArray(r.data) ? r.data : [])
-      setHasMore(r.hasMore ?? false)
+      setPages(r.pages ?? 1)
+      setTotal(r.total ?? 0)
+      setPage(p)
     } finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { load() }, [load])
-
-  function goNext() {
-    const lastId = data[data.length - 1]?.id
-    if (!lastId) return
-    setCursors(c => [...c, data[0]?.id ?? ''])
-    load(lastId)
-  }
-
-  function goPrev() {
-    const prev = cursors[cursors.length - 1]
-    setCursors(c => c.slice(0, -1))
-    if (prev) load(undefined, prev)
-    else load()
-  }
+  useEffect(() => { load(1) }, [load])
 
   const displayed  = filter === 'revenue' ? data.filter(t => REVENUE_TYPES.includes(t.type)) : data
   const revTxns    = data.filter(t => ['payment', 'charge'].includes(t.type))
@@ -518,19 +507,7 @@ function TransactionsTab() {
             </table>
           )}
         </div>
-        <div className="flex items-center justify-between px-4 py-3 border-t border-ep-border-subtle">
-          <span className="text-ep-muted text-xs">{displayed.length} registos nesta página</span>
-          <div className="flex items-center gap-1">
-            <button onClick={goPrev} disabled={cursors.length === 0}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium bg-ep-raised border border-ep-border-default text-ep-secondary hover:text-ep-primary disabled:opacity-30 transition-colors">
-              <ChevronLeft size={13} />Anterior
-            </button>
-            <button onClick={goNext} disabled={!hasMore}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium bg-ep-raised border border-ep-border-default text-ep-secondary hover:text-ep-primary disabled:opacity-30 transition-colors">
-              Próxima<ChevronRight size={13} />
-            </button>
-          </div>
-        </div>
+        <Pagination page={page} pages={pages} total={total} limit={LIMIT} onPage={load} />
       </div>
     </div>
   )

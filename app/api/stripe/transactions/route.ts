@@ -1,28 +1,34 @@
-import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
   try {
     const { searchParams } = new URL(req.url)
-    const limit = Math.min(Number(searchParams.get('limit') ?? '50'), 100)
-    const list = await stripe.balanceTransactions.list({ limit, expand: ['data.source'] })
-    return NextResponse.json(list.data.map(bt => ({
-      id:          bt.id,
-      type:        bt.type,
-      amount:      bt.amount,
-      fee:         bt.fee,
-      net:         bt.net,
-      currency:    bt.currency.toUpperCase(),
-      status:      bt.status,
-      description: bt.description ?? '',
-      createdAt:   new Date(bt.created * 1000).toISOString(),
-    })))
+    const page  = Math.max(1, Number(searchParams.get('page')  ?? '1'))
+    const limit = Math.min(100, Number(searchParams.get('limit') ?? '50'))
+    const skip  = (page - 1) * limit
+
+    const [data, total] = await Promise.all([
+      prisma.stripeBalanceTransaction.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.stripeBalanceTransaction.count(),
+    ])
+
+    return NextResponse.json({
+      data,
+      total,
+      pages: Math.ceil(total / limit),
+      page,
+      hasMore: page * limit < total,
+    })
   } catch (err) {
     console.error('[stripe/transactions]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
