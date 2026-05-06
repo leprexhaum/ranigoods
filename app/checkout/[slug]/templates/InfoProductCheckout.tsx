@@ -24,6 +24,37 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
   const elements = useElements()
   const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
+  const [polling, setPolling] = useState(false)
+
+  const pollAndRedirect = async () => {
+    setPolling(true)
+    const successDest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
+    let attempts = 0
+    const poll = async (): Promise<void> => {
+      try {
+        const res  = await fetch(`/api/checkout/payment/${paymentId}`)
+        const data = await res.json()
+        if (data.status === 'paid') {
+          try {
+            const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
+            if (upsellRes.ok) {
+              const upsell = await upsellRes.json()
+              if (upsell?.available) { window.location.href = `/checkout/upsell/${paymentId}`; return }
+            }
+          } catch { /* segue para success */ }
+          window.location.href = successDest
+          return
+        }
+        if (data.status === 'failed') { setError('Pagamento recusado. Tente novamente.'); setPolling(false); setLoading(false); return }
+        if (attempts < 20) { attempts++; setTimeout(poll, 3000) }
+        else { window.location.href = successDest }
+      } catch {
+        if (attempts < 20) { attempts++; setTimeout(poll, 3000) }
+        else { window.location.href = successDest }
+      }
+    }
+    poll()
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,8 +62,22 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName }: {
     setLoading(true)
     setError('')
     const returnUrl = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
-    const { error: err } = await stripe.confirmPayment({ elements, confirmParams: { return_url: returnUrl } })
-    if (err) { setError(err.message ?? 'Erro ao processar pagamento'); setLoading(false) }
+    const { error: err, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: returnUrl },
+      redirect: 'if_required',
+    })
+    if (err) { setError(err.message ?? 'Erro ao processar pagamento'); setLoading(false); return }
+    if (paymentIntent) { pollAndRedirect(); return }
+  }
+
+  if (polling) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-10">
+        <Loader2 size={36} className="animate-spin text-[#0570DE]" />
+        <p className="text-[14px] text-[#6D6E78] text-center">A verificar pagamento…</p>
+      </div>
+    )
   }
 
   return (
