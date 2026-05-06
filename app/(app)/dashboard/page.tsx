@@ -74,10 +74,6 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DateFilter preset={preset} customStart={customStart} customEnd={customEnd} onChange={handleDateChange} compact />
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-ep-success/10 border border-ep-success/20 text-ep-success text-xs font-medium whitespace-nowrap">
-            <span className="w-1.5 h-1.5 rounded-full bg-ep-success animate-pulse" />
-            Stripe Conectado
-          </span>
         </div>
       </div>
 
