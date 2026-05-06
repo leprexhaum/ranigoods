@@ -76,7 +76,7 @@ export default function PagamentosPage() {
   const [orderFilter,  setOrderFilter]  = useState('all')
   const [search,       setSearch]       = useState('')
   const [page,         setPage]         = useState(1)
-  const [preset,       setPreset]       = useState<DatePreset>('30d')
+  const [preset,       setPreset]       = useState<DatePreset>('hoje')
   const [customStart,  setCustomStart]  = useState('')
   const [customEnd,    setCustomEnd]    = useState('')
   const [result,       setResult]       = useState<ApiResponse>({ data: [], total: 0, pages: 1, page: 1 })

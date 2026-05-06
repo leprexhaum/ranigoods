@@ -22,7 +22,7 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
-  const [preset,      setPreset]      = useState<DatePreset>('30d')
+  const [preset,      setPreset]      = useState<DatePreset>('hoje')
   const [customStart, setCustomStart] = useState('')
   const [customEnd,   setCustomEnd]   = useState('')
   const [data,        setData]        = useState<DashboardData | null>(null)

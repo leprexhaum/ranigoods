@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Package, Plus, ExternalLink, MoreVertical, Check, Pencil, Copy } from 'lucide-react'
 import clsx from 'clsx'
-import DateFilter from '@/components/ui/DateFilter'
-import type { DatePreset } from '@/components/ui/DateFilter'
 import type { Product } from '@/lib/services/product.service'
 import ProductFormModal from '@/components/products/ProductFormModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -49,9 +47,6 @@ function CopyLinkButton({ slug }: { slug: string }) {
 
 export default function ProdutosPage() {
   const [filter,      setFilter]      = useState<'all' | 'active' | 'archived'>('all')
-  const [preset,      setPreset]      = useState<DatePreset>('30d')
-  const [customStart, setCustomStart] = useState('')
-  const [customEnd,   setCustomEnd]   = useState('')
   const [products,    setProducts]    = useState<Product[]>([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
@@ -77,12 +72,6 @@ export default function ProdutosPage() {
   }, [filter])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
-
-  const handleDateChange = (p: DatePreset, cs?: string, ce?: string) => {
-    setPreset(p)
-    if (cs) setCustomStart(cs)
-    if (ce) setCustomEnd(ce)
-  }
 
   const handleArchive = async (id: string, current: 'active' | 'archived') => {
     const next = current === 'active' ? 'archived' : 'active'
@@ -128,12 +117,6 @@ export default function ProdutosPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <DateFilter
-            preset={preset}
-            customStart={customStart}
-            customEnd={customEnd}
-            onChange={handleDateChange}
-          />
           <button
             onClick={() => { setEditProduct(null); setModalOpen(true) }}
             className="flex items-center gap-2 px-4 py-2 bg-ep-accent text-ep-base rounded-md text-sm font-semibold hover:bg-ep-accent-dark transition-colors">
