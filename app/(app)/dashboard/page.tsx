@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   DollarSign, CreditCard, CheckCircle,
-  XCircle, Percent, Receipt, Wallet,
+  XCircle, Percent, Receipt,
 } from 'lucide-react'
 import StatsCard      from '@/components/dashboard/StatsCard'
 import SalesChart     from '@/components/dashboard/SalesChart'
@@ -21,21 +21,12 @@ interface DashboardData {
   payments: Payment[]
 }
 
-interface StripeBalance {
-  available: number
-  pending:   number
-  currency:  string
-  cached?:   boolean
-}
-
 export default function DashboardPage() {
   const [preset,      setPreset]      = useState<DatePreset>('30d')
   const [customStart, setCustomStart] = useState('')
   const [customEnd,   setCustomEnd]   = useState('')
   const [data,        setData]        = useState<DashboardData | null>(null)
   const [loading,     setLoading]     = useState(true)
-  const [balance,     setBalance]     = useState<StripeBalance | null>(null)
-  const [balanceLoading, setBalanceLoading] = useState(true)
 
   const range = getRange(preset, customStart, customEnd)
 
@@ -53,15 +44,6 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData(range.start, range.end)
   }, [range.start, range.end, fetchData])
-
-  useEffect(() => {
-    setBalanceLoading(true)
-    fetch('/api/stripe/balance')
-      .then(r => r.json())
-      .then((b: StripeBalance) => setBalance(b))
-      .catch(() => { /* ignorar */ })
-      .finally(() => setBalanceLoading(false))
-  }, [])
 
   const handleDateChange = (p: DatePreset, cs?: string, ce?: string) => {
     setPreset(p)
@@ -138,35 +120,6 @@ export default function DashboardPage() {
           icon={Receipt} accent="default" loading={loading}
         />
       </div>
-
-      {/* Stripe Balance Widget */}
-      <div className="bg-ep-surface border border-ep-border-default rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Wallet size={15} className="text-ep-accent" />
-          <p className="text-ep-primary text-sm font-semibold">Saldo Stripe</p>
-          {balance?.cached && <span className="text-ep-muted text-xs">(cache)</span>}
-        </div>
-        {balanceLoading ? (
-          <div className="flex gap-6 animate-pulse">
-            <div className="h-8 w-28 bg-ep-raised rounded" />
-            <div className="h-8 w-28 bg-ep-raised rounded" />
-          </div>
-        ) : balance && !('error' in balance) ? (
-          <div className="flex flex-wrap gap-6">
-            <div>
-              <p className="text-ep-muted text-xs mb-0.5">Disponível</p>
-              <p className="text-ep-success text-xl font-bold">{formatEUR(balance.available)}</p>
-            </div>
-            <div>
-              <p className="text-ep-muted text-xs mb-0.5">Pendente</p>
-              <p className="text-ep-warning text-xl font-bold">{formatEUR(balance.pending)}</p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-ep-muted text-sm">Não foi possível carregar o saldo.</p>
-        )}
-      </div>
-
       {/* Charts — sempre visíveis, com zeros se não houver dados */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 md:gap-4">
         <div className="xl:col-span-2">
