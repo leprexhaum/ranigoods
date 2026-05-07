@@ -23,9 +23,9 @@ interface OutboundWebhook {
 }
 
 const PUSHCUT_EVENTS = [
-  { value: 'payment.succeeded', label: '✅ Venda aprovada'    },
-  { value: 'payment.failed',    label: '❌ Pagamento falhado' },
-  { value: 'payment.refunded',  label: '↩️ Reembolso'         },
+  { value: 'payment.succeeded', label: 'Venda aprovada'    },
+  { value: 'payment.failed',    label: 'Pagamento falhado' },
+  { value: 'payment.refunded',  label: 'Reembolso'         },
 ]
 
 const WEBHOOK_EVENTS = [

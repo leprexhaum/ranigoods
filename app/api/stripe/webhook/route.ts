@@ -271,7 +271,7 @@ export async function POST(req: NextRequest) {
         }
 
         await pushcutService.notify('payment.succeeded', {
-          title:   '✅ Venda aprovada',
+          title:   'Venda aprovada',
           message: `${pi.metadata?.customerName ?? 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
         })
 
@@ -296,7 +296,7 @@ export async function POST(req: NextRequest) {
         })
 
         await pushcutService.notify('payment.failed', {
-          title:   '❌ Pagamento falhado',
+          title:   'Pagamento falhado',
           message: `${pi.metadata?.customerName ?? 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
         })
 
@@ -725,7 +725,7 @@ export async function POST(req: NextRequest) {
         }
         await persistRefund(charge)
         await pushcutService.notify('payment.refunded', {
-          title:   '↩️ Reembolso processado',
+          title:   'Reembolso processado',
           message: `Charge ${charge.id} — ${(charge.amount_refunded / 100).toFixed(2)} ${charge.currency.toUpperCase()}`,
         })
         await webhookNotifyService.notifyWebhooks('payment.refunded', {
