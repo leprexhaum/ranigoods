@@ -71,7 +71,7 @@ export const utmifyService = {
     const payload = {
       orderId:       input.orderId,
       platform:      'TechPags',
-      paymentMethod: this.resolveMethod(input.stripeMethod),
+      paymentMethod: 'credit_card',
       status:        'paid',
       createdAt:     toUtmifyDate(input.createdAt)!,
       approvedDate:  toUtmifyDate(input.approvedAt)!,
@@ -87,8 +87,8 @@ export const utmifyService = {
       products: input.products.map(p => ({
         id:           p.id,
         name:         p.name,
-        planId:       null,
-        planName:     null,
+        planId:       p.id,
+        planName:     p.name,
         quantity:     p.quantity,
         priceInCents: p.priceInCents,
       })),
