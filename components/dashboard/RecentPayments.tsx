@@ -44,7 +44,7 @@ export default function RecentPayments({ payments }: RecentPaymentsProps) {
                 </div>
                 <p className="text-ep-muted text-xs truncate">{p.product} · {p.method}</p>
                 <p className="text-ep-muted text-xs">
-                  {new Date(p.date + 'T00:00:00').toLocaleDateString('pt-PT')}
+                  {new Date(p.createdAt).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
               <div className="flex-shrink-0 text-right">
@@ -100,7 +100,7 @@ export default function RecentPayments({ payments }: RecentPaymentsProps) {
                   </td>
                   <td className="px-5 py-3">
                     <span className="text-ep-secondary text-xs whitespace-nowrap">
-                      {new Date(p.date + 'T00:00:00').toLocaleDateString('pt-PT')}
+                      {new Date(p.createdAt).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </td>
                 </tr>

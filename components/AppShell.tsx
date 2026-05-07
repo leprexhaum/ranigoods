@@ -8,7 +8,7 @@ import {
   Menu, X,
   LayoutDashboard, Package, CreditCard,
   Cpu, Calculator, Settings, LogOut, Key, BookOpen,
-  Webhook, ShoppingCart, GitFork, ShoppingBag, Plug,
+  ShoppingCart, GitFork, ShoppingBag, Plug,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/components/providers/AuthProvider'
@@ -21,7 +21,6 @@ const navItems = [
   { href: '/pixels',                label: 'Pixels',        icon: Cpu             },
   { href: '/funis',                 label: 'Funis',         icon: GitFork         },
   { href: '/carrinhos-abandonados', label: 'Carrinhos',     icon: ShoppingCart    },
-  { href: '/webhooks',              label: 'Webhooks',      icon: Webhook         },
   { href: '/integracoes',           label: 'Integrações',   icon: Plug            },
   { href: '/calculadora',           label: 'Calculadora',   icon: Calculator      },
   { href: '/api-keys',              label: 'API Keys',      icon: Key             },
