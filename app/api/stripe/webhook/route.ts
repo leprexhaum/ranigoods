@@ -223,7 +223,11 @@ export async function POST(req: NextRequest) {
 
         const cpRecord = await prisma.checkoutPayment.findFirst({
           where:  { stripePaymentIntentId: pi.id },
-          select: { urlParams: true, customerEmail: true, customerPhone: true },
+          select: {
+            urlParams: true, customerEmail: true, customerPhone: true,
+            customerName: true, productId: true,
+            product: { select: { name: true, utmifyConfigId: true } },
+          },
         })
         const urlParams = (cpRecord?.urlParams ?? {}) as Record<string, string>
 
@@ -246,45 +250,41 @@ export async function POST(req: NextRequest) {
           },
         })
 
-        const cpFull = await checkoutService.getPaymentByIntentId(pi.id)
-        if (cpFull) {
-          // UTMify via config vinculada ao produto
-          const utmifyConfigId = (cpFull.product as { utmifyConfigId?: string | null }).utmifyConfigId
-          if (utmifyConfigId) {
-            const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: utmifyConfigId } })
-            if (utmCfg?.enabled && utmCfg.apiToken) {
-              await utmifyService.sendOrder(utmCfg.apiToken, {
-                orderId:      pi.id,
-                stripeMethod: resolveMethodRaw(charge),
-                currency:     pi.currency,
-                createdAt:    new Date(pi.created * 1000),
-                approvedAt:   new Date(),
-                customer: {
-                  name:     cpFull.customerName,
-                  email:    cpFull.customerEmail,
-                  phone:    cpFull.customerPhone,
-                  document: '',
-                  ip:       ip ?? undefined,
-                },
-                products: [{
-                  id:           cpFull.productId,
-                  name:         cpFull.product.name,
-                  quantity:     1,
-                  priceInCents: pi.amount,
-                }],
-                trackingParameters: {
-                  src:          urlParams.src,
-                  sck:          urlParams.sck,
-                  utm_source:   urlParams.utm_source,
-                  utm_campaign: urlParams.utm_campaign,
-                  utm_medium:   urlParams.utm_medium,
-                  utm_content:  urlParams.utm_content,
-                  utm_term:     urlParams.utm_term,
-                },
-                totalPriceInCents:  pi.amount,
-                gatewayFeeInCents:  0,
-              })
-            }
+        // UTMify via config vinculada ao produto
+        if (cpRecord?.product?.utmifyConfigId) {
+          const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: cpRecord.product.utmifyConfigId } })
+          if (utmCfg?.enabled && utmCfg.apiToken) {
+            await utmifyService.sendOrder(utmCfg.apiToken, {
+              orderId:      pi.id,
+              stripeMethod: resolveMethodRaw(charge),
+              currency:     pi.currency,
+              createdAt:    new Date(pi.created * 1000),
+              approvedAt:   new Date(),
+              customer: {
+                name:     cpRecord.customerName,
+                email:    cpRecord.customerEmail,
+                phone:    cpRecord.customerPhone,
+                document: '',
+                ip:       ip ?? undefined,
+              },
+              products: [{
+                id:           cpRecord.productId,
+                name:         cpRecord.product.name,
+                quantity:     1,
+                priceInCents: pi.amount,
+              }],
+              trackingParameters: {
+                src:          urlParams.src,
+                sck:          urlParams.sck,
+                utm_source:   urlParams.utm_source,
+                utm_campaign: urlParams.utm_campaign,
+                utm_medium:   urlParams.utm_medium,
+                utm_content:  urlParams.utm_content,
+                utm_term:     urlParams.utm_term,
+              },
+              totalPriceInCents: pi.amount,
+              gatewayFeeInCents: 0,
+            })
           }
         }
 
