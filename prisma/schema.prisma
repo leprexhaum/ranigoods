@@ -364,6 +364,19 @@ model OrderItem {
   @@map("order_items")
 }
 
+model CustomDomain {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  domain     String    @unique
+  status     String    @default("pending") // pending | active | failed
+  failReason String    @default("") @map("fail_reason")
+  verifiedAt DateTime? @map("verified_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@map("custom_domains")
+}
+
 model Funnel {
   id           String   @id @default(cuid())
   userId       String   @map("user_id")

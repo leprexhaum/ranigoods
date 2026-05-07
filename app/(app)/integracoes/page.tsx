@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Plug, Check, ExternalLink, Plus, Trash2, Edit2, X,
   Eye, EyeOff, Copy, Webhook, ChevronDown, ChevronUp,
+  Globe, RefreshCw, CheckCircle2, AlertCircle, Clock,
 } from 'lucide-react'
 import Image from 'next/image'
 import clsx from 'clsx'
@@ -513,6 +514,205 @@ function WebhooksSection() {
   )
 }
 
+// ─── DomainsSection ───────────────────────────────────────────────────────────
+
+interface CustomDomain {
+  id: string; domain: string; status: 'pending' | 'active' | 'failed'
+  failReason: string; verifiedAt: string | null; createdAt: string
+}
+
+const PROXY_HOST = 'proxy.techpags.shop'
+
+function DomainStatusBadge({ status }: { status: CustomDomain['status'] }) {
+  if (status === 'active') return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-ep-success/10 border border-ep-success/20 text-ep-success text-xs font-medium">
+      <CheckCircle2 size={10} /> Ativo
+    </span>
+  )
+  if (status === 'failed') return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-ep-danger/10 border border-ep-danger/20 text-ep-danger text-xs font-medium">
+      <AlertCircle size={10} /> Falhou
+    </span>
+  )
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-ep-warning/10 border border-ep-warning/20 text-ep-warning text-xs font-medium">
+      <Clock size={10} /> Pendente
+    </span>
+  )
+}
+
+function DomainsSection() {
+  const [domains,    setDomains]    = useState<CustomDomain[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [input,      setInput]      = useState('')
+  const [adding,     setAdding]     = useState(false)
+  const [error,      setError]      = useState('')
+  const [verifying,  setVerifying]  = useState<string | null>(null)
+  const [deleteId,   setDeleteId]   = useState<string | null>(null)
+  const [copiedId,   setCopiedId]   = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/domains')
+      setDomains(await res.json())
+    } finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const handleAdd = async () => {
+    if (!input.trim()) { setError('Digite um domínio'); return }
+    setAdding(true); setError('')
+    try {
+      const res = await fetch('/api/domains', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: input.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? 'Erro ao adicionar'); return }
+      setInput('')
+      await load()
+    } finally { setAdding(false) }
+  }
+
+  const handleVerify = async (id: string) => {
+    setVerifying(id)
+    try {
+      const res = await fetch(`/api/domains/${id}/verify`, { method: 'POST' })
+      const data = await res.json() as CustomDomain
+      setDomains(prev => prev.map(d => d.id === id ? data : d))
+    } finally { setVerifying(null) }
+  }
+
+  const handleDelete = async (id: string) => {
+    await fetch(`/api/domains/${id}`, { method: 'DELETE' })
+    setDeleteId(null)
+    await load()
+  }
+
+  const copyCname = (id: string) => {
+    navigator.clipboard.writeText(PROXY_HOST)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  return (
+    <div className="bg-ep-surface border border-ep-border-default rounded-xl overflow-hidden">
+      <SectionHeader
+        icon={<div className="w-7 h-7 flex items-center justify-center"><Globe size={16} className="text-ep-accent" /></div>}
+        title="Domínios Customizados"
+        description="Use o seu próprio domínio para o checkout — aponte um CNAME e pronto"
+      />
+      <div className="px-5 py-5 space-y-4">
+
+        {/* Instrução CNAME */}
+        <div className="bg-ep-raised border border-ep-border-default rounded-lg p-4 space-y-2">
+          <p className="text-ep-secondary text-xs font-medium">Como configurar</p>
+          <ol className="space-y-1.5 text-ep-muted text-xs list-decimal list-inside leading-relaxed">
+            <li>Adicione o domínio abaixo</li>
+            <li>No painel DNS do seu domínio, crie um registro <code className="bg-ep-surface px-1 rounded text-ep-accent">CNAME</code></li>
+            <li>Aponte para <code className="bg-ep-surface px-1 rounded text-ep-accent font-mono">{PROXY_HOST}</code></li>
+            <li>Clique em <strong className="text-ep-secondary">Verificar</strong> após a propagação (pode levar alguns minutos)</li>
+          </ol>
+        </div>
+
+        {/* Input para adicionar */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={e => { setInput(e.target.value); setError('') }}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            placeholder="meudominio.com"
+            className="flex-1 px-3 py-2 bg-ep-surface border border-ep-border-default rounded-md text-ep-primary text-sm placeholder-ep-muted focus:outline-none focus:border-ep-accent transition-colors"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={adding}
+            className="flex items-center gap-1.5 px-3 py-2 bg-ep-accent text-ep-base text-xs font-semibold rounded-md hover:bg-ep-accent-dark disabled:opacity-50 transition-colors whitespace-nowrap"
+          >
+            <Plus size={12} />{adding ? 'Adicionando…' : 'Adicionar'}
+          </button>
+        </div>
+        {error && <p className="text-ep-danger text-xs -mt-2">{error}</p>}
+
+        {/* Lista */}
+        {loading ? (
+          <div><ListRowSkeleton cols={3} /><ListRowSkeleton cols={3} /></div>
+        ) : domains.length === 0 ? (
+          <div className="py-6 text-center">
+            <Globe size={24} className="text-ep-muted opacity-40 mx-auto mb-2" />
+            <p className="text-ep-secondary text-sm">Nenhum domínio adicionado</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {domains.map(d => (
+              <div key={d.id} className="bg-ep-raised border border-ep-border-default rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-ep-primary text-sm font-semibold font-mono">{d.domain}</p>
+                      <DomainStatusBadge status={d.status} />
+                    </div>
+                    {d.status !== 'active' && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <code className="text-ep-muted text-xs font-mono">CNAME → {PROXY_HOST}</code>
+                        <button
+                          onClick={() => copyCname(d.id)}
+                          className="p-0.5 text-ep-muted hover:text-ep-primary transition-colors"
+                          title="Copiar"
+                        >
+                          {copiedId === d.id ? <Check size={11} className="text-ep-success" /> : <Copy size={11} />}
+                        </button>
+                      </div>
+                    )}
+                    {d.status === 'active' && d.verifiedAt && (
+                      <p className="text-ep-muted text-xs mt-1">
+                        Verificado em {new Date(d.verifiedAt).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                    )}
+                    {d.status === 'failed' && d.failReason && (
+                      <p className="text-ep-danger text-xs mt-1">{d.failReason}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {d.status !== 'active' && (
+                      <button
+                        onClick={() => handleVerify(d.id)}
+                        disabled={verifying === d.id}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-ep-surface border border-ep-border-default text-ep-secondary text-xs rounded-md hover:text-ep-primary hover:border-ep-accent disabled:opacity-50 transition-colors"
+                      >
+                        <RefreshCw size={11} className={verifying === d.id ? 'animate-spin' : ''} />
+                        {verifying === d.id ? 'Verificando…' : 'Verificar'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setDeleteId(d.id)}
+                      className="p-1.5 text-ep-muted hover:text-ep-danger transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {deleteId === d.id && (
+                  <div className="flex items-center gap-2 p-3 bg-ep-danger/10 border border-ep-danger/20 rounded-md">
+                    <p className="text-ep-danger text-xs flex-1">Remover <strong>{d.domain}</strong>?</p>
+                    <button onClick={() => handleDelete(d.id)} className="px-3 py-1 bg-ep-danger text-white text-xs rounded hover:opacity-90 transition-opacity">Remover</button>
+                    <button onClick={() => setDeleteId(null)} className="px-3 py-1 bg-ep-surface border border-ep-border-default text-ep-secondary text-xs rounded hover:text-ep-primary transition-colors">Cancelar</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function IntegracoesPage() {
@@ -527,6 +727,7 @@ export default function IntegracoesPage() {
           Conecte ferramentas externas para notificações, rastreamento e automações
         </p>
       </div>
+      <DomainsSection />
       <PushcutSection />
       <UtmifySection />
       <WebhooksSection />
