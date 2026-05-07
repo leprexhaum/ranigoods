@@ -254,17 +254,35 @@ export async function POST(req: NextRequest) {
             const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: utmifyConfigId } })
             if (utmCfg?.enabled && utmCfg.apiToken) {
               await utmifyService.sendOrder(utmCfg.apiToken, {
-                orderId: pi.id, platform: 'other', paymentMethod: resolveMethodRaw(charge),
-                status: 'paid', createdAt: new Date(pi.created * 1000).toISOString(),
-                approvedDate: new Date().toISOString(),
-                customer: { name: cpFull.customerName, email: cpFull.customerEmail, phone: cpFull.customerPhone, document: '' },
-                products: [{ id: cpFull.productId, name: cpFull.product.name, priceInCents: pi.amount, quantity: 1 }],
-                trackingParameters: {
-                  utm_source: urlParams.utm_source, utm_medium: urlParams.utm_medium,
-                  utm_campaign: urlParams.utm_campaign, utm_content: urlParams.utm_content,
-                  utm_term: urlParams.utm_term, src: urlParams.src, sck: urlParams.sck,
+                orderId:      pi.id,
+                stripeMethod: resolveMethodRaw(charge),
+                currency:     pi.currency,
+                createdAt:    new Date(pi.created * 1000),
+                approvedAt:   new Date(),
+                customer: {
+                  name:     cpFull.customerName,
+                  email:    cpFull.customerEmail,
+                  phone:    cpFull.customerPhone,
+                  document: '',
+                  ip:       ip ?? undefined,
                 },
-                commission: { totalPriceInCents: pi.amount, gatewayFeeInCents: 0, userCommissionInCents: pi.amount },
+                products: [{
+                  id:           cpFull.productId,
+                  name:         cpFull.product.name,
+                  quantity:     1,
+                  priceInCents: pi.amount,
+                }],
+                trackingParameters: {
+                  src:          urlParams.src,
+                  sck:          urlParams.sck,
+                  utm_source:   urlParams.utm_source,
+                  utm_campaign: urlParams.utm_campaign,
+                  utm_medium:   urlParams.utm_medium,
+                  utm_content:  urlParams.utm_content,
+                  utm_term:     urlParams.utm_term,
+                },
+                totalPriceInCents:  pi.amount,
+                gatewayFeeInCents:  0,
               })
             }
           }
