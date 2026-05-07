@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Plug, Save, Check, ExternalLink, Plus, Trash2, Edit2, X,
+  Plug, Check, ExternalLink, Plus, Trash2, Edit2, X,
   Eye, EyeOff, Copy, Webhook, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import Image from 'next/image'
