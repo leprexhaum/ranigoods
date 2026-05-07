@@ -13,6 +13,8 @@ export interface AppSettings {
   notifyRefund: boolean
   notifyDaily: boolean
   notifyWeekly: boolean
+  pushcutWebhookUrl: string
+  utmifyApiToken: string
 }
 
 export const settingsService = {
@@ -23,18 +25,20 @@ export const settingsService = {
       update: {},
     })
     return {
-      companyName:    row.companyName,
-      nif:            row.nif,
-      email:          row.email,
-      timezone:       row.timezone,
-      stripeKey:      row.stripeKey,
-      stripeSecret:   row.stripeSecret,
-      webhookSecret:  row.webhookSecret,
-      notifyApproved: row.notifyApproved,
-      notifyFailed:   row.notifyFailed,
-      notifyRefund:   row.notifyRefund,
-      notifyDaily:    row.notifyDaily,
-      notifyWeekly:   row.notifyWeekly,
+      companyName:       row.companyName,
+      nif:               row.nif,
+      email:             row.email,
+      timezone:          row.timezone,
+      stripeKey:         row.stripeKey,
+      stripeSecret:      row.stripeSecret,
+      webhookSecret:     row.webhookSecret,
+      notifyApproved:    row.notifyApproved,
+      notifyFailed:      row.notifyFailed,
+      notifyRefund:      row.notifyRefund,
+      notifyDaily:       row.notifyDaily,
+      notifyWeekly:      row.notifyWeekly,
+      pushcutWebhookUrl: row.pushcutWebhookUrl,
+      utmifyApiToken:    row.utmifyApiToken,
     }
   },
 
@@ -45,18 +49,20 @@ export const settingsService = {
       update: data,
     })
     return {
-      companyName:    row.companyName,
-      nif:            row.nif,
-      email:          row.email,
-      timezone:       row.timezone,
-      stripeKey:      row.stripeKey,
-      stripeSecret:   row.stripeSecret,
-      webhookSecret:  row.webhookSecret,
-      notifyApproved: row.notifyApproved,
-      notifyFailed:   row.notifyFailed,
-      notifyRefund:   row.notifyRefund,
-      notifyDaily:    row.notifyDaily,
-      notifyWeekly:   row.notifyWeekly,
+      companyName:       row.companyName,
+      nif:               row.nif,
+      email:             row.email,
+      timezone:          row.timezone,
+      stripeKey:         row.stripeKey,
+      stripeSecret:      row.stripeSecret,
+      webhookSecret:     row.webhookSecret,
+      notifyApproved:    row.notifyApproved,
+      notifyFailed:      row.notifyFailed,
+      notifyRefund:      row.notifyRefund,
+      notifyDaily:       row.notifyDaily,
+      notifyWeekly:      row.notifyWeekly,
+      pushcutWebhookUrl: row.pushcutWebhookUrl,
+      utmifyApiToken:    row.utmifyApiToken,
     }
   },
 }

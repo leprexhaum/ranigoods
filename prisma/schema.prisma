@@ -183,11 +183,13 @@ model Settings {
   stripeKey    String  @default("") @map("stripe_key")
   stripeSecret String  @default("") @map("stripe_secret")
   webhookSecret String @default("") @map("webhook_secret")
-  notifyApproved  Boolean @default(true)  @map("notify_approved")
-  notifyFailed    Boolean @default(true)  @map("notify_failed")
-  notifyRefund    Boolean @default(false) @map("notify_refund")
-  notifyDaily     Boolean @default(false) @map("notify_daily")
-  notifyWeekly    Boolean @default(false) @map("notify_weekly")
+  notifyApproved      Boolean @default(true)  @map("notify_approved")
+  notifyFailed        Boolean @default(true)  @map("notify_failed")
+  notifyRefund        Boolean @default(false) @map("notify_refund")
+  notifyDaily         Boolean @default(false) @map("notify_daily")
+  notifyWeekly        Boolean @default(false) @map("notify_weekly")
+  pushcutWebhookUrl   String  @default("") @map("pushcut_webhook_url")
+  utmifyApiToken      String  @default("") @map("utmify_api_token")
 
   @@map("settings")
 }
