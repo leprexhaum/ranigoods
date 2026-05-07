@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plug, Save, Check, ExternalLink, Bell, BarChart2 } from 'lucide-react'
+import { Plug, Save, Check, ExternalLink } from 'lucide-react'
+import Image from 'next/image'
 import clsx from 'clsx'
 
 interface IntegrationSettings {
@@ -49,7 +50,7 @@ function IntegrationCard({ icon, title, description, docsUrl, children, onSave, 
     <div className="bg-ep-surface border border-ep-border-default rounded-xl overflow-hidden">
       <div className="flex items-start justify-between px-5 py-4 border-b border-ep-border-subtle">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-ep-accent/10 border border-ep-accent/20 flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-ep-raised border border-ep-border-default flex items-center justify-center flex-shrink-0 overflow-hidden">
             {icon}
           </div>
           <div>
@@ -177,7 +178,7 @@ export default function IntegracoesPage() {
       )}
 
       <IntegrationCard
-        icon={<Bell size={16} className="text-ep-accent" />}
+        icon={<Image src="/pushcut-icon.png" alt="Pushcut" width={28} height={28} className="rounded-md object-contain" />}
         title="Pushcut"
         description="Receba notificações push no iPhone quando ocorrerem vendas, falhas ou reembolsos"
         docsUrl="https://www.pushcut.io/support.html"
@@ -214,7 +215,7 @@ export default function IntegracoesPage() {
       </IntegrationCard>
 
       <IntegrationCard
-        icon={<BarChart2 size={16} className="text-ep-accent" />}
+        icon={<Image src="/utmify-icon.png" alt="UTMify" width={28} height={28} className="rounded-md object-contain" />}
         title="UTMify"
         description="Envie dados de pedidos para o UTMify e rastreie a performance das suas campanhas de tráfego"
         docsUrl="https://utmify.com.br"
