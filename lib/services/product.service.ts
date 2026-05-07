@@ -30,7 +30,7 @@ export interface Product {
   legalName:        string
   successUrl:       string
   metaPixelId:      string
-  utmfyApiToken:    string
+  utmifyConfigId:   string | null
   stock:            number
   pixelIds:         string[]
   customDomain:     string
@@ -46,7 +46,7 @@ type ProductRow = {
   checkoutTemplate: string; checkoutLanguage: string;
   requirePhone: boolean; requireAddress: boolean;
   logoUrl: string; brandName: string; legalName: string; successUrl: string;
-  metaPixelId: string; utmfyApiToken: string; stock: number; pixelIds: unknown; customDomain: string;
+  metaPixelId: string; utmifyConfigId: string | null; stock: number; pixelIds: unknown; customDomain: string;
 }
 
 function toProduct(r: ProductRow): Product {
@@ -79,7 +79,7 @@ function toProduct(r: ProductRow): Product {
     legalName:        r.legalName,
     successUrl:       r.successUrl,
     metaPixelId:      r.metaPixelId,
-    utmfyApiToken:    r.utmfyApiToken,
+    utmifyConfigId:   r.utmifyConfigId ?? null,
     stock:            r.stock,
     pixelIds:         (r.pixelIds as string[]) ?? [],
     customDomain:     r.customDomain,
@@ -135,7 +135,7 @@ export const productService = {
         brandName:        data.brandName ?? '',
         legalName:        data.legalName ?? '',
         metaPixelId:      data.metaPixelId ?? '',
-        utmfyApiToken:    data.utmfyApiToken ?? '',
+        utmifyConfigId:   data.utmifyConfigId ?? null,
         stock:            data.stock ?? -1,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pixelIds:         (data.pixelIds ?? []) as any,

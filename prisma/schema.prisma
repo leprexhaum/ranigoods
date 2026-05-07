@@ -90,6 +90,8 @@ model Product {
   stock            Int      @default(-1)
   pixelIds         Json     @default("[]") @map("pixel_ids")
   customDomain     String   @default("") @map("custom_domain")
+  utmifyConfigId   String?  @map("utmify_config_id")
+  utmifyConfig     UtmifyConfig? @relation("ProductUtmify", fields: [utmifyConfigId], references: [id], onDelete: SetNull)
   checkoutPayments CheckoutPayment[]
   cartItems        CartItem[]
 
@@ -188,10 +190,34 @@ model Settings {
   notifyRefund        Boolean @default(false) @map("notify_refund")
   notifyDaily         Boolean @default(false) @map("notify_daily")
   notifyWeekly        Boolean @default(false) @map("notify_weekly")
-  pushcutWebhookUrl   String  @default("") @map("pushcut_webhook_url")
-  utmifyApiToken      String  @default("") @map("utmify_api_token")
 
   @@map("settings")
+}
+
+model PushcutConfig {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  name       String   @default("")
+  webhookUrl String   @default("") @map("webhook_url")
+  events     Json     @default("[]")
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("pushcut_configs")
+}
+
+model UtmifyConfig {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  name      String    @default("")
+  apiToken  String    @default("") @map("api_token")
+  enabled   Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  products  Product[] @relation("ProductUtmify")
+
+  @@map("utmify_configs")
 }
 
 model OutboundWebhook {

@@ -5,6 +5,7 @@ import { pixelService } from '@/lib/services/pixel.service'
 import { productService } from '@/lib/services/product.service'
 import { checkoutService } from '@/lib/services/checkout.service'
 import { utmifyService } from '@/lib/services/utmify.service'
+import { pushcutService } from '@/lib/services/pushcut.service'
 import { emailService } from '@/lib/services/email.service'
 import { webhookNotifyService } from '@/lib/services/webhook-notify.service'
 import { stripeLogger } from '@/lib/services/stripe-logger.service'
@@ -246,21 +247,33 @@ export async function POST(req: NextRequest) {
         })
 
         const cpFull = await checkoutService.getPaymentByIntentId(pi.id)
-        if (cpFull?.product.utmfyApiToken) {
-          await utmifyService.sendOrder(cpFull.product.utmfyApiToken, {
-            orderId: pi.id, platform: 'other', paymentMethod: resolveMethodRaw(charge),
-            status: 'paid', createdAt: new Date(pi.created * 1000).toISOString(),
-            approvedDate: new Date().toISOString(),
-            customer: { name: cpFull.customerName, email: cpFull.customerEmail, phone: cpFull.customerPhone, document: '' },
-            products: [{ id: cpFull.productId, name: cpFull.product.name, priceInCents: pi.amount, quantity: 1 }],
-            trackingParameters: {
-              utm_source: urlParams.utm_source, utm_medium: urlParams.utm_medium,
-              utm_campaign: urlParams.utm_campaign, utm_content: urlParams.utm_content,
-              utm_term: urlParams.utm_term, src: urlParams.src, sck: urlParams.sck,
-            },
-            commission: { totalPriceInCents: pi.amount, gatewayFeeInCents: 0, userCommissionInCents: pi.amount },
-          })
+        if (cpFull) {
+          // UTMify via config vinculada ao produto
+          const utmifyConfigId = (cpFull.product as { utmifyConfigId?: string | null }).utmifyConfigId
+          if (utmifyConfigId) {
+            const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: utmifyConfigId } })
+            if (utmCfg?.enabled && utmCfg.apiToken) {
+              await utmifyService.sendOrder(utmCfg.apiToken, {
+                orderId: pi.id, platform: 'other', paymentMethod: resolveMethodRaw(charge),
+                status: 'paid', createdAt: new Date(pi.created * 1000).toISOString(),
+                approvedDate: new Date().toISOString(),
+                customer: { name: cpFull.customerName, email: cpFull.customerEmail, phone: cpFull.customerPhone, document: '' },
+                products: [{ id: cpFull.productId, name: cpFull.product.name, priceInCents: pi.amount, quantity: 1 }],
+                trackingParameters: {
+                  utm_source: urlParams.utm_source, utm_medium: urlParams.utm_medium,
+                  utm_campaign: urlParams.utm_campaign, utm_content: urlParams.utm_content,
+                  utm_term: urlParams.utm_term, src: urlParams.src, sck: urlParams.sck,
+                },
+                commission: { totalPriceInCents: pi.amount, gatewayFeeInCents: 0, userCommissionInCents: pi.amount },
+              })
+            }
+          }
         }
+
+        await pushcutService.notify('payment.succeeded', {
+          title:   '✅ Venda aprovada',
+          message: `${pi.metadata?.customerName ?? 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
+        })
 
         await webhookNotifyService.notifyWebhooks('payment.succeeded', {
           paymentIntentId: pi.id, amount: pi.amount, currency: pi.currency,
@@ -280,6 +293,11 @@ export async function POST(req: NextRequest) {
         await prisma.checkoutPayment.updateMany({
           where: { stripePaymentIntentId: pi.id },
           data:  { stripeErrorCode: errCode, stripeErrorMsg: errMsg.slice(0, 500), lastStripeEventId: event.id },
+        })
+
+        await pushcutService.notify('payment.failed', {
+          title:   '❌ Pagamento falhado',
+          message: `${pi.metadata?.customerName ?? 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
         })
 
         await webhookNotifyService.notifyWebhooks('payment.failed', {
@@ -705,6 +723,14 @@ export async function POST(req: NextRequest) {
             update: { status: r.status ?? '' },
           }).catch(() => {})
         }
+        await persistRefund(charge)
+        await pushcutService.notify('payment.refunded', {
+          title:   '↩️ Reembolso processado',
+          message: `Charge ${charge.id} — ${(charge.amount_refunded / 100).toFixed(2)} ${charge.currency.toUpperCase()}`,
+        })
+        await webhookNotifyService.notifyWebhooks('payment.refunded', {
+          chargeId: charge.id, amount: charge.amount_refunded, currency: charge.currency,
+        })
         break
       }
 

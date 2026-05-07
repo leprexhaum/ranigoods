@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       legalName:        body.legalName        ?? '',
       successUrl:       body.successUrl       ?? '',
       metaPixelId:      body.metaPixelId      ?? '',
-      utmfyApiToken:    body.utmfyApiToken    ?? '',
+      utmifyConfigId:   body.utmifyConfigId   ?? null,
       stock:            body.stock !== undefined ? Number(body.stock) : -1,
       pixelIds:         body.pixelIds ?? [],
       customDomain:     body.customDomain ?? '',

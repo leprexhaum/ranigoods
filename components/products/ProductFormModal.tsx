@@ -32,7 +32,7 @@ type FormData = {
   checkoutLanguage: string
   requirePhone:     boolean
   requireAddress:   boolean
-  utmfyApiToken:    string
+  utmifyConfigId:   string
   successUrl:       string
   metaPixelId:      string
   customDomain:     string
@@ -168,7 +168,7 @@ function toForm(p?: Product | null): FormData {
     checkoutLanguage: p?.checkoutLanguage ?? 'pt',
     requirePhone:     p?.requirePhone     ?? false,
     requireAddress:   p?.requireAddress   ?? false,
-    utmfyApiToken:    p?.utmfyApiToken    ?? '',
+    utmifyConfigId:   p?.utmifyConfigId   ?? '',
     successUrl:       p?.successUrl       ?? '',
     metaPixelId:      p?.metaPixelId      ?? '',
     customDomain:     p?.customDomain     ?? '',
@@ -176,6 +176,73 @@ function toForm(p?: Product | null): FormData {
     stock:            String(p?.stock     ?? -1),
     pixelIds:         (p?.pixelIds        ?? []) as string[],
   }
+}
+
+// ─── UtmifySelector ───────────────────────────────────────────────────────────
+
+interface UtmifyConfigItem { id: string; name: string; enabled: boolean }
+
+function UtmifySelector({ selected, onChange }: { selected: string; onChange: (id: string) => void }) {
+  const [configs,  setConfigs]  = useState<UtmifyConfigItem[]>([])
+  const [loading,  setLoading]  = useState(true)
+
+  useEffect(() => {
+    fetch('/api/integrations/utmify')
+      .then(r => r.json())
+      .then((data: UtmifyConfigItem[]) => { setConfigs(data); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  if (loading) return <p className="text-ep-muted text-xs">Carregando configs UTMify…</p>
+
+  if (configs.length === 0) {
+    return (
+      <p className="text-ep-muted text-xs">
+        Nenhuma config UTMify criada.{' '}
+        <a href="/integracoes" target="_blank" className="text-ep-accent hover:underline">Criar em Integrações →</a>
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-ep-secondary text-xs">Selecione qual config UTMify usar para este produto</p>
+      <div className="space-y-1.5">
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className={clsx(
+            'w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-xs transition-all',
+            !selected
+              ? 'bg-ep-accent/10 border-ep-accent text-ep-accent'
+              : 'bg-ep-raised border-ep-border-default text-ep-secondary hover:border-ep-border-subtle',
+          )}
+        >
+          Nenhuma
+        </button>
+        {configs.map(c => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onChange(c.id)}
+            className={clsx(
+              'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left text-xs transition-all',
+              selected === c.id
+                ? 'bg-ep-accent/10 border-ep-accent'
+                : 'bg-ep-raised border-ep-border-default hover:border-ep-border-subtle',
+              !c.enabled && 'opacity-50',
+            )}
+          >
+            <span className={clsx('font-medium', selected === c.id ? 'text-ep-accent' : 'text-ep-primary')}>
+              {c.name || 'Sem nome'}
+            </span>
+            {!c.enabled && <span className="text-ep-muted">desativado</span>}
+            {selected === c.id && <CheckCircle2 size={12} className="text-ep-accent flex-shrink-0" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // ─── PixelSelector ────────────────────────────────────────────────────────────
@@ -344,7 +411,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         checkoutLanguage: form.checkoutLanguage,
         requirePhone:     form.requirePhone,
         requireAddress:   form.requireAddress,
-        utmfyApiToken:    form.utmfyApiToken.trim(),
+        utmifyConfigId:   form.utmifyConfigId || null,
         successUrl:       form.successUrl.trim(),
         metaPixelId:      form.metaPixelId.trim(),
         customDomain:     form.customDomain.trim(),
@@ -618,12 +685,9 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
               label="Exigir Endereço" desc="Solicitar endereço completo no checkout" />
           </Section>
 
-          {/* UTMFY */}
-          <Section title="Integração UTMFY" collapsible>
-            <Field label="Credencial de API da UTMFY (opcional)"
-              hint="Ao configurar, cada venda paga será enviada automaticamente para a UTMFY como pagamento via Pix.">
-              <Input value={form.utmfyApiToken} onChange={v => set('utmfyApiToken', v)} placeholder="Cole aqui sua credencial de API" />
-            </Field>
+          {/* UTMify */}
+          <Section title="Integração UTMify" collapsible>
+            <UtmifySelector selected={form.utmifyConfigId} onChange={v => set('utmifyConfigId', v)} />
           </Section>
 
           {/* Pixels */}
