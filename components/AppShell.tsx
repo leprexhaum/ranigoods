@@ -112,6 +112,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
+  const hideSidebar = pathname === '/componentes'
+
   useEffect(() => { setOpen(false) }, [pathname])
 
   useEffect(() => {
@@ -119,6 +121,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     else document.body.style.overflow = ''
     return () => { document.body.style.overflow = '' }
   }, [open])
+
+  if (hideSidebar) {
+    return <div className="min-h-screen bg-ep-base">{children}</div>
+  }
 
   return (
     <div className="flex min-h-screen bg-ep-base">
