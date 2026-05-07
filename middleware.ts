@@ -14,11 +14,12 @@ function getKey() {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const host = req.headers.get('host') ?? ''
-  const appHost = process.env.NEXT_PUBLIC_APP_HOST ?? ''
+  // X-Real-Host é injetado pelo Cloudflare Worker quando vem de domínio customizado
+  const host = req.headers.get('x-real-host') || req.headers.get('host') || ''
+  const appHost = process.env.NEXT_PUBLIC_APP_HOST ?? 'techpags.shop'
 
   // Domínio customizado: se o host não é o domínio principal, procura produto e reescreve
-  if (appHost && host && host !== appHost && !host.includes('localhost') && pathname === '/') {
+  if (host && host !== appHost && !host.includes('localhost') && pathname === '/') {
     try {
       const baseUrl = req.nextUrl.origin
       const res = await fetch(`${baseUrl}/api/products/by-domain?domain=${encodeURIComponent(host)}`)
