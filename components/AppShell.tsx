@@ -8,19 +8,26 @@ import {
   Menu, X,
   LayoutDashboard, Package, CreditCard,
   Cpu, Calculator, Settings, LogOut, Key, BookOpen,
+  Webhook, ShoppingCart, GitFork, ShoppingBag, Layers, Plug,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/components/providers/AuthProvider'
 
 const navItems = [
-  { href: '/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
-  { href: '/produtos',      label: 'Produtos',       icon: Package         },
-  { href: '/pagamentos',    label: 'Pagamentos',     icon: CreditCard      },
-  { href: '/pixels',        label: 'Pixels',          icon: Cpu             },
-  { href: '/calculadora',   label: 'Calculadora',    icon: Calculator      },
-  { href: '/api-keys',      label: 'API Keys',        icon: Key             },
-  { href: '/docs',          label: 'Docs API',        icon: BookOpen        },
-  { href: '/configuracoes', label: 'Configurações',  icon: Settings        },
+  { href: '/dashboard',             label: 'Dashboard',     icon: LayoutDashboard },
+  { href: '/produtos',              label: 'Produtos',      icon: Package         },
+  { href: '/pagamentos',            label: 'Pagamentos',    icon: CreditCard      },
+  { href: '/orders',                label: 'Pedidos',       icon: ShoppingBag     },
+  { href: '/pixels',                label: 'Pixels',        icon: Cpu             },
+  { href: '/funis',                 label: 'Funis',         icon: GitFork         },
+  { href: '/carrinhos-abandonados', label: 'Carrinhos',     icon: ShoppingCart    },
+  { href: '/webhooks',              label: 'Webhooks',      icon: Webhook         },
+  { href: '/integracoes',           label: 'Integrações',   icon: Plug            },
+  { href: '/stripe',                label: 'Stripe',        icon: Layers          },
+  { href: '/calculadora',           label: 'Calculadora',   icon: Calculator      },
+  { href: '/api-keys',              label: 'API Keys',      icon: Key             },
+  { href: '/docs',                  label: 'Docs API',      icon: BookOpen        },
+  { href: '/configuracoes',         label: 'Configurações', icon: Settings        },
 ]
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {
