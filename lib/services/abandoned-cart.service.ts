@@ -16,7 +16,6 @@ interface CreateAbandonedCartData {
 export const abandonedCartService = {
   async create(data: CreateAbandonedCartData): Promise<void> {
     try {
-      // PI do Stripe expira em 24h por padrão
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
       await prisma.abandonedCart.upsert({
         where: { stripePaymentIntentId: data.stripePaymentIntentId },
@@ -59,17 +58,11 @@ export const abandonedCartService = {
   },
 
   async detectAbandoned(): Promise<number> {
-    const threshold = new Date(Date.now() - 60 * 60 * 1000) // 1h atrás
-
+    const threshold = new Date(Date.now() - 60 * 60 * 1000)
     const result = await prisma.abandonedCart.updateMany({
-      where: {
-        status:    'pending',
-        createdAt: { lt: threshold },
-      },
-      data: { status: 'abandoned' },
+      where: { status: 'pending', createdAt: { lt: threshold } },
+      data:  { status: 'abandoned' },
     })
-
-    // Marcar CheckoutPayments correspondentes
     if (result.count > 0) {
       const abandoned = await prisma.abandonedCart.findMany({
         where:  { status: 'abandoned', createdAt: { lt: threshold } },
@@ -83,19 +76,30 @@ export const abandonedCartService = {
         })
       }
     }
-
     return result.count
   },
 
   async getAll(params: {
-    status?: string
-    search?: string
-    page?:   number
-    limit?:  number
-  } = {}) {
-    const { status, search, page = 1, limit = 20 } = params
+    userId:   string
+    status?:  string
+    search?:  string
+    page?:    number
+    limit?:   number
+  } = { userId: '' }) {
+    const { userId, status, search, page = 1, limit = 20 } = params
+
+    // Buscar productIds do userId
+    const products = await prisma.product.findMany({
+      where:  { userId },
+      select: { id: true },
+    })
+    const productIds = products.map(p => p.id)
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: Record<string, any> = {}
+    const where: Record<string, any> = productIds.length > 0
+      ? { productId: { in: productIds } }
+      : { productId: '__none__' } // retorna vazio se não há produtos
+
     if (status && status !== 'all') where.status = status
     if (search) {
       where.OR = [

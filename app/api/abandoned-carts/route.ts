@@ -14,6 +14,12 @@ export async function GET(req: NextRequest) {
   const page   = Number(sp.get('page')  ?? 1)
   const limit  = Number(sp.get('limit') ?? 20)
 
-  const result = await abandonedCartService.getAll({ status, search, page, limit })
+  const result = await abandonedCartService.getAll({
+    userId: auth.session.userId,
+    status,
+    search,
+    page,
+    limit,
+  })
   return NextResponse.json(result)
 }

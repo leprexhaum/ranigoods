@@ -24,6 +24,7 @@ export interface Payment {
 }
 
 export interface PaymentsQuery {
+  userId?: string
   status?: PaymentStatus | 'all'
   search?: string
   start?: string

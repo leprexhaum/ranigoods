@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { paymentService } from '@/lib/services/payment.service'
 import { requireAuth } from '@/lib/api-auth'
-import type { PaymentsQuery, PaymentStatus, PaymentMethod } from '@/lib/types/payment'
+import type { PaymentStatus, PaymentMethod } from '@/lib/types/payment'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   const sp = new URL(req.url).searchParams
-  const query: PaymentsQuery = {
+  const { data } = await paymentService.query({
+    userId: auth.session.userId,
     status: (sp.get('status') as PaymentStatus | 'all') ?? 'all',
     method: (sp.get('method') as PaymentMethod | 'all') ?? 'all',
     search: sp.get('search') ?? undefined,
@@ -18,9 +19,7 @@ export async function GET(req: NextRequest) {
     end:    sp.get('end')    ?? undefined,
     page:   1,
     limit:  10000,
-  }
-
-  const { data } = await paymentService.query(query)
+  })
 
   const header = ['ID', 'Cliente', 'Email', 'Produto', 'Método', 'Valor (centavos)', 'Status', 'Data']
   const rows = data.map(p => [

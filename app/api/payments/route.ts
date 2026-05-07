@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
   try {
     const sp = new URL(req.url).searchParams
 
-    const query: PaymentsQuery = {
+    const query: PaymentsQuery & { userId: string } = {
+      userId: auth.session.userId,
       status: (sp.get('status') as PaymentStatus | 'all') ?? 'all',
       method: (sp.get('method') as PaymentMethod | 'all') ?? 'all',
       search: sp.get('search')  ?? undefined,

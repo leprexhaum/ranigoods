@@ -7,29 +7,14 @@ function pctChange(current: number, previous: number): number {
   return parseFloat(((current - previous) / previous * 100).toFixed(1))
 }
 
-function buildDateRange(start?: string, end?: string) {
-  const where: Record<string, unknown> = {}
-  if (start || end) {
-    where.isoDate = {
-      ...(start ? { gte: start } : {}),
-      ...(end   ? { lte: end   } : {}),
-    }
+function dateRange(start?: string, end?: string) {
+  if (!start && !end) return undefined
+  return {
+    ...(start ? { gte: new Date(start + 'T00:00:00.000Z') } : {}),
+    ...(end   ? { lte: new Date(end   + 'T23:59:59.999Z') } : {}),
   }
-  return where
 }
 
-function buildPaymentDateRange(start?: string, end?: string) {
-  const where: Record<string, unknown> = {}
-  if (start || end) {
-    where.createdAt = {
-      ...(start ? { gte: new Date(start + 'T00:00:00.000Z') } : {}),
-      ...(end   ? { lte: new Date(end   + 'T23:59:59.999Z') } : {}),
-    }
-  }
-  return where
-}
-
-/** Calcula o período anterior com a mesma duração */
 function previousPeriod(start?: string, end?: string): { start?: string; end?: string } {
   if (!start || !end) return {}
   const s   = new Date(start)
@@ -37,71 +22,67 @@ function previousPeriod(start?: string, end?: string): { start?: string; end?: s
   const dur = e.getTime() - s.getTime()
   const ps  = new Date(s.getTime() - dur - 86400000)
   const pe  = new Date(s.getTime() - 86400000)
-  return {
-    start: ps.toISOString().slice(0, 10),
-    end:   pe.toISOString().slice(0, 10),
-  }
+  return { start: ps.toISOString().slice(0, 10), end: pe.toISOString().slice(0, 10) }
 }
 
-/** Gera todos os dias entre start e end com zeros */
 function generateEmptyDays(start?: string, end?: string): DailySale[] {
+  const days: DailySale[] = []
   if (!start || !end) {
-    // Sem range: gerar os últimos 30 dias
-    const days: DailySale[] = []
     for (let i = 29; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       const iso = d.toISOString().slice(0, 10)
-      days.push({
-        date:    d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }),
-        isoDate: iso,
-        receita: 0,
-        vendas:  0,
-        falhas:  0,
-      })
+      days.push({ date: d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }), isoDate: iso, receita: 0, vendas: 0, falhas: 0 })
     }
     return days
   }
-
-  const days: DailySale[] = []
   const cur = new Date(start)
   const fin = new Date(end)
   while (cur <= fin) {
     const iso = cur.toISOString().slice(0, 10)
-    days.push({
-      date:    cur.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }),
-      isoDate: iso,
-      receita: 0,
-      vendas:  0,
-      falhas:  0,
-    })
+    days.push({ date: cur.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }), isoDate: iso, receita: 0, vendas: 0, falhas: 0 })
     cur.setDate(cur.getDate() + 1)
   }
   return days
 }
 
-async function calcStats(start?: string, end?: string) {
-  const salesWhere   = buildDateRange(start, end)
-  const payWhere     = buildPaymentDateRange(start, end)
+// Busca IDs dos produtos do userId
+async function productIdsForUser(userId: string): Promise<string[]> {
+  const products = await prisma.product.findMany({
+    where:  { userId },
+    select: { id: true },
+  })
+  return products.map(p => p.id)
+}
 
-  const [sales, statusCounts] = await Promise.all([
-    prisma.dailySale.findMany({ where: salesWhere }),
-    prisma.payment.groupBy({
-      by:    ['status'],
-      where: payWhere,
-      _count: { status: true },
-    }),
-  ])
+async function calcStats(userId: string, start?: string, end?: string) {
+  const productIds = await productIdsForUser(userId)
+  if (productIds.length === 0) {
+    return { receita: 0, vendas: 0, falhas: 0, pendentes: 0, reembolsos: 0, disputados: 0, processando: 0, taxa: 0, ticket: 0, total: 0 }
+  }
 
-  const vendas  = sales.reduce((s, d) => s + d.vendas,  0)
-  const falhas  = sales.reduce((s, d) => s + d.falhas,  0)
-  const receita = sales.reduce((s, d) => s + d.receita, 0)
+  const createdAt = dateRange(start, end)
+  const where = {
+    productId: { in: productIds },
+    ...(createdAt ? { createdAt } : {}),
+  }
 
-  const statusMap = Object.fromEntries(statusCounts.map(c => [c.status, c._count.status]))
-  const pendentes   = statusMap['pending']    ?? 0
-  const reembolsos  = statusMap['refunded']   ?? 0
-  const disputados  = statusMap['disputed']   ?? 0
-  const processando = statusMap['processing'] ?? 0
+  const rows = await prisma.checkoutPayment.groupBy({
+    by:    ['status'],
+    where,
+    _count: { status: true },
+    _sum:   { amount: true },
+  })
+
+  const byStatus = Object.fromEntries(rows.map(r => [r.status, { count: r._count.status, sum: r._sum.amount ?? 0 }]))
+
+  const vendas      = byStatus['paid']?.count       ?? 0
+  const falhas      = byStatus['failed']?.count     ?? 0
+  const pendentes   = byStatus['pending']?.count    ?? 0
+  const reembolsos  = byStatus['refunded']?.count   ?? 0
+  const disputados  = byStatus['disputed']?.count   ?? 0
+  const processando = byStatus['processing']?.count ?? 0
+  const receita     = byStatus['paid']?.sum         ?? 0
 
   const total = vendas + falhas
   const taxa  = total > 0 ? parseFloat(((vendas / total) * 100).toFixed(1)) : 0
@@ -111,14 +92,12 @@ async function calcStats(start?: string, end?: string) {
 }
 
 export const dashboardService = {
-  async getStats(start?: string, end?: string): Promise<DashboardStats> {
+  async getStats(userId: string, start?: string, end?: string): Promise<DashboardStats> {
     const prev = previousPeriod(start, end)
-
     const [cur, pre] = await Promise.all([
-      calcStats(start, end),
-      calcStats(prev.start, prev.end),
+      calcStats(userId, start, end),
+      calcStats(userId, prev.start, prev.end),
     ])
-
     return {
       receitaTotal:    cur.receita,
       totalPagamentos: cur.total,
@@ -138,49 +117,80 @@ export const dashboardService = {
     }
   },
 
-  async getSales(start?: string, end?: string): Promise<DailySale[]> {
-    const where = buildDateRange(start, end)
-    const rows  = await prisma.dailySale.findMany({ where, orderBy: { isoDate: 'asc' } })
+  async getSales(userId: string, start?: string, end?: string): Promise<DailySale[]> {
+    const productIds = await productIdsForUser(userId)
+    const emptyDays  = generateEmptyDays(start, end)
+    if (productIds.length === 0) return emptyDays
 
-    // Gerar todos os dias do período com zeros e sobrepor com dados reais
-    const emptyDays = generateEmptyDays(start, end)
-    const dataMap   = new Map(rows.map(r => [r.isoDate, r]))
+    const createdAt = dateRange(start, end)
+    const rows = await prisma.checkoutPayment.findMany({
+      where: {
+        productId: { in: productIds },
+        status:    'paid',
+        ...(createdAt ? { createdAt } : {}),
+      },
+      select: { amount: true, createdAt: true },
+    })
+
+    // Agrupar por dia
+    const failRows = await prisma.checkoutPayment.findMany({
+      where: {
+        productId: { in: productIds },
+        status:    'failed',
+        ...(createdAt ? { createdAt } : {}),
+      },
+      select: { createdAt: true },
+    })
+
+    const salesMap = new Map<string, { receita: number; vendas: number; falhas: number }>()
+    for (const r of rows) {
+      const iso = r.createdAt.toISOString().slice(0, 10)
+      const cur = salesMap.get(iso) ?? { receita: 0, vendas: 0, falhas: 0 }
+      salesMap.set(iso, { ...cur, receita: cur.receita + r.amount, vendas: cur.vendas + 1 })
+    }
+    for (const r of failRows) {
+      const iso = r.createdAt.toISOString().slice(0, 10)
+      const cur = salesMap.get(iso) ?? { receita: 0, vendas: 0, falhas: 0 }
+      salesMap.set(iso, { ...cur, falhas: cur.falhas + 1 })
+    }
 
     return emptyDays.map(day => {
-      const real = dataMap.get(day.isoDate)
+      const real = salesMap.get(day.isoDate)
       if (!real) return day
-      return {
-        date:    real.date,
-        isoDate: real.isoDate,
-        receita: real.receita,
-        vendas:  real.vendas,
-        falhas:  real.falhas,
-      }
+      return { ...day, receita: real.receita, vendas: real.vendas, falhas: real.falhas }
     })
   },
 
-  async getRecentPayments(start?: string, end?: string, limit = 15): Promise<Payment[]> {
-    const where = buildPaymentDateRange(start, end)
-    const rows  = await prisma.payment.findMany({
-      where,
+  async getRecentPayments(userId: string, start?: string, end?: string, limit = 15): Promise<Payment[]> {
+    const productIds = await productIdsForUser(userId)
+    if (productIds.length === 0) return []
+
+    const createdAt = dateRange(start, end)
+    const rows = await prisma.checkoutPayment.findMany({
+      where: {
+        productId: { in: productIds },
+        ...(createdAt ? { createdAt } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       take:    limit,
+      include: { product: { select: { name: true } } },
     })
+
     return rows.map(r => ({
       id:               r.id,
-      customer:         r.customer,
-      email:            r.email,
+      customer:         r.customerName  || 'Cliente',
+      email:            r.customerEmail || '',
       amount:           r.amount,
-      status:           r.status as Payment['status'],
-      date:             r.date,
+      status:           (r.status === 'paid' ? 'succeeded' : r.status) as Payment['status'],
+      date:             r.createdAt.toISOString().slice(0, 10),
       createdAt:        r.createdAt.toISOString(),
-      product:          r.product,
-      method:           r.method as Payment['method'],
+      product:          r.product.name,
+      method:           (r.paymentMethod || 'Cartão') as Payment['method'],
       cardLast4:        r.cardLast4,
       cardBrand:        r.cardBrand,
       cardCountry:      r.cardCountry,
       riskLevel:        r.riskLevel,
-      riskScore:        r.riskScore,
+      riskScore:        0,
       fee:              r.fee,
       net:              r.net,
       stripeCustomerId: r.stripeCustomerId,

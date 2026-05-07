@@ -11,27 +11,64 @@ export async function GET(
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
 
-  const payment = await prisma.payment.findUnique({ where: { id: params.id } })
-  if (!payment) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-
+  // Buscar CheckoutPayment garantindo que pertence ao userId
   const cp = await prisma.checkoutPayment.findFirst({
-    where:  { stripePaymentIntentId: params.id },
-    select: {
-      customerEmail: true, customerPhone: true, customerName: true,
-      addressLine1: true, addressCity: true, addressCountry: true, addressPostalCode: true,
-      cardLast4: true, cardBrand: true, cardCountry: true,
-      riskLevel: true, fee: true, net: true, balanceTxId: true,
-      upsellStatus: true, upsellAmount: true,
-      disputeId: true, disputeStatus: true,
-      stripeChargeId: true,
-      urlParams: true,
-      paymentMethod: true,
-      stripeErrorCode: true, stripeErrorMsg: true,
-      isAbandoned: true,
-      createdAt: true, updatedAt: true,
-      metadata: true,
-    },
+    where:   { id: params.id, product: { userId: auth.session.userId } },
+    include: { product: { select: { name: true } } },
   })
+  if (!cp) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
 
-  return NextResponse.json({ ...payment, detail: cp ?? null })
+  const payment = {
+    id:               cp.id,
+    customer:         cp.customerName  || 'Cliente',
+    email:            cp.customerEmail || '',
+    amount:           cp.amount,
+    status:           cp.status === 'paid' ? 'succeeded' : cp.status,
+    date:             cp.createdAt.toISOString().slice(0, 10),
+    createdAt:        cp.createdAt.toISOString(),
+    product:          cp.product.name,
+    method:           cp.paymentMethod || 'Cartão',
+    cardLast4:        cp.cardLast4,
+    cardBrand:        cp.cardBrand,
+    cardCountry:      cp.cardCountry,
+    riskLevel:        cp.riskLevel,
+    riskScore:        0,
+    fee:              cp.fee,
+    net:              cp.net,
+    stripeCustomerId: cp.stripeCustomerId,
+    balanceTxId:      cp.balanceTxId,
+    refundedAmount:   cp.refundedAmount,
+  }
+
+  const detail = {
+    customerEmail:   cp.customerEmail,
+    customerPhone:   cp.customerPhone,
+    customerName:    cp.customerName,
+    addressLine1:    cp.addressLine1,
+    addressCity:     cp.addressCity,
+    addressCountry:  cp.addressCountry,
+    addressPostalCode: cp.addressPostalCode,
+    cardLast4:       cp.cardLast4,
+    cardBrand:       cp.cardBrand,
+    cardCountry:     cp.cardCountry,
+    riskLevel:       cp.riskLevel,
+    fee:             cp.fee,
+    net:             cp.net,
+    balanceTxId:     cp.balanceTxId,
+    upsellStatus:    cp.upsellStatus,
+    upsellAmount:    cp.upsellAmount,
+    disputeId:       cp.disputeId,
+    disputeStatus:   cp.disputeStatus,
+    stripeChargeId:  cp.stripeChargeId,
+    urlParams:       cp.urlParams,
+    paymentMethod:   cp.paymentMethod,
+    stripeErrorCode: cp.stripeErrorCode,
+    stripeErrorMsg:  cp.stripeErrorMsg,
+    isAbandoned:     cp.isAbandoned,
+    createdAt:       cp.createdAt.toISOString(),
+    updatedAt:       cp.updatedAt.toISOString(),
+    metadata:        cp.metadata,
+  }
+
+  return NextResponse.json({ ...payment, detail })
 }

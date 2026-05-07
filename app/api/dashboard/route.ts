@@ -12,11 +12,12 @@ export async function GET(req: NextRequest) {
     const sp    = new URL(req.url).searchParams
     const start = sp.get('start') ?? undefined
     const end   = sp.get('end')   ?? undefined
+    const { userId } = auth.session
 
     const [stats, sales, payments] = await Promise.all([
-      dashboardService.getStats(start, end),
-      dashboardService.getSales(start, end),
-      dashboardService.getRecentPayments(start, end),
+      dashboardService.getStats(userId, start, end),
+      dashboardService.getSales(userId, start, end),
+      dashboardService.getRecentPayments(userId, start, end),
     ])
 
     return NextResponse.json({ stats, sales, payments })
