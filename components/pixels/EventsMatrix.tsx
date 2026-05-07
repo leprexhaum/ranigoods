@@ -89,10 +89,11 @@ export default function EventsMatrix({ pixels, onSave }: Props) {
             <tr className="border-b border-ep-border-subtle">
               <th className="text-left px-4 py-3 text-ep-secondary text-xs font-medium w-48">Evento</th>
               {configs.map(p => (
-                <th key={p.id} className="px-4 py-3 text-center text-xs font-medium" style={{ minWidth: 72 }}>
-                  <span className={clsx('text-ep-primary', !p.enabled && 'opacity-40')}>
-                    {PLATFORM_LABELS[p.platform]}
-                  </span>
+                <th key={p.id} className="px-4 py-3 text-center text-xs font-medium" style={{ minWidth: 96 }}>
+                  <div className={clsx('flex flex-col items-center gap-0.5', !p.enabled && 'opacity-40')}>
+                    <span className="text-ep-primary font-semibold truncate max-w-[100px]">{p.name || PLATFORM_LABELS[p.platform]}</span>
+                    <span className="text-ep-muted font-normal">{PLATFORM_LABELS[p.platform]}</span>
+                  </div>
                 </th>
               ))}
             </tr>

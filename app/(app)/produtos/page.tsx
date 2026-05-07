@@ -4,10 +4,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { Package, Plus, ExternalLink, MoreVertical, Check, Pencil, Copy } from 'lucide-react'
 import clsx from 'clsx'
 import type { Product } from '@/lib/services/product.service'
+import type { PixelConfig } from '@/lib/types/pixel'
 import ProductFormModal from '@/components/products/ProductFormModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useConfirm } from '@/lib/hooks/useConfirm'
 import { ProductCardSkeleton } from '@/components/ui/Skeleton'
+import { PlatformIcon, PLATFORM_CONFIG, type Platform } from '@/components/pixels/PlatformIcon'
 
 function formatCurrency(cents: number, currency = 'EUR') {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency }).format(cents / 100)
@@ -48,12 +50,20 @@ function CopyLinkButton({ slug }: { slug: string }) {
 export default function ProdutosPage() {
   const [filter,      setFilter]      = useState<'all' | 'active' | 'archived'>('all')
   const [products,    setProducts]    = useState<Product[]>([])
+  const [pixels,      setPixels]      = useState<PixelConfig[]>([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
   const [modalOpen,   setModalOpen]   = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [duplicating, setDuplicating] = useState<string | null>(null)
   const { confirmProps, confirm }     = useConfirm()
+
+  useEffect(() => {
+    fetch('/api/pixels')
+      .then(r => r.json())
+      .then((data: PixelConfig[]) => setPixels(data))
+      .catch(() => {})
+  }, [])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -246,6 +256,38 @@ export default function ProdutosPage() {
                   </div>
                 )}
               </div>
+
+              {/* Pixels vinculados */}
+              {(() => {
+                const ids = (product.pixelIds ?? []) as string[]
+                const linked = pixels.filter(px => ids.includes(px.id))
+                if (linked.length === 0) return null
+                return (
+                  <div className="mt-3 pt-3 border-t border-ep-border-subtle">
+                    <p className="text-ep-muted text-xs mb-2">Pixels</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {linked.map(px => {
+                        const cfg = PLATFORM_CONFIG[px.platform as Platform]
+                        return (
+                          <div
+                            key={px.id}
+                            title={`${px.name || cfg?.label} — ${cfg?.label}`}
+                            className={clsx(
+                              'flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs',
+                              px.enabled
+                                ? `${cfg?.bg ?? 'bg-ep-accent/10'} ${cfg?.border ?? 'border-ep-accent/20'} text-ep-primary`
+                                : 'bg-ep-overlay/30 border-ep-border-subtle text-ep-muted opacity-60',
+                            )}
+                          >
+                            <PlatformIcon platform={px.platform as Platform} size={11} />
+                            <span className="truncate max-w-[80px]">{px.name || cfg?.label}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
 
               <div className="mt-4 pt-4 border-t border-ep-border-subtle flex items-center justify-between">
                 <span
