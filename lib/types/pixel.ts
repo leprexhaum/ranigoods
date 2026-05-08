@@ -35,6 +35,10 @@ export interface PixelConfig {
   events: PixelEventConfig[]
   createdAt: string
   updatedAt: string
+  // Google Ads — modo avançado
+  refreshToken?: string
+  customerId?: string
+  conversionActionId?: string
 }
 
 export interface PixelFireLog {
@@ -78,6 +82,8 @@ export interface TrackEventPayload {
     // GA4
     clientId?: string   // valor do cookie _ga
     userId?: string
+    // Google Ads
+    gclid?: string
     // page
     pageUrl?: string
   }

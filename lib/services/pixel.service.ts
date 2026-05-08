@@ -1,5 +1,7 @@
 import { createHash } from 'crypto'
 import { prisma } from '@/lib/prisma'
+import { decryptIfNotEmpty } from '@/lib/crypto'
+import { getGoogleAdsCredentials } from '@/lib/services/platform-config.service'
 import type {
   PixelConfig, PixelFireLog, TrackEventPayload, PixelEventConfig,
 } from '@/lib/types/pixel'
@@ -10,21 +12,25 @@ import { STANDARD_EVENTS } from '@/lib/types/pixel'
 function rowToConfig(r: {
   id: string; userId: string; platform: string; name: string; pixelId: string; accessToken: string;
   testEventCode: string; conversionLabel: string; enabled: boolean; events: unknown;
+  refreshToken: string; customerId: string; conversionActionId: string;
   createdAt: Date; updatedAt: Date;
 }): PixelConfig {
   return {
-    id:              r.id,
-    userId:          r.userId,
-    platform:        r.platform as PixelConfig['platform'],
-    name:            r.name,
-    pixelId:         r.pixelId,
-    accessToken:     r.accessToken,
-    testEventCode:   r.testEventCode,
-    conversionLabel: r.conversionLabel,
-    enabled:         r.enabled,
-    events:          r.events as PixelEventConfig[],
-    createdAt:       r.createdAt.toISOString(),
-    updatedAt:       r.updatedAt.toISOString(),
+    id:                r.id,
+    userId:            r.userId,
+    platform:          r.platform as PixelConfig['platform'],
+    name:              r.name,
+    pixelId:           r.pixelId,
+    accessToken:       r.accessToken,
+    testEventCode:     r.testEventCode,
+    conversionLabel:   r.conversionLabel,
+    enabled:           r.enabled,
+    events:            r.events as PixelEventConfig[],
+    refreshToken:      r.refreshToken || undefined,
+    customerId:        r.customerId   || undefined,
+    conversionActionId: r.conversionActionId || undefined,
+    createdAt:         r.createdAt.toISOString(),
+    updatedAt:         r.updatedAt.toISOString(),
   }
 }
 
@@ -275,6 +281,159 @@ async function fireTikTokAPI(
   }
 }
 
+// ─── Google Ads Conversion API ───────────────────────────────────────────────
+
+const GOOGLE_ADS_CONVERSION_EVENTS = new Set(['Purchase', 'Lead', 'CompleteRegistration'])
+
+async function getGoogleAccessToken(refreshToken: string): Promise<string> {
+  const { clientId, clientSecret } = await getGoogleAdsCredentials()
+  if (!clientId || !clientSecret) throw new Error('Credenciais Google Ads não configuradas')
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    new URLSearchParams({
+      refresh_token: refreshToken,
+      client_id:     clientId,
+      client_secret: clientSecret,
+      grant_type:    'refresh_token',
+    }).toString(),
+  })
+  const json = await res.json() as { access_token?: string; error?: string; error_description?: string }
+  if (!res.ok || !json.access_token) {
+    throw new Error(json.error_description ?? json.error ?? `HTTP ${res.status}`)
+  }
+  return json.access_token
+}
+
+async function fireGoogleAdsAPI(
+  config: PixelConfig,
+  eventName: string,
+  payload: TrackEventPayload,
+): Promise<{ success: boolean; message: string }> {
+  const gclid = payload.userData?.gclid
+  if (!gclid) {
+    return { success: false, message: 'Google Ads: gclid não encontrado nos urlParams' }
+  }
+
+  if (!GOOGLE_ADS_CONVERSION_EVENTS.has(eventName)) {
+    return { success: false, message: `Google Ads: evento "${eventName}" não é uma conversão suportada` }
+  }
+
+  const value    = payload.data?.value ? payload.data.value / 100 : 0
+  const currency = payload.data?.currency ?? 'EUR'
+  const orderId  = payload.data?.order_id ?? ''
+
+  // Formato exigido pela API: "yyyy-MM-dd HH:mm:ss+HH:MM"
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const conversionDateTime =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+00:00`
+
+  const hasAdvanced = config.refreshToken && config.customerId && config.conversionActionId
+
+  // ── Modo avançado: Google Ads API REST com Enhanced Conversions ──────────
+  if (hasAdvanced) {
+    const decryptedRefreshToken = decryptIfNotEmpty(config.refreshToken!)
+    if (!decryptedRefreshToken) {
+      return { success: false, message: 'Google Ads: refresh token inválido ou corrompido' }
+    }
+
+    let accessToken: string
+    try {
+      accessToken = await getGoogleAccessToken(decryptedRefreshToken)
+    } catch (err) {
+      return { success: false, message: `Google Ads: erro ao obter access token — ${err instanceof Error ? err.message : String(err)}` }
+    }
+
+    const { developerToken } = await getGoogleAdsCredentials()
+    if (!developerToken) {
+      return { success: false, message: 'Google Ads: developer token não configurado' }
+    }
+
+    const customerId         = config.customerId!.replace(/-/g, '')
+    const conversionActionId = config.conversionActionId!
+    const conversionAction   = `customers/${customerId}/conversionActions/${conversionActionId}`
+
+    const userIdentifiers: Record<string, unknown>[] = []
+    if (payload.userData?.email) {
+      userIdentifiers.push({ hashedEmail: sha256(payload.userData.email.trim().toLowerCase()) })
+    }
+    if (payload.userData?.phone) {
+      userIdentifiers.push({ hashedPhoneNumber: sha256(normalizePhone(payload.userData.phone, true)) })
+    }
+
+    const conversion: Record<string, unknown> = {
+      gclid,
+      conversionAction,
+      conversionDateTime,
+      conversionValue:    value,
+      currencyCode:       currency,
+      ...(orderId ? { orderId } : {}),
+      ...(userIdentifiers.length > 0 ? { userIdentifiers } : {}),
+    }
+
+    const body = {
+      conversions:    [conversion],
+      partialFailure: true,
+    }
+
+    try {
+      const res = await fetch(
+        `https://googleads.googleapis.com/v17/customers/${customerId}:uploadClickConversions`,
+        {
+          method:  'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+            'developer-token': developerToken,
+          },
+          body: JSON.stringify(body),
+        },
+      )
+      const json = await res.json() as {
+        results?: unknown[]
+        partialFailureError?: { message: string }
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (json.partialFailureError) {
+        return { success: false, message: `Google Ads API: ${json.partialFailureError.message}` }
+      }
+      return { success: true, message: `Google Ads API v17: conversão enviada (Enhanced Conversions)` }
+    } catch (err) {
+      return { success: false, message: `Google Ads API: ${err instanceof Error ? err.message : String(err)}` }
+    }
+  }
+
+  // ── Modo básico: gtag Conversion Tracking endpoint ───────────────────────
+  if (!config.pixelId || !config.conversionLabel) {
+    return { success: false, message: 'Google Ads: Conversion ID ou Conversion Label não configurado' }
+  }
+
+  const conversionId = config.pixelId.replace(/^AW-/, '')
+
+  const params = new URLSearchParams({
+    conversion_id:    conversionId,
+    conversion_label: config.conversionLabel,
+    gclid,
+    currency_code:    currency,
+    ...(value > 0 ? { value: value.toFixed(2) } : {}),
+    ...(orderId    ? { order_id: orderId }       : {}),
+  })
+
+  try {
+    const res = await fetch(
+      `https://www.googleadservices.com/pagead/conversion/${conversionId}/?${params.toString()}`,
+      { method: 'GET' },
+    )
+    if (!res.ok && res.status !== 200) throw new Error(`HTTP ${res.status}`)
+    return { success: true, message: 'Google Ads: conversão enviada via gtag endpoint (modo básico)' }
+  } catch (err) {
+    return { success: false, message: `Google Ads gtag: ${err instanceof Error ? err.message : String(err)}` }
+  }
+}
+
 // ─── Public service ──────────────────────────────────────────────────────────
 
 const DEFAULT_EVENTS = () => STANDARD_EVENTS.map(e => ({
@@ -426,7 +585,9 @@ export const pixelService = {
               : { success: true, message: 'TikTok Pixel: disparado via client-side' }
             break
           case 'google_ads':
-            res = { success: true, message: 'Google Ads: disparado via gtag client-side' }
+            res = (config.pixelId || config.refreshToken)
+              ? await fireGoogleAdsAPI(config, eventName, payload)
+              : { success: true, message: 'Google Ads: disparado via gtag client-side' }
             break
           default:
             res = { success: true, message: 'Evento registrado' }
@@ -471,6 +632,7 @@ export const pixelService = {
         email:    'teste@techpags.com',
         clientId: 'GA1.1.000000000.000000000',
         pageUrl:  'https://techpags.com/checkout/teste',
+        gclid:    'test_gclid_000000000',
       },
     }
 
@@ -485,6 +647,9 @@ export const pixelService = {
         break
       case 'tiktok':
         res = await fireTikTokAPI(config, eventName, payload)
+        break
+      case 'google_ads':
+        res = await fireGoogleAdsAPI(config, eventName, payload)
         break
       default:
         res = { success: true, message: 'Evento de teste registrado (client-side)' }

@@ -143,19 +143,23 @@ model CheckoutPayment {
 }
 
 model PixelConfig {
-  id              String     @id @default(cuid())
-  userId          String     @default("") @map("user_id")
-  platform        String
-  name            String     @default("")
-  pixelId         String     @default("") @map("pixel_id")
-  accessToken     String     @default("") @map("access_token")
-  testEventCode   String     @default("") @map("test_event_code")
-  conversionLabel String     @default("") @map("conversion_label")
-  enabled         Boolean    @default(true)
-  events          Json       @default("[]")
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
-  logs            PixelLog[]
+  id                 String     @id @default(cuid())
+  userId             String     @default("") @map("user_id")
+  platform           String
+  name               String     @default("")
+  pixelId            String     @default("") @map("pixel_id")
+  accessToken        String     @default("") @map("access_token")
+  testEventCode      String     @default("") @map("test_event_code")
+  conversionLabel    String     @default("") @map("conversion_label")
+  enabled            Boolean    @default(true)
+  events             Json       @default("[]")
+  // Google Ads — modo avançado (valores criptografados com AES-256-GCM)
+  refreshToken       String     @default("") @map("refresh_token")
+  customerId         String     @default("") @map("customer_id")
+  conversionActionId String     @default("") @map("conversion_action_id")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  logs               PixelLog[]
 
   @@map("pixel_configs")
 }
@@ -296,6 +300,19 @@ model ApiKey {
   revokedAt DateTime? @map("revoked_at")
 
   @@map("api_keys")
+}
+
+// Configurações da plataforma TechPags (credenciais de integrações globais)
+// Valores sensíveis são criptografados com AES-256-GCM antes de salvar
+model PlatformConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @default("")
+  encrypted Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_configs")
 }
 
 model Cart {

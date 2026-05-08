@@ -199,6 +199,7 @@ export async function POST(req: NextRequest) {
               fbc:    urlParamsUp.fbclid ? `fb.1.${Date.now()}.${urlParamsUp.fbclid}` : undefined,
               ttp:    urlParamsUp.ttp,
               ttclid: urlParamsUp.ttclid,
+              gclid:  urlParamsUp.gclid,
             },
           })
           break
@@ -247,6 +248,7 @@ export async function POST(req: NextRequest) {
             fbc:    urlParams.fbclid ? `fb.1.${Date.now()}.${urlParams.fbclid}` : undefined,
             ttp:    urlParams.ttp,
             ttclid: urlParams.ttclid,
+            gclid:  urlParams.gclid,
           },
         })
 
