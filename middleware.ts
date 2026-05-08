@@ -49,9 +49,11 @@ export async function middleware(req: NextRequest) {
       }
 
       try {
-        const slug    = segment // /checkout/[slug]
-        const baseUrl = req.nextUrl.origin
-        const res     = await fetch(`${baseUrl}/api/products/by-domain?domain=${encodeURIComponent(host)}`)
+        const slug    = segment
+        // Usar sempre o domínio principal para o fetch interno — evita problemas
+        // com host interno do Zeabur/Railway no req.nextUrl.origin
+        const internalBase = `https://${appHost}`
+        const res     = await fetch(`${internalBase}/api/products/by-domain?domain=${encodeURIComponent(host)}`)
         if (res.ok) {
           const data = await res.json()
           // Só permite se o slug do produto bater com o domínio do utilizador
@@ -60,7 +62,8 @@ export async function middleware(req: NextRequest) {
           }
         }
       } catch {
-        // Se falhar, bloqueia
+        // Se o fetch falhar, permite passar — evita bloquear o checkout por erro interno
+        return NextResponse.next()
       }
       return new NextResponse('Not Found', { status: 404 })
     }
