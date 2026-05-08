@@ -23,8 +23,12 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     fetch(`/api/checkout/${slug}`)
-      .then(r => r.json())
-      .then((d: CheckoutProduct) => setProduct(d))
+      .then(async r => {
+        const d = await r.json()
+        if (!r.ok) throw new Error(d?.error ?? 'Produto não encontrado')
+        return d as CheckoutProduct
+      })
+      .then(d => setProduct(d))
       .catch(() => setPageError('Produto não encontrado'))
       .finally(() => setPageLoading(false))
   }, [slug])

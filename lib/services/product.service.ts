@@ -212,6 +212,7 @@ export const productService = {
         requireAddress:   original.requireAddress,
         logoUrl:          original.logoUrl,
         brandName:        original.brandName,
+        legalName:        original.legalName,
         successUrl:       original.successUrl,
         metaPixelId:      original.metaPixelId,
         utmfyApiToken:    original.utmfyApiToken,

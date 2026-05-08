@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   const product = await prisma.product.findFirst({
     where:  { userId: customDomain.userId, active: true },
     select: { id: true, slug: true },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
   })
 
   if (!product?.slug) return NextResponse.json({ error: 'not found' }, { status: 404 })

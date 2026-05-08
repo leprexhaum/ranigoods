@@ -42,7 +42,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
             const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
             if (upsellRes.ok) {
               const upsell = await upsellRes.json()
-              if (upsell?.available) { window.location.href = `/checkout/upsell/${paymentId}`; return }
+              if (upsell?.upsell) { window.location.href = `/checkout/upsell/${paymentId}`; return }
             }
           } catch { /* segue para success */ }
           window.location.href = successDest

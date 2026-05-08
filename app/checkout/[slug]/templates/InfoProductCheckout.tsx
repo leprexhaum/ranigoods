@@ -39,7 +39,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
             const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
             if (upsellRes.ok) {
               const upsell = await upsellRes.json()
-              if (upsell?.available) { window.location.href = `/checkout/upsell/${paymentId}`; return }
+              if (upsell?.upsell) { window.location.href = `/checkout/upsell/${paymentId}`; return }
             }
           } catch { /* segue para success */ }
           window.location.href = successDest
@@ -224,10 +224,7 @@ export default function InfoProductCheckout({ product }: { product: CheckoutProd
               </div>
               {product.requirePhone && (
                 <div className={fieldWrapBottom}>
-                  <span className="pl-3 flex-shrink-0 flex items-center gap-1.5">
-                    <span className="text-[13px] text-[#30313D]">+351</span>
-                  </span>
-                  <input className={inputBase} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="912 345 678" autoComplete="tel"
+                  <input className={inputBase} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+351 912 345 678" autoComplete="tel"
                     onBlur={e => { if (e.target.value.trim()) updatePayment({ customerPhone: e.target.value.trim() }) }}
                   />
                 </div>

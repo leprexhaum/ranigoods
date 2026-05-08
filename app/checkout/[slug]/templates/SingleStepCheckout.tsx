@@ -151,7 +151,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
             const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
             if (upsellRes.ok) {
               const upsell = await upsellRes.json()
-              if (upsell?.available) { window.location.href = `/checkout/upsell/${paymentId}`; return }
+              if (upsell?.upsell) { window.location.href = `/checkout/upsell/${paymentId}`; return }
             }
           } catch { /* segue para success */ }
           window.location.href = successDest
@@ -212,10 +212,6 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
           : <>Pagar {fmt(amount, currency)}</>
         }
       </button>
-      <div className="flex items-center justify-center gap-1.5 text-[12px] text-[#8792A2] pt-1">
-        <span>Powered by</span>
-        <StripeLogo />
-      </div>
       <p className="text-[12px] text-[#6D6E78] leading-relaxed text-center">
         Ao confirmar, autoriza a <strong className="font-medium text-[#30313D]">{legalName || brandName}</strong> a efetuar cobranças conforme as condições acordadas.
       </p>

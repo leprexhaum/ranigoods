@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
+import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 
@@ -19,8 +20,10 @@ export async function PATCH(
 
     const payment = await prisma.checkoutPayment.findUnique({
       where: { id: params.id },
+      select: { id: true, status: true, stripePaymentIntentId: true, productId: true, amount: true, currency: true },
     })
-    if (!payment) {
+    // Só permite atualizar pagamentos ainda não concluídos
+    if (!payment || payment.status === 'paid' || payment.status === 'refunded') {
       return NextResponse.json({ error: 'Pagamento não encontrado' }, { status: 404 })
     }
 
@@ -43,6 +46,26 @@ export async function PATCH(
       if (data.customerEmail) meta.customerEmail = data.customerEmail
       await stripe.paymentIntents.update(payment.stripePaymentIntentId, { metadata: meta })
         .catch(err => console.warn('[update-payment] stripe metadata update failed:', err))
+    }
+
+    // Criar/atualizar registo de carrinho abandonado com os dados do cliente
+    if (payment.stripePaymentIntentId && (data.customerEmail || data.customerName)) {
+      const current = await prisma.checkoutPayment.findUnique({
+        where: { id: params.id },
+        select: { customerName: true, customerEmail: true, customerPhone: true },
+      })
+      await abandonedCartService.create({
+        productId:             payment.productId,
+        stripePaymentIntentId: payment.stripePaymentIntentId,
+        customerName:          data.customerName  ?? current?.customerName  ?? '',
+        customerEmail:         data.customerEmail ?? current?.customerEmail ?? '',
+        customerPhone:         data.customerPhone ?? current?.customerPhone ?? '',
+        amount:                payment.amount,
+        currency:              payment.currency,
+        urlParams:             {},
+        bumpIds:               [],
+        shippingId:            '',
+      }).catch(() => {})
     }
 
     return NextResponse.json({ ok: true })

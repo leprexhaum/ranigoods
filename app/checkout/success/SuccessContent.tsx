@@ -53,7 +53,7 @@ export default function SuccessContent() {
               const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
               if (upsellRes.ok) {
                 const upsell = await upsellRes.json()
-                if (upsell?.available) {
+                if (upsell?.upsell) {
                   window.location.href = `/checkout/upsell/${paymentId}`
                   return
                 }

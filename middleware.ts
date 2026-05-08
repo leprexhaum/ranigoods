@@ -18,20 +18,55 @@ export async function middleware(req: NextRequest) {
   const host = req.headers.get('x-real-host') || req.headers.get('host') || ''
   const appHost = process.env.NEXT_PUBLIC_APP_HOST ?? 'techpags.shop'
 
-  // Domínio customizado: se o host não é o domínio principal, procura produto e reescreve
-  if (host && host !== appHost && !host.includes('localhost') && pathname === '/') {
-    try {
-      const baseUrl = req.nextUrl.origin
-      const res = await fetch(`${baseUrl}/api/products/by-domain?domain=${encodeURIComponent(host)}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data?.slug) {
-          return NextResponse.rewrite(new URL(`/checkout/${data.slug}`, req.url))
-        }
-      }
-    } catch {
-      // Se falhar, segue o fluxo normal
+  // Domínio customizado: bloqueia tudo exceto /checkout/* do próprio utilizador
+  if (host && host !== appHost && !host.includes('localhost')) {
+    // Permitir assets internos do Next.js sempre
+    if (
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/favicon') ||
+      /\.(png|jpg|jpeg|svg|ico|webp|woff2?)$/.test(pathname)
+    ) {
+      return NextResponse.next()
     }
+
+    // Permitir APIs necessárias para o checkout funcionar
+    if (
+      pathname.startsWith('/api/checkout/') ||
+      pathname.startsWith('/api/pixels/track') ||
+      pathname.startsWith('/api/pixels/config') ||
+      pathname.startsWith('/api/stripe/webhook') ||
+      pathname.startsWith('/api/geo-ip')
+    ) {
+      return NextResponse.next()
+    }
+
+    // Só permite /checkout/* — valida se o produto pertence ao utilizador do domínio
+    if (pathname.startsWith('/checkout/')) {
+      // /checkout/success e /checkout/upsell/* não têm slug — permitir sempre
+      const segment = pathname.split('/')[2]
+      if (segment === 'success' || segment === 'upsell' || segment === 'cart') {
+        return NextResponse.next()
+      }
+
+      try {
+        const slug    = segment // /checkout/[slug]
+        const baseUrl = req.nextUrl.origin
+        const res     = await fetch(`${baseUrl}/api/products/by-domain?domain=${encodeURIComponent(host)}`)
+        if (res.ok) {
+          const data = await res.json()
+          // Só permite se o slug do produto bater com o domínio do utilizador
+          if (data?.slug && slug === data.slug) {
+            return NextResponse.next()
+          }
+        }
+      } catch {
+        // Se falhar, bloqueia
+      }
+      return new NextResponse('Not Found', { status: 404 })
+    }
+
+    // Qualquer outra rota num domínio customizado → 404
+    return new NextResponse('Not Found', { status: 404 })
   }
 
   // Sempre permitir rotas públicas de API, páginas de checkout e next internals

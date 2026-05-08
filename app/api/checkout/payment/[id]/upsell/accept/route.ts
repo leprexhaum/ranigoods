@@ -77,11 +77,20 @@ export async function POST(
     return NextResponse.json({ success: true, status: upsellPi.status })
   } catch (err) {
     console.error('[upsell/accept]', err)
-    // Marcar como declined se falhar
-    await prisma.checkoutPayment.update({
-      where: { id: params.id },
-      data:  { upsellStatus: 'declined' },
-    })
+    // Só marca declined se for erro de cartão recusado (authentication_required, card_declined, etc.)
+    // Erros técnicos (timeout, rate limit) não devem bloquear o upsell permanentemente
+    const stripeErr = err as { type?: string; code?: string }
+    const isCardDeclined =
+      stripeErr?.type === 'StripeCardError' ||
+      stripeErr?.code === 'card_declined' ||
+      stripeErr?.code === 'authentication_required' ||
+      stripeErr?.code === 'insufficient_funds'
+    if (isCardDeclined) {
+      await prisma.checkoutPayment.update({
+        where: { id: params.id },
+        data:  { upsellStatus: 'declined' },
+      })
+    }
     return NextResponse.json({ error: 'Falha ao processar upsell' }, { status: 500 })
   }
 }

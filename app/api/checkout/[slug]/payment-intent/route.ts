@@ -134,19 +134,21 @@ export async function POST(
       },
     })
 
-    // Criar registo de carrinho abandonado
-    await abandonedCartService.create({
-      productId:             product.id,
-      stripePaymentIntentId: pi.id,
-      customerName,
-      customerEmail,
-      customerPhone:         body.customerPhone ?? '',
-      amount:                total,
-      currency:              product.currency,
-      urlParams,
-      bumpIds:               body.bumpIds    ?? [],
-      shippingId:            body.shippingId ?? '',
-    })
+    // Criar registo de carrinho abandonado apenas se houver dados do cliente
+    if (customerEmail || customerName) {
+      await abandonedCartService.create({
+        productId:             product.id,
+        stripePaymentIntentId: pi.id,
+        customerName,
+        customerEmail,
+        customerPhone:         body.customerPhone ?? '',
+        amount:                total,
+        currency:              product.currency,
+        urlParams,
+        bumpIds:               body.bumpIds    ?? [],
+        shippingId:            body.shippingId ?? '',
+      })
+    }
 
     const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 
