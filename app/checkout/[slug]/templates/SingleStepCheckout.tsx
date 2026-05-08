@@ -456,14 +456,12 @@ function CheckoutForm({
 
       {/* Endereço (só quando requireAddress) */}
       {product.requireAddress && (
-        <div className="bg-[#F6F9FC] border border-[#E0E6EB] rounded-[8px] p-4">
-          <AddressForm
-            contactName={name}
-            data={address}
-            onChange={setAddress}
-            required={true}
-          />
-        </div>
+        <AddressForm
+          contactName={name}
+          data={address}
+          onChange={setAddress}
+          required={true}
+        />
       )}
 
       {/* Envio */}

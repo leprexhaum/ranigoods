@@ -177,7 +177,7 @@ export function AddressForm({ contactName, data, onChange, required = true }: Ad
   const isPortugal = data.country === 'PT' || data.country === 'PT-MA' || data.country === 'PT-AC'
 
   return (
-    <div className="space-y-0">
+    <div>
 
       {/* Label da secção */}
       <p className="text-[12px] font-medium text-[#30313D] uppercase tracking-wide mb-2">
