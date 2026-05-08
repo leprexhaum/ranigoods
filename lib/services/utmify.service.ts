@@ -71,7 +71,7 @@ export const utmifyService = {
     const payload = {
       orderId:       input.orderId,
       platform:      'TechPags',
-      paymentMethod: 'credit_card',
+      paymentMethod: utmifyService.resolveMethod(input.stripeMethod),
       status:        'paid',
       createdAt:     toUtmifyDate(input.createdAt)!,
       approvedDate:  toUtmifyDate(input.approvedAt)!,

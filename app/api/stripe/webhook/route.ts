@@ -222,83 +222,92 @@ export async function POST(req: NextRequest) {
           await productService.decrementStock(productId, 1)
         }
 
+        // Buscar cpRecord com userId para passar ao Pushcut e UTMify
         const cpRecord = await prisma.checkoutPayment.findFirst({
           where:  { stripePaymentIntentId: pi.id },
           select: {
             urlParams: true, customerEmail: true, customerPhone: true,
             customerName: true, productId: true,
-            product: { select: { name: true, utmifyConfigId: true } },
+            product: { select: { name: true, utmifyConfigId: true, userId: true } },
           },
         })
-        const urlParams = (cpRecord?.urlParams ?? {}) as Record<string, string>
+        const urlParams  = (cpRecord?.urlParams ?? {}) as Record<string, string>
+        const ownerUserId = cpRecord?.product?.userId ?? ''
 
-        await pixelService.trackEvent('Purchase', {
-          event: 'Purchase',
-          data: {
-            value: pi.amount, currency: pi.currency.toUpperCase(), order_id: pi.id,
-            content_type: 'product', num_items: 1,
-            content_ids: [pi.metadata?.productSlug ?? pi.metadata?.productId ?? ''],
-            items: [{ id: pi.metadata?.productSlug ?? pi.metadata?.productId ?? '', name: pi.metadata?.productName ?? 'Produto', quantity: 1, price: pi.amount }],
-          },
-          userData: {
-            ip, userAgent,
-            email:  cpRecord?.customerEmail || pi.metadata?.customerEmail || undefined,
-            phone:  cpRecord?.customerPhone || undefined,
-            fbp:    urlParams.fbp,
-            fbc:    urlParams.fbclid ? `fb.1.${Date.now()}.${urlParams.fbclid}` : undefined,
-            ttp:    urlParams.ttp,
-            ttclid: urlParams.ttclid,
-            gclid:  urlParams.gclid,
-          },
-        })
+        // Fire-and-forget — status já está gravado, notificações não bloqueiam
+        Promise.allSettled([
+          pixelService.trackEvent('Purchase', {
+            event: 'Purchase',
+            data: {
+              value: pi.amount, currency: pi.currency.toUpperCase(), order_id: pi.id,
+              content_type: 'product', num_items: 1,
+              content_ids: [pi.metadata?.productSlug ?? pi.metadata?.productId ?? ''],
+              items: [{ id: pi.metadata?.productSlug ?? pi.metadata?.productId ?? '', name: pi.metadata?.productName ?? 'Produto', quantity: 1, price: pi.amount }],
+            },
+            userData: {
+              ip, userAgent,
+              email:  cpRecord?.customerEmail || pi.metadata?.customerEmail || undefined,
+              phone:  cpRecord?.customerPhone || undefined,
+              fbp:    urlParams.fbp,
+              fbc:    urlParams.fbclid ? `fb.1.${Date.now()}.${urlParams.fbclid}` : undefined,
+              ttp:    urlParams.ttp,
+              ttclid: urlParams.ttclid,
+              gclid:  urlParams.gclid,
+            },
+          }),
 
-        // UTMify via config vinculada ao produto
-        if (cpRecord?.product?.utmifyConfigId) {
-          const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: cpRecord.product.utmifyConfigId } })
-          if (utmCfg?.enabled && utmCfg.apiToken) {
-            await utmifyService.sendOrder(utmCfg.apiToken, {
-              orderId:      pi.id,
-              stripeMethod: resolveMethodRaw(charge),
-              currency:     pi.currency,
-              createdAt:    new Date(pi.created * 1000),
-              approvedAt:   new Date(),
-              customer: {
-                name:     cpRecord.customerName,
-                email:    cpRecord.customerEmail,
-                phone:    cpRecord.customerPhone,
-                document: '',
-                ip:       ip ?? undefined,
-              },
-              products: [{
-                id:           cpRecord.productId,
-                name:         cpRecord.product.name,
-                quantity:     1,
-                priceInCents: pi.amount,
-              }],
-              trackingParameters: {
-                src:          urlParams.src,
-                sck:          urlParams.sck,
-                utm_source:   urlParams.utm_source,
-                utm_campaign: urlParams.utm_campaign,
-                utm_medium:   urlParams.utm_medium,
-                utm_content:  urlParams.utm_content,
-                utm_term:     urlParams.utm_term,
-              },
-              totalPriceInCents: pi.amount,
-              gatewayFeeInCents: 0,
-            })
-          }
-        }
+          // UTMify via config vinculada ao produto
+          (async () => {
+            if (cpRecord?.product?.utmifyConfigId) {
+              const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: cpRecord.product.utmifyConfigId } })
+              if (utmCfg?.enabled && utmCfg.apiToken) {
+                await utmifyService.sendOrder(utmCfg.apiToken, {
+                  orderId:      pi.id,
+                  stripeMethod: resolveMethodRaw(charge),
+                  currency:     pi.currency,
+                  createdAt:    new Date(pi.created * 1000),
+                  approvedAt:   new Date(),
+                  customer: {
+                    name:     cpRecord.customerName,
+                    email:    cpRecord.customerEmail,
+                    phone:    cpRecord.customerPhone,
+                    document: '',
+                    ip:       ip ?? undefined,
+                  },
+                  products: [{
+                    id:           cpRecord.productId,
+                    name:         cpRecord.product.name,
+                    quantity:     1,
+                    priceInCents: pi.amount,
+                  }],
+                  trackingParameters: {
+                    src:          urlParams.src,
+                    sck:          urlParams.sck,
+                    utm_source:   urlParams.utm_source,
+                    utm_campaign: urlParams.utm_campaign,
+                    utm_medium:   urlParams.utm_medium,
+                    utm_content:  urlParams.utm_content,
+                    utm_term:     urlParams.utm_term,
+                  },
+                  totalPriceInCents: pi.amount,
+                  gatewayFeeInCents: 0,
+                })
+              }
+            }
+          })(),
 
-        await pushcutService.notify('payment.succeeded', {
-          title:   'Venda aprovada',
-          message: `${pi.metadata?.customerName ?? 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
-        })
+          // Pushcut com userId do dono do produto para filtrar configs correctamente
+          pushcutService.notify('payment.succeeded', {
+            title:   'Venda aprovada',
+            message: `${cpRecord?.customerName ?? pi.metadata?.customerName ?? 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
+            userId:  ownerUserId,
+          }),
 
-        await webhookNotifyService.notifyWebhooks('payment.succeeded', {
-          paymentIntentId: pi.id, amount: pi.amount, currency: pi.currency,
-          productId: pi.metadata?.productId, customerEmail: pi.metadata?.customerEmail,
-        })
+          webhookNotifyService.notifyWebhooks('payment.succeeded', {
+            paymentIntentId: pi.id, amount: pi.amount, currency: pi.currency,
+            productId: pi.metadata?.productId, customerEmail: pi.metadata?.customerEmail,
+          }, ownerUserId),
+        ]).catch(() => {/* silencioso */})
         break
       }
 

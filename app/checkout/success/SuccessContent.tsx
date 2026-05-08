@@ -13,6 +13,7 @@ function fmt(cents: number, currency: string) {
 export default function SuccessContent() {
   const searchParams = useSearchParams()
   const paymentId    = searchParams.get('payment_id')
+  const statusHint   = searchParams.get('status') // 'paid' passado pelo pollAndRedirect
   const { trackEvent } = usePixels()
 
   const [payment, setPayment] = useState<CheckoutPaymentDetail | null>(null)
@@ -23,48 +24,62 @@ export default function SuccessContent() {
   useEffect(() => {
     if (!paymentId) { setError('ID de pagamento não encontrado'); setLoading(false); return }
 
+    const handlePaid = (data: CheckoutPaymentDetail) => {
+      setPayment(data)
+      setLoading(false)
+      if (!firedRef.current) {
+        firedRef.current = true
+        trackEvent('Purchase', {
+          value:        data.amount,
+          currency:     data.currency,
+          order_id:     data.id,
+          content_type: 'product',
+          num_items:    1,
+        })
+      }
+      // Verificar upsell
+      fetch(`/api/checkout/payment/${paymentId}/upsell`)
+        .then(r => r.ok ? r.json() : null)
+        .then(upsell => {
+          if (upsell?.upsell) {
+            window.location.href = `/checkout/upsell/${paymentId}`
+          } else if (data.successUrl) {
+            window.location.href = data.successUrl
+          }
+        })
+        .catch(() => { if (data.successUrl) window.location.href = data.successUrl })
+    }
+
+    // Se o pollAndRedirect já confirmou paid, faz só 1 fetch para obter os dados
+    // e mostra imediatamente sem skeleton demorado
+    if (statusHint === 'paid') {
+      fetch(`/api/checkout/payment/${paymentId}`)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then((data: CheckoutPaymentDetail) => handlePaid(data))
+        .catch(() => { setError('Pagamento não encontrado'); setLoading(false) })
+      return
+    }
+
+    // Sem hint — polling normal (ex: redirect do Stripe para MBWay/Multibanco)
     let attempts = 0
     const poll = async () => {
       try {
         const res  = await fetch(`/api/checkout/payment/${paymentId}`)
         const data = await res.json() as CheckoutPaymentDetail
         if (!res.ok) { setError('Pagamento não encontrado'); setLoading(false); return }
-        setPayment(data)
 
-        if (data.status === 'paid' && !firedRef.current) {
-          firedRef.current = true
-          trackEvent('Purchase', {
-            value:        data.amount,
-            currency:     data.currency,
-            order_id:     data.id,
-            content_type: 'product',
-            num_items:    1,
-          })
+        if (data.status === 'paid') {
+          handlePaid(data)
+          return
         }
 
-        if ((data.status === 'pending' || data.status === 'processing') && attempts < 20) {
+        if ((data.status === 'pending' || data.status === 'processing') && attempts < 1200) {
           attempts++
-          setTimeout(poll, 3000)
+          setPayment(data)
+          setTimeout(poll, 1000)
         } else {
+          setPayment(data)
           setLoading(false)
-          if (data.status === 'paid') {
-            // Verifica se há upsell disponível antes de redirecionar
-            try {
-              const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
-              if (upsellRes.ok) {
-                const upsell = await upsellRes.json()
-                if (upsell?.upsell) {
-                  window.location.href = `/checkout/upsell/${paymentId}`
-                  return
-                }
-              }
-            } catch {
-              // Se falhar a verificação de upsell, segue para successUrl normalmente
-            }
-            if (data.successUrl) {
-              window.location.href = data.successUrl
-            }
-          }
         }
       } catch {
         setError('Erro ao verificar pagamento')
@@ -72,7 +87,7 @@ export default function SuccessContent() {
       }
     }
     poll()
-  }, [paymentId, trackEvent])
+  }, [paymentId, statusHint, trackEvent])
 
   if (loading) {
     return (
