@@ -50,6 +50,7 @@ export interface CheckoutProduct {
 export interface CheckoutAddress {
   line1:      string
   line2?:     string
+  locality?:  string
   city:       string
   postalCode: string
   country:    string

@@ -622,6 +622,7 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
           address: product.requireAddress && address.line1 ? {
             line1:      address.line1,
             line2:      address.line2 || undefined,
+            locality:   address.locality || undefined,
             city:       address.city || address.locality,
             postalCode: address.postalCode,
             country:    address.country.replace(/^PT-.*/, 'PT'),

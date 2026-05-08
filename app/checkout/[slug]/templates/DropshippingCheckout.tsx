@@ -154,6 +154,7 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
           address: address.line1 ? {
             line1:      address.line1,
             line2:      address.line2 || undefined,
+            locality:   address.locality || undefined,
             city:       address.city || address.locality,
             postalCode: address.postalCode,
             country:    address.country.replace(/^PT-.*/, 'PT'),
@@ -245,14 +246,16 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
         </div>
 
         {/* Endereço */}
-        <div className="bg-white rounded-xl border border-[#E0E6EB] p-5">
-          <AddressForm
-            contactName={name}
-            data={address}
-            onChange={setAddress}
-            required={true}
-          />
-        </div>
+        {product.requireAddress && (
+          <div className="bg-white rounded-xl border border-[#E0E6EB] p-5">
+            <AddressForm
+              contactName={name}
+              data={address}
+              onChange={setAddress}
+              required={true}
+            />
+          </div>
+        )}
 
         {/* Envio */}
         {product.shippingOptions.length > 0 && (

@@ -82,7 +82,9 @@ export const checkoutService = {
         stripeCustomerId:      data.stripeCustomerId ?? '',
         addressLine1:          data.address?.line1      ?? '',
         addressLine2:          data.address?.line2      ?? '',
-        addressCity:           data.address?.city       ?? '',
+        addressCity:           data.address?.locality && data.address?.city
+                                 ? `${data.address.locality}, ${data.address.city}`
+                                 : (data.address?.locality ?? data.address?.city ?? ''),
         addressPostalCode:     data.address?.postalCode ?? '',
         addressCountry:        data.address?.country    ?? '',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
