@@ -13,6 +13,8 @@ import {
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import clsx from 'clsx'
 import type { CheckoutProduct, ShippingOption } from '@/lib/types/checkout'
+import { AddressForm, emptyAddress } from '../components/AddressForm'
+import type { AddressData } from '../components/AddressForm'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -350,6 +352,7 @@ interface CheckoutFormProps {
   countryCode: string; callingCode: string
   selectedShip: string; setSelectedShip: (v: string) => void
   selectedBumps: string[]
+  address: AddressData; setAddress: (v: AddressData) => void
   formError: string
   submitting: boolean
   handleProceed: (e: React.FormEvent) => void
@@ -365,10 +368,17 @@ function CheckoutForm({
   email, setEmail, name, setName, phone, setPhone,
   countryCode, callingCode,
   selectedShip, setSelectedShip,
+  address, setAddress,
   formError, submitting, handleProceed,
   clientSecret, stripePromise, paymentId, paymentAmount,
   onAddPaymentInfo,
 }: CheckoutFormProps) {
+  const [nameError, setNameError] = useState('')
+
+  const validateName = (v: string) => {
+    const parts = v.trim().split(/\s+/).filter(Boolean)
+    setNameError(parts.length < 2 ? 'Introduza pelo menos nome e apelido' : '')
+  }
 
   const updatePayment = (fields: { customerName?: string; customerEmail?: string; customerPhone?: string }) => {
     if (!paymentId) return
@@ -411,10 +421,21 @@ function CheckoutForm({
                 <path fillRule="evenodd" clipRule="evenodd" d="M8 6.4C9.32548 6.4 10.4 5.32548 10.4 4C10.4 2.67452 9.32548 1.6 8 1.6C6.67452 1.6 5.6 2.67452 5.6 4C5.6 5.32548 6.67452 6.4 8 6.4ZM8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" fill="#1A1A1A" fillOpacity="0.5"/>
               </svg>
             </span>
-            <input className={inputBase} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" required autoComplete="name"
-              onBlur={e => { if (e.target.value.trim()) updatePayment({ customerName: e.target.value.trim() }) }}
+            <input
+              className={inputBase}
+              type="text"
+              value={name}
+              onChange={e => { setName(e.target.value); if (nameError) validateName(e.target.value) }}
+              onBlur={e => {
+                validateName(e.target.value)
+                if (e.target.value.trim()) updatePayment({ customerName: e.target.value.trim() })
+              }}
+              placeholder="Nome"
+              required
+              autoComplete="name"
             />
           </div>
+          {nameError && <p className="text-[12px] text-red-500 px-1 pt-1">{nameError}</p>}
           {/* Telefone com bandeira dinâmica via geo-ip */}
           <div className={fieldWrapBottom}>
             <span className="pl-3 flex-shrink-0 flex items-center gap-1.5">
@@ -432,6 +453,19 @@ function CheckoutForm({
           </div>
         </div>
       </div>
+
+      {/* Endereço (só quando requireAddress) */}
+      {product.requireAddress && (
+        <div className="bg-[#F6F9FC] border border-[#E0E6EB] rounded-[8px] p-4">
+          <AddressForm
+            contactName={name}
+            data={address}
+            onChange={setAddress}
+            inputCls="w-full h-11 px-3 bg-white border border-[#E0E6EB] rounded-[5px] text-[15px] text-[#30313D] placeholder-[#8792A2] focus:outline-none focus:border-[#0570DE] focus:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] transition-all"
+            required={true}
+          />
+        </div>
+      )}
 
       {/* Envio */}
       {product.shippingOptions.length > 0 && (
@@ -544,6 +578,7 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
   const [name,          setName]          = useState('')
   const [email,         setEmail]         = useState('')
   const [phone,         setPhone]         = useState('')
+  const [address,       setAddress]       = useState<AddressData>(emptyAddress())
   const [selectedBumps, setSelectedBumps] = useState<string[]>([])
   const [selectedShip,  setSelectedShip]  = useState('')
   const [formError,     setFormError]     = useState('')
@@ -591,6 +626,13 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
           bumpIds:       selectedBumps,
           shippingId:    ship || undefined,
           urlParams,
+          address: product.requireAddress && address.line1 ? {
+            line1:      address.line1,
+            line2:      address.line2 || undefined,
+            city:       address.city || address.locality,
+            postalCode: address.postalCode,
+            country:    address.country.replace(/^PT-.*/, 'PT'),
+          } : undefined,
         }),
       })
       const data = await res.json()
@@ -719,6 +761,7 @@ export default function SingleStepCheckout({ product }: { product: CheckoutProdu
               countryCode={countryCode} callingCode={callingCode}
               selectedShip={selectedShip} setSelectedShip={setSelectedShip}
               selectedBumps={selectedBumps}
+              address={address} setAddress={setAddress}
               formError={formError} submitting={submitting}
               handleProceed={handleProceed}
               clientSecret={clientSecret} stripePromise={stripePromise}

@@ -13,6 +13,8 @@ import clsx from 'clsx'
 import type { CheckoutProduct, ShippingOption } from '@/lib/types/checkout'
 import { captureUrlParams, getStoredUrlParams } from '@/lib/url-params'
 import { useCheckoutPixels } from '@/lib/hooks/useCheckoutPixels'
+import { AddressForm, emptyAddress } from '../components/AddressForm'
+import type { AddressData } from '../components/AddressForm'
 
 function fmt(cents: number, currency: string) {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
@@ -113,11 +115,7 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
   const [name,          setName]          = useState('')
   const [email,         setEmail]         = useState('')
   const [phone,         setPhone]         = useState('')
-  const [addrLine1,     setAddrLine1]     = useState('')
-  const [addrLine2,     setAddrLine2]     = useState('')
-  const [addrCity,      setAddrCity]      = useState('')
-  const [addrPostal,    setAddrPostal]    = useState('')
-  const [addrCountry,   setAddrCountry]   = useState('PT')
+  const [address,       setAddress]       = useState<AddressData>(emptyAddress())
   const [selectedShip,  setSelectedShip]  = useState('')
   const [formError,     setFormError]     = useState('')
   const [submitting,    setSubmitting]    = useState(false)
@@ -125,6 +123,7 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
   const [publishableKey,setPublishableKey]= useState('')
   const [paymentId,     setPaymentId]     = useState('')
   const [paymentAmount, setPaymentAmount] = useState(0)
+  const [nameError,     setNameError]     = useState('')
 
   useEffect(() => {
     captureUrlParams()
@@ -152,9 +151,12 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
           bumpIds:       [],
           shippingId:    ship || undefined,
           urlParams,
-          address: addrLine1 ? {
-            line1: addrLine1, line2: addrLine2,
-            city: addrCity, postalCode: addrPostal, country: addrCountry,
+          address: address.line1 ? {
+            line1:      address.line1,
+            line2:      address.line2 || undefined,
+            city:       address.city || address.locality,
+            postalCode: address.postalCode,
+            country:    address.country.replace(/^PT-.*/, 'PT'),
           } : undefined,
         }),
       })
@@ -183,6 +185,11 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),
     }).catch(() => {})
+  }
+
+  const validateName = (v: string) => {
+    const parts = v.trim().split(/\s+/).filter(Boolean)
+    setNameError(parts.length < 2 ? 'Introduza pelo menos nome e apelido' : '')
   }
 
   const inputCls = 'w-full h-11 px-3 bg-white border border-[#E0E6EB] rounded-[5px] text-[15px] text-[#30313D] placeholder-[#8792A2] focus:outline-none focus:border-[#0570DE] focus:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] transition-all'
@@ -219,33 +226,33 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
           <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required autoComplete="email"
             onBlur={e => { if (e.target.value.trim()) updatePayment({ customerEmail: e.target.value.trim() }) }}
           />
-          <input className={inputCls} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" required autoComplete="name"
-            onBlur={e => { if (e.target.value.trim()) updatePayment({ customerName: e.target.value.trim() }) }}
-          />
+          <div>
+            <input
+              className={inputCls}
+              type="text"
+              value={name}
+              onChange={e => { setName(e.target.value); if (nameError) validateName(e.target.value) }}
+              onBlur={e => { validateName(e.target.value); if (e.target.value.trim()) updatePayment({ customerName: e.target.value.trim() }) }}
+              placeholder="Nome"
+              required
+              autoComplete="name"
+            />
+            {nameError && <p className="text-[12px] text-red-500 mt-1">{nameError}</p>}
+          </div>
           <input className={inputCls} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Telefone" required autoComplete="tel"
             onBlur={e => { if (e.target.value.trim()) updatePayment({ customerPhone: e.target.value.trim() }) }}
           />
         </div>
 
         {/* Endereço */}
-        <div className="bg-white rounded-xl border border-[#E0E6EB] p-5 space-y-3">
-          <p className="text-[12px] font-medium text-[#30313D] uppercase tracking-wide">Endereço de entrega</p>
-          <input className={inputCls} type="text" value={addrLine1} onChange={e => setAddrLine1(e.target.value)} placeholder="Morada" required autoComplete="address-line1" />
-          <input className={inputCls} type="text" value={addrLine2} onChange={e => setAddrLine2(e.target.value)} placeholder="Complemento (opcional)" autoComplete="address-line2" />
-          <div className="grid grid-cols-2 gap-3">
-            <input className={inputCls} type="text" value={addrCity} onChange={e => setAddrCity(e.target.value)} placeholder="Cidade" required autoComplete="address-level2" />
-            <input className={inputCls} type="text" value={addrPostal} onChange={e => setAddrPostal(e.target.value)} placeholder="Código postal" required autoComplete="postal-code" />
-          </div>
-          <select className={inputCls} value={addrCountry} onChange={e => setAddrCountry(e.target.value)} autoComplete="country">
-            <option value="PT">Portugal</option>
-            <option value="BR">Brasil</option>
-            <option value="ES">Espanha</option>
-            <option value="FR">França</option>
-            <option value="DE">Alemanha</option>
-            <option value="IT">Itália</option>
-            <option value="GB">Reino Unido</option>
-            <option value="US">Estados Unidos</option>
-          </select>
+        <div className="bg-white rounded-xl border border-[#E0E6EB] p-5">
+          <AddressForm
+            contactName={name}
+            data={address}
+            onChange={setAddress}
+            inputCls={inputCls}
+            required={true}
+          />
         </div>
 
         {/* Envio */}
