@@ -250,7 +250,6 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
             contactName={name}
             data={address}
             onChange={setAddress}
-            inputCls={inputCls}
             required={true}
           />
         </div>

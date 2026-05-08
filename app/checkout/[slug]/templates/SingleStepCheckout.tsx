@@ -461,7 +461,6 @@ function CheckoutForm({
             contactName={name}
             data={address}
             onChange={setAddress}
-            inputCls="w-full h-11 px-3 bg-white border border-[#E0E6EB] rounded-[5px] text-[15px] text-[#30313D] placeholder-[#8792A2] focus:outline-none focus:border-[#0570DE] focus:shadow-[0_0_0_3px_rgba(5,112,222,0.16)] transition-all"
             required={true}
           />
         </div>
