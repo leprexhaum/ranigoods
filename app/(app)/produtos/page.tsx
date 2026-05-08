@@ -402,17 +402,6 @@ export default function ProdutosPage() {
                       <OpenLinkButton slug={product.slug} customDomain={product.customDomain || undefined} />
                     </div>
                   )}
-                  {product.stripeId && (
-                    <a
-                      href={`https://dashboard.stripe.com/products/${product.stripeId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-ep-muted hover:text-ep-accent text-xs transition-colors"
-                    >
-                      <ExternalLink size={11} />
-                      Stripe
-                    </a>
-                  )}
                 </div>
               </div>
             </div>
