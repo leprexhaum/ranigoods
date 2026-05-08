@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Package, Plus, ExternalLink, MoreVertical, Check, Pencil, Copy } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Package, Plus, ExternalLink, MoreVertical, Check, Pencil, Copy, Globe, ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 import type { Product } from '@/lib/services/product.service'
 import type { PixelConfig } from '@/lib/types/pixel'
@@ -11,39 +11,134 @@ import { useConfirm } from '@/lib/hooks/useConfirm'
 import { ProductCardSkeleton } from '@/components/ui/Skeleton'
 import { PlatformIcon, PLATFORM_CONFIG, type Platform } from '@/components/pixels/PlatformIcon'
 
+const DEFAULT_HOST = process.env.NEXT_PUBLIC_APP_HOST ?? 'techpags.shop'
+
 function formatCurrency(cents: number, currency = 'EUR') {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency }).format(cents / 100)
 }
 
-function CopyLinkButton({ slug }: { slug: string }) {
+function buildCheckoutUrl(slug: string, customDomain?: string) {
+  const defaultUrl = `https://${DEFAULT_HOST}/checkout/${slug}`
+  const customUrl  = customDomain ? `https://${customDomain}/checkout/${slug}` : null
+  return { defaultUrl, customUrl }
+}
+
+function DomainPicker({
+  slug,
+  customDomain,
+  mode,
+}: {
+  slug: string
+  customDomain: string
+  mode: 'copy' | 'open'
+}) {
+  const [open,   setOpen]   = useState(false)
   const [copied, setCopied] = useState(false)
-  const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/checkout/${slug}`
+  const ref = useRef<HTMLDivElement>(null)
+
+  const { defaultUrl, customUrl } = buildCheckoutUrl(slug, customDomain)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handleSelect = (url: string) => {
+    setOpen(false)
+    if (mode === 'copy') {
+      navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-0.5 text-ep-muted hover:text-ep-accent transition-colors"
+        title={mode === 'copy' ? 'Copiar link do checkout' : 'Abrir checkout'}
+      >
+        {mode === 'copy'
+          ? (copied ? <Check size={13} className="text-ep-success" /> : <Copy size={13} />)
+          : <ExternalLink size={13} />
+        }
+        <ChevronDown size={10} className={clsx('transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 bottom-6 z-20 bg-ep-surface border border-ep-border-default rounded-md shadow-lg min-w-[200px] py-1">
+          <p className="px-3 py-1.5 text-ep-muted text-[10px] uppercase tracking-wider font-medium border-b border-ep-border-subtle mb-1">
+            {mode === 'copy' ? 'Copiar link' : 'Abrir checkout'}
+          </p>
+          <button
+            onClick={() => handleSelect(customUrl!)}
+            className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
+          >
+            <Globe size={11} className="text-ep-accent flex-shrink-0" />
+            <span className="truncate">{customDomain}</span>
+          </button>
+          <button
+            onClick={() => handleSelect(defaultUrl)}
+            className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
+          >
+            <Globe size={11} className="flex-shrink-0" />
+            <span className="truncate">{DEFAULT_HOST}</span>
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CopyLinkButton({ slug, customDomain }: { slug: string; customDomain?: string }) {
+  const [copied, setCopied] = useState(false)
+  const { defaultUrl } = buildCheckoutUrl(slug)
+
+  if (customDomain) {
+    return <DomainPicker slug={slug} customDomain={customDomain} mode="copy" />
+  }
 
   const copy = () => {
-    navigator.clipboard.writeText(url)
+    navigator.clipboard.writeText(defaultUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
   return (
-    <div className="flex items-center gap-1.5">
-      <button
-        onClick={copy}
-        className="text-ep-muted hover:text-ep-accent transition-colors"
-        title="Copiar link do checkout"
-      >
-        {copied ? <Check size={13} className="text-ep-success" /> : <Copy size={13} />}
-      </button>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-ep-muted hover:text-ep-accent transition-colors"
-        title="Abrir checkout"
-      >
-        <ExternalLink size={13} />
-      </a>
-    </div>
+    <button
+      onClick={copy}
+      className="text-ep-muted hover:text-ep-accent transition-colors"
+      title="Copiar link do checkout"
+    >
+      {copied ? <Check size={13} className="text-ep-success" /> : <Copy size={13} />}
+    </button>
+  )
+}
+
+function OpenLinkButton({ slug, customDomain }: { slug: string; customDomain?: string }) {
+  const { defaultUrl } = buildCheckoutUrl(slug)
+
+  if (customDomain) {
+    return <DomainPicker slug={slug} customDomain={customDomain} mode="open" />
+  }
+
+  return (
+    <a
+      href={defaultUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-ep-muted hover:text-ep-accent transition-colors"
+      title="Abrir checkout"
+    >
+      <ExternalLink size={13} />
+    </a>
   )
 }
 
@@ -301,7 +396,12 @@ export default function ProdutosPage() {
                   {product.status === 'active' ? 'Ativo' : 'Arquivado'}
                 </span>
                 <div className="flex items-center gap-3">
-                  {product.slug && <CopyLinkButton slug={product.slug} />}
+                  {product.slug && (
+                    <div className="flex items-center gap-1.5">
+                      <CopyLinkButton slug={product.slug} customDomain={product.customDomain || undefined} />
+                      <OpenLinkButton slug={product.slug} customDomain={product.customDomain || undefined} />
+                    </div>
+                  )}
                   {product.stripeId && (
                     <a
                       href={`https://dashboard.stripe.com/products/${product.stripeId}`}
