@@ -87,9 +87,9 @@ function toProduct(r: ProductRow): Product {
 }
 
 export const productService = {
-  async getAll(status?: 'active' | 'archived'): Promise<Product[]> {
+  async getAll(userId: string, status?: 'active' | 'archived'): Promise<Product[]> {
     const rows = await prisma.product.findMany({
-      where:   status ? { status } : undefined,
+      where:   { userId, ...(status ? { status } : {}) },
       orderBy: { name: 'asc' },
     })
     return rows.map(toProduct)
@@ -100,7 +100,7 @@ export const productService = {
     return r ? toProduct(r) : null
   },
 
-  async create(data: Omit<Product, 'id' | 'sales' | 'revenue' | 'createdAt'>): Promise<Product> {
+  async create(data: Omit<Product, 'id' | 'sales' | 'revenue' | 'createdAt'> & { userId: string }): Promise<Product> {
     const id = `prod_${Date.now()}`
     const r = await prisma.product.create({
       data: {
@@ -114,7 +114,6 @@ export const productService = {
         revenue:          BigInt(0),
         status:           data.status ?? 'active',
         stripeId:         data.stripeId ?? '',
-        // Se slug não fornecido, usa o ID como slug (garante unicidade)
         slug:             data.slug || id,
         currency:         data.currency ?? 'EUR',
         defaultShipping:  data.defaultShipping ?? 0,
@@ -140,6 +139,7 @@ export const productService = {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pixelIds:         (data.pixelIds ?? []) as any,
         customDomain:     data.customDomain ?? '',
+        userId:           data.userId,
       },
     })
     return toProduct(r)
@@ -231,6 +231,16 @@ export const productService = {
   async incrementSales(stripeId: string, amount: number): Promise<void> {
     await prisma.product.updateMany({
       where: { stripeId },
+      data: {
+        sales:   { increment: 1 },
+        revenue: { increment: BigInt(amount) },
+      },
+    })
+  },
+
+  async incrementSalesByInternalId(id: string, amount: number): Promise<void> {
+    await prisma.product.updateMany({
+      where: { id },
       data: {
         sales:   { increment: 1 },
         revenue: { increment: BigInt(amount) },

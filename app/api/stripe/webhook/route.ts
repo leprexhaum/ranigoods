@@ -65,8 +65,11 @@ async function persistPayment(pi: Stripe.PaymentIntent): Promise<void> {
   })
 
   const stripeProductId = pi.metadata?.stripe_product_id ?? ''
+  const internalProductId = pi.metadata?.productId ?? ''
   if (stripeProductId) {
     await productService.incrementSales(stripeProductId, pi.amount)
+  } else if (internalProductId) {
+    await productService.incrementSalesByInternalId(internalProductId, pi.amount)
   }
 }
 
@@ -108,26 +111,10 @@ async function persistRefund(charge: Stripe.Charge): Promise<void> {
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
-  const sig  = req.headers.get('stripe-signature')
 
-  // Tentar validar assinatura mas nunca rejeitar — salvar e processar sempre
-  let event: Stripe.Event | undefined
-  if (sig) {
-    const secrets = [
-      process.env.STRIPE_WEBHOOK_SECRET,
-      process.env.STRIPE_WEBHOOK_SECRET_2,
-    ].filter(Boolean) as string[]
-    for (const secret of secrets) {
-      try { event = stripe.webhooks.constructEvent(body, sig, secret); break }
-      catch { /* try next */ }
-    }
-  }
-
-  // Se não validou, parsear o body diretamente sem verificação de assinatura
-  if (!event) {
-    try { event = JSON.parse(body) as Stripe.Event }
-    catch { return NextResponse.json({ received: true }) }
-  }
+  let event: Stripe.Event
+  try { event = JSON.parse(body) as Stripe.Event }
+  catch { return NextResponse.json({ received: true }) }
 
   // Registar evento no banco antes de processar
   await stripeLogger.logEvent(event)
