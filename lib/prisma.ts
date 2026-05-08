@@ -2,7 +2,12 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 function createPrismaClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URI ||
+    process.env.POSTGRES_CONNECTION_STRING
+  if (!connectionString) throw new Error('No database connection string found')
+  const adapter = new PrismaPg({ connectionString })
   return new PrismaClient({ adapter })
 }
 
