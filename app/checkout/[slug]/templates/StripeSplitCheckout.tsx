@@ -688,21 +688,6 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
     <section style={{ marginBottom: '32px' }}>
       <h2 style={H2_STYLE}>Método de pagamento</h2>
 
-      {/* Tab cartão */}
-      <div style={{
-        border: '1px solid rgb(224,224,224)', borderRadius: '6px',
-        padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px',
-        marginBottom: '12px', backgroundColor: 'rgb(255,255,255)',
-        boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px',
-      }}>
-        <svg width="20" height="14" viewBox="0 0 20 14" fill="none">
-          <rect width="20" height="14" rx="2" fill="#E0E0E0"/>
-          <rect y="3" width="20" height="4" fill="#9E9E9E"/>
-          <rect x="2" y="9" width="4" height="2" rx="0.5" fill="#9E9E9E"/>
-        </svg>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(26,26,26,0.9)' }}>Cartão</span>
-      </div>
-
       {!clientSecret ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '24px 0', color: 'rgba(26,26,26,0.5)', fontSize: '13px' }}>
           <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
