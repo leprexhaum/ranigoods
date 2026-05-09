@@ -29,9 +29,12 @@ function resolveMethodRaw(charge: Stripe.Charge | null): string {
 
 async function getCharge(pi: Stripe.PaymentIntent): Promise<Stripe.Charge | null> {
   if (!pi.latest_charge) return null
-  return typeof pi.latest_charge === 'string'
-    ? await stripe.charges.retrieve(pi.latest_charge)
-    : pi.latest_charge
+  if (typeof pi.latest_charge !== 'string') return pi.latest_charge
+  try {
+    return await stripe.charges.retrieve(pi.latest_charge)
+  } catch {
+    return null
+  }
 }
 
 async function persistPayment(pi: Stripe.PaymentIntent): Promise<void> {
@@ -350,8 +353,7 @@ export async function POST(req: NextRequest) {
 
         try {
           const piExpanded = await stripe.paymentIntents.retrieve(pi.id, { expand: ['latest_charge'] })
-          const latestCharge = piExpanded.latest_charge as Stripe.Charge | null
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const latestCharge = piExpanded.latest_charge as Stripe.Charge | null          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mbDetails = (latestCharge?.payment_method_details as any)?.multibanco as {
             entity: string; reference: string; expires_at?: number
           } | undefined
@@ -597,7 +599,10 @@ export async function POST(req: NextRequest) {
           try {
             const bt = await stripe.balanceTransactions.retrieve(charge.balance_transaction)
             fee = bt.fee; net = bt.net; balanceTxId = bt.id
-          } catch { /* ignorar */ }
+          } catch { /* charge de outra conta — ignorar */ }
+        } else if (charge.balance_transaction && typeof charge.balance_transaction !== 'string') {
+          const bt = charge.balance_transaction as Stripe.BalanceTransaction
+          fee = bt.fee; net = bt.net; balanceTxId = bt.id
         }
 
         await prisma.payment.updateMany({
