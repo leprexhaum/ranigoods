@@ -385,15 +385,12 @@ function ChevronDownIcon() {
 }
 
 function ContactSection({
-  email, setEmail, name, setName, phone, setPhone,
-  countryCode: _countryCode, callingCode: _callingCode, requirePhone,
+  email, setEmail, name, setName,
   focused, setFocused, touched, touch, submitted,
-}: ContactSectionProps) {
-  void _countryCode; void _callingCode
+}: Omit<ContactSectionProps, 'phone' | 'setPhone' | 'countryCode' | 'callingCode' | 'requirePhone'>) {
   const show = (id: string) => submitted || touched[id]
   const errEmail = valEmail(email)
   const errName  = valName(name)
-  const errPhone = requirePhone ? valPhone(phone) : ''
 
   return (
     <section style={{ marginBottom: '32px' }}>
@@ -433,45 +430,7 @@ function ContactSection({
           </div>
         </div>
         {show('email') && <FieldError msg={errEmail} />}
-        {show('name') && <FieldError msg={errName} />}
-      </div>
-
-      {/* Telefone — sempre visível (obrigatório ou não) */}
-      <div>
-        <label style={LABEL_STYLE}>Morada de envio</label>
-        <div style={{ display: 'flex', position: 'relative' }}>
-          <div style={{
-            width: '52px', height: '36px', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', gap: '2px', backgroundColor: 'rgb(255,255,255)',
-            boxShadow: SH_DEFAULT, borderRadius: '0px 0px 0px 6px', flexShrink: 0,
-            paddingLeft: '8px', paddingRight: '4px', cursor: 'pointer',
-            borderRight: '1px solid rgb(224,224,224)',
-          }}>
-            <FlagPTIcon />
-            <ChevronDownIcon />
-          </div>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <input
-              type="tel"
-              placeholder="912 345 678"
-              value={phone}
-              onChange={e => setPhone(fmtPhone(e.target.value))}
-              onFocus={() => setFocused('phone')}
-              onBlur={() => touch('phone')}
-              inputMode="tel"
-              autoComplete="tel"
-              style={inputStyle(focused === 'phone', !!(show('phone') && errPhone), '0px 0px 6px 0px', { width: '100%', paddingRight: '32px' })}
-            />
-            <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'rgba(26,26,26,0.35)', display: 'flex' }}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M8 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-        {show('phone') && <FieldError msg={errPhone} />}
+        {show('name')  && <FieldError msg={errName} />}
       </div>
     </section>
   )
@@ -793,6 +752,165 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
 }
 
 
+// ─── AddressSection ───────────────────────────────────────────────────────────
+
+interface AddressSectionProps {
+  address: AddressData; setAddress: (v: AddressData) => void
+  phone: string; setPhone: (v: string) => void
+  focused: string | null; setFocused: (v: string | null) => void
+  touched: Record<string, boolean>; touch: (id: string) => void
+  submitted: boolean
+}
+
+const SELECT_STYLE: React.CSSProperties = {
+  ...INPUT_BASE,
+  borderRadius: '0px',
+  boxShadow: SH_DEFAULT,
+  paddingRight: '12px',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  backgroundColor: 'rgb(247,247,247)',
+  color: 'rgba(26,26,26,0.4)',
+  cursor: 'default',
+  pointerEvents: 'none',
+}
+
+function AddressSection({
+  address, setAddress,
+  phone, setPhone,
+  focused, setFocused, touched, touch, submitted,
+}: AddressSectionProps) {
+  const show = (id: string) => submitted || touched[id]
+  const set  = (field: keyof AddressData, val: string) => setAddress({ ...address, [field]: val })
+
+  const errName    = valName(address.recipientName)
+  const errAddr1   = valRequired(address.line1, 'A morada')
+  const errPostal  = valPostalCode(address.postalCode)
+  const errCity    = valRequired(address.city, 'A cidade')
+  const errPhone   = valPhone(phone)
+
+  return (
+    <section style={{ marginBottom: '32px' }}>
+      <h2 style={H2_STYLE}>Informações de envio</h2>
+
+      <div>
+        <label style={LABEL_STYLE}>Morada de envio</label>
+
+        {/* Nome completo */}
+        <input
+          type="text"
+          placeholder="Nome completo"
+          value={address.recipientName}
+          onChange={e => set('recipientName', e.target.value)}
+          onFocus={() => setFocused('addr_name')}
+          onBlur={() => touch('addr_name')}
+          autoComplete="name"
+          style={inputStyle(focused === 'addr_name', !!(show('addr_name') && errName), '6px 6px 0px 0px')}
+        />
+
+        {/* País (desativado, visual only) */}
+        <select style={SELECT_STYLE} defaultValue="PT" disabled>
+          <option value="PT">Portugal</option>
+          <option value="ES">Espanha</option>
+          <option value="FR">França</option>
+          <option value="DE">Alemanha</option>
+          <option value="GB">Reino Unido</option>
+          <option value="US">Estados Unidos</option>
+        </select>
+
+        {/* Linha morada 1 */}
+        <input
+          type="text"
+          placeholder="Linha de morada 1"
+          value={address.line1}
+          onChange={e => set('line1', e.target.value)}
+          onFocus={() => setFocused('addr_line1')}
+          onBlur={() => touch('addr_line1')}
+          autoComplete="address-line1"
+          style={inputStyle(focused === 'addr_line1', !!(show('addr_line1') && errAddr1), '0px')}
+        />
+
+        {/* Linha morada 2 */}
+        <input
+          type="text"
+          placeholder="Linha de morada 2"
+          value={address.line2}
+          onChange={e => set('line2', e.target.value)}
+          onFocus={() => setFocused('addr_line2')}
+          onBlur={() => touch('addr_line2')}
+          autoComplete="address-line2"
+          style={inputStyle(focused === 'addr_line2', false, '0px')}
+        />
+
+        {/* Código postal + Cidade */}
+        <div style={{ display: 'flex', gap: '1px' }}>
+          <input
+            type="text"
+            placeholder="Código postal"
+            value={address.postalCode}
+            onChange={e => set('postalCode', fmtPostalCode(e.target.value))}
+            onFocus={() => setFocused('addr_postal')}
+            onBlur={() => touch('addr_postal')}
+            autoComplete="postal-code"
+            style={inputStyle(focused === 'addr_postal', !!(show('addr_postal') && errPostal), '0px', { width: '50%' })}
+          />
+          <input
+            type="text"
+            placeholder="Cidade"
+            value={address.city}
+            onChange={e => set('city', e.target.value)}
+            onFocus={() => setFocused('addr_city')}
+            onBlur={() => touch('addr_city')}
+            autoComplete="address-level2"
+            style={inputStyle(focused === 'addr_city', !!(show('addr_city') && errCity), '0px', { width: '50%' })}
+          />
+        </div>
+
+        {/* Erros morada */}
+        {show('addr_name')   && <FieldError msg={errName} />}
+        {show('addr_line1')  && <FieldError msg={errAddr1} />}
+        {show('addr_postal') && <FieldError msg={errPostal} />}
+        {show('addr_city')   && <FieldError msg={errCity} />}
+
+        {/* Telefone com flag + chevron */}
+        <div style={{ display: 'flex', position: 'relative', marginTop: '1px' }}>
+          <div style={{
+            width: '52px', height: '36px', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: '2px', backgroundColor: 'rgb(255,255,255)',
+            boxShadow: SH_DEFAULT, borderRadius: '0px 0px 0px 6px', flexShrink: 0,
+            paddingLeft: '8px', paddingRight: '4px', cursor: 'pointer',
+            borderRight: '1px solid rgb(224,224,224)',
+          }}>
+            <FlagPTIcon />
+            <ChevronDownIcon />
+          </div>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <input
+              type="tel"
+              placeholder="912 345 678"
+              value={phone}
+              onChange={e => setPhone(fmtPhone(e.target.value))}
+              onFocus={() => setFocused('addr_phone')}
+              onBlur={() => touch('addr_phone')}
+              inputMode="tel"
+              autoComplete="tel"
+              style={inputStyle(focused === 'addr_phone', !!(show('addr_phone') && errPhone), '0px 0px 6px 0px', { width: '100%', paddingRight: '32px' })}
+            />
+            <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'rgba(26,26,26,0.35)', display: 'flex' }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M8 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        {show('addr_phone') && <FieldError msg={errPhone} />}
+      </div>
+    </section>
+  )
+}
+
 // ─── RightColumn ──────────────────────────────────────────────────────────────
 
 interface RightColumnProps {
@@ -847,25 +965,18 @@ function RightColumn({
       <ContactSection
         email={email} setEmail={setEmail}
         name={name}   setName={setName}
-        phone={phone} setPhone={setPhone}
-        countryCode={countryCode} callingCode={callingCode}
-        requirePhone={product.requirePhone}
         focused={focused} setFocused={setFocused}
         touched={touched} touch={touch}
         submitted={submitted}
       />
 
-      {product.requireAddress && (
-        <section style={{ marginBottom: '32px' }}>
-          <h2 style={H2_STYLE}>Morada de envio</h2>
-          <AddressForm
-            contactName={name}
-            data={address}
-            onChange={setAddress}
-            required={true}
-          />
-        </section>
-      )}
+      <AddressSection
+        address={address} setAddress={setAddress}
+        phone={phone} setPhone={setPhone}
+        focused={focused} setFocused={setFocused}
+        touched={touched} touch={touch}
+        submitted={submitted}
+      />
 
       <ShippingSection
         product={product}
