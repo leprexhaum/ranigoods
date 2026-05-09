@@ -362,29 +362,46 @@ interface ContactSectionProps {
   submitted: boolean
 }
 
+function FlagPTIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+      <g fill="none" transform="translate(0 2)">
+        <path fill="#24B47E" d="M6,12 L2,12 C0.8954305,12 0,11.1045695 0,10 L0,2 C0,0.8954305 0.8954305,0 2,0 L6,0 L6,12 Z"/>
+        <path fill="#E25950" d="M14,12 L6,12 L6,0 L14,0 C15.1045695,0 16,0.8954305 16,2 L16,10 C16,11.1045695 15.1045695,12 14,12 Z"/>
+        <path fill="#FCD669" d="M5.975,3 C7.645,3 9,4.343 9,5.999 C9,7.655 7.645,8.998 5.975,8.998 C4.324,8.97 3,7.636 3,5.999 C3,4.363 4.324,3.028 5.975,3.001 L5.975,3 Z"/>
+        <path fill="#E25950" d="M5.94,4.001 C6.669,3.979 7.351,4.355 7.722,4.983 C8.093,5.61 8.093,6.39 7.722,7.017 C7.351,7.645 6.669,8.021 5.94,7.999 C4.859,7.967 4,7.081 4,6 C4,4.919 4.859,4.033 5.94,4.001 Z"/>
+        <path fill="#FFF" d="M5,5 L7,5 L7,6.5 C7,7.052 6.552,7.5 6,7.5 C5.448,7.5 5,7.052 5,6.5 L5,5 Z"/>
+      </g>
+    </svg>
+  )
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ color: 'rgba(26,26,26,0.4)' }}>
+      <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 function ContactSection({
   email, setEmail, name, setName, phone, setPhone,
-  countryCode, callingCode, requirePhone,
+  countryCode: _countryCode, callingCode: _callingCode, requirePhone,
   focused, setFocused, touched, touch, submitted,
 }: ContactSectionProps) {
+  void _countryCode; void _callingCode
   const show = (id: string) => submitted || touched[id]
   const errEmail = valEmail(email)
   const errName  = valName(name)
   const errPhone = requirePhone ? valPhone(phone) : ''
 
-  const updatePayment = useCallback((fields: Record<string, string>) => {
-    // será chamado pelo pai via paymentId — aqui só preparamos o valor
-    void fields
-  }, [])
-  void updatePayment
-
   return (
     <section style={{ marginBottom: '32px' }}>
-      <h2 style={H2_STYLE}>Informações de contacto</h2>
+      <h2 style={H2_STYLE}>Informações de envio</h2>
 
-      {/* Email */}
+      {/* Dados de contacto — email + nome agrupados */}
       <div style={{ marginBottom: '12px' }}>
-        <label style={LABEL_STYLE}>Email</label>
+        <label style={LABEL_STYLE}>Dados de contacto</label>
         <div style={{ position: 'relative' }}>
           <input
             type="email"
@@ -394,57 +411,46 @@ function ContactSection({
             onFocus={() => setFocused('email')}
             onBlur={() => touch('email')}
             autoComplete="email"
-            style={inputStyle(focused === 'email', !!(show('email') && errEmail), '6px', { paddingLeft: '36px' })}
+            style={inputStyle(focused === 'email', !!(show('email') && errEmail), '6px 6px 0px 0px', { paddingLeft: '36px' })}
           />
-          <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex' }}>
+          <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'rgba(26,26,26,0.35)', display: 'flex' }}>
             <EmailIcon />
           </div>
         </div>
-        {show('email') && <FieldError msg={errEmail} />}
-      </div>
-
-      {/* Nome */}
-      <div style={{ marginBottom: requirePhone ? '12px' : '0' }}>
-        <label style={LABEL_STYLE}>Nome completo</label>
         <div style={{ position: 'relative' }}>
           <input
             type="text"
-            placeholder="Nome e apelido"
+            placeholder="Nome completo"
             value={name}
             onChange={e => setName(e.target.value)}
             onFocus={() => setFocused('name')}
             onBlur={() => touch('name')}
             autoComplete="name"
-            style={inputStyle(focused === 'name', !!(show('name') && errName), '6px', { paddingLeft: '36px' })}
+            style={inputStyle(focused === 'name', !!(show('name') && errName), '0px 0px 6px 6px', { paddingLeft: '36px' })}
           />
-          <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex' }}>
+          <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'rgba(26,26,26,0.35)', display: 'flex' }}>
             <PersonIcon />
           </div>
         </div>
+        {show('email') && <FieldError msg={errEmail} />}
         {show('name') && <FieldError msg={errName} />}
       </div>
 
-      {/* Telefone */}
-      {requirePhone && (
-        <div>
-          <label style={LABEL_STYLE}>Telefone</label>
-          <div style={{ display: 'flex', position: 'relative' }}>
-            <div style={{
-              width: '52px', height: '36px', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', gap: '2px', backgroundColor: 'rgb(255,255,255)',
-              boxShadow: SH_DEFAULT, borderRadius: '6px 0 0 6px', flexShrink: 0,
-              paddingLeft: '8px', paddingRight: '4px',
-              borderRight: '1px solid rgb(224,224,224)',
-            }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`https://flagcdn.com/w20/${countryCode.toLowerCase()}.png`}
-                alt={countryCode}
-                style={{ width: '16px', height: 'auto' }}
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-              />
-              <span style={{ fontSize: '11px', color: 'rgba(26,26,26,0.6)' }}>{callingCode}</span>
-            </div>
+      {/* Telefone — sempre visível (obrigatório ou não) */}
+      <div>
+        <label style={LABEL_STYLE}>Morada de envio</label>
+        <div style={{ display: 'flex', position: 'relative' }}>
+          <div style={{
+            width: '52px', height: '36px', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: '2px', backgroundColor: 'rgb(255,255,255)',
+            boxShadow: SH_DEFAULT, borderRadius: '0px 0px 0px 6px', flexShrink: 0,
+            paddingLeft: '8px', paddingRight: '4px', cursor: 'pointer',
+            borderRight: '1px solid rgb(224,224,224)',
+          }}>
+            <FlagPTIcon />
+            <ChevronDownIcon />
+          </div>
+          <div style={{ position: 'relative', flex: 1 }}>
             <input
               type="tel"
               placeholder="912 345 678"
@@ -454,12 +460,19 @@ function ContactSection({
               onBlur={() => touch('phone')}
               inputMode="tel"
               autoComplete="tel"
-              style={inputStyle(focused === 'phone', !!(show('phone') && errPhone), '0 6px 6px 0', { flex: 1, width: 'auto', borderRadius: '0 6px 6px 0' })}
+              style={inputStyle(focused === 'phone', !!(show('phone') && errPhone), '0px 0px 6px 0px', { width: '100%', paddingRight: '32px' })}
             />
+            <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'rgba(26,26,26,0.35)', display: 'flex' }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M8 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
+              </svg>
+            </div>
           </div>
-          {show('phone') && <FieldError msg={errPhone} />}
         </div>
-      )}
+        {show('phone') && <FieldError msg={errPhone} />}
+      </div>
     </section>
   )
 }
@@ -1087,7 +1100,7 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
         }
       `}</style>
 
-      <div className="ss-layout" style={{ fontFamily: "'Be Vietnam Pro', -apple-system, 'system-ui', 'Segoe UI', sans-serif" }}>
+      <div className="ss-layout" style={{ fontFamily: "var(--font-be-vietnam-pro), 'Be Vietnam Pro', -apple-system, 'system-ui', 'Segoe UI', sans-serif" }}>
 
         {/* Mobile: header com resumo colapsável */}
         <MobileSummary
