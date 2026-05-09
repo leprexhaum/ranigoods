@@ -699,6 +699,11 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
             stripe={stripePromise}
             options={{
               clientSecret,
+              fonts: [
+                {
+                  cssSrc: 'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap',
+                },
+              ],
               appearance: {
                 theme: 'stripe',
                 variables: {
@@ -706,7 +711,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
                   colorBackground: '#ffffff',
                   colorText:       'rgba(26,26,26,0.9)',
                   colorDanger:     'rgb(223,27,65)',
-                  fontFamily:      'inherit',
+                  fontFamily:      '"Be Vietnam Pro", -apple-system, "system-ui", "Segoe UI", sans-serif',
                   borderRadius:    '6px',
                   spacingUnit:     '4px',
                 },
