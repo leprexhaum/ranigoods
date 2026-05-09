@@ -623,7 +623,23 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
       redirect: 'if_required',
     })
     if (err) { setError(err.message ?? 'Erro ao processar pagamento'); setLoading(false); return }
-    if (paymentIntent) { pollAndRedirect(); return }
+    if (paymentIntent) {
+      // Pagamento síncrono (cartão) — succeeded imediato, redirecionar sem esperar webhook
+      if (paymentIntent.status === 'succeeded') {
+        const dest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
+        try {
+          const ur = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
+          if (ur.ok) {
+            const u = await ur.json()
+            if (u?.upsell) { window.location.href = `/checkout/upsell/${paymentId}`; return }
+          }
+        } catch { /* segue */ }
+        window.location.href = dest
+        return
+      }
+      // Pagamento assíncrono (MB WAY, Multibanco) — polling até webhook confirmar
+      pollAndRedirect()
+    }
   }
 
   if (polling) return <PollingScreen />
