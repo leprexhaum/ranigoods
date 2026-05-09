@@ -55,6 +55,7 @@ const TEMPLATES = [
   { id: 'promo',        label: 'Promoção'           },
   { id: 'info_product', label: 'Produto Digital'    },
   { id: 'dropshipping', label: 'Dropshipping'       },
+  { id: 'stripe_split', label: 'Stripe Split'       },
 ]
 
 const LANGUAGES = [

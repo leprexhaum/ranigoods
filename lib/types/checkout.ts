@@ -1,4 +1,4 @@
-export type CheckoutTemplate = 'single_step' | 'promo' | 'info_product' | 'dropshipping'
+export type CheckoutTemplate = 'single_step' | 'promo' | 'info_product' | 'dropshipping' | 'stripe_split'
 
 export interface OrderBump {
   id:          string
