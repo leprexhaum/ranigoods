@@ -140,7 +140,8 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
 
   const pollAndRedirect = async () => {
     setPolling(true)
-    const successDest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
+    // Passa status=paid no URL para o SuccessContent não precisar de fazer polling
+    const successDest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
     let attempts = 0
     const poll = async (): Promise<void> => {
       try {
@@ -158,10 +159,11 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
           return
         }
         if (data.status === 'failed') { setError('Pagamento recusado. Tente novamente.'); setPolling(false); setLoading(false); return }
-        if (attempts < 20) { attempts++; setTimeout(poll, 3000) }
+        // Intervalo reduzido de 3s para 1.5s para resposta mais rápida
+        if (attempts < 30) { attempts++; setTimeout(poll, 1500) }
         else { window.location.href = successDest }
       } catch {
-        if (attempts < 20) { attempts++; setTimeout(poll, 3000) }
+        if (attempts < 30) { attempts++; setTimeout(poll, 1500) }
         else { window.location.href = successDest }
       }
     }
