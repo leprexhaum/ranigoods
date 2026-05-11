@@ -127,7 +127,7 @@ export default function PixelLogs() {
                 </p>
                 {log.data?.value !== undefined && (
                   <p className="text-ep-muted text-xs mt-0.5">
-                    Valor: R$ {((log.data.value as number) / 100).toFixed(2)}
+                    Valor: {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: (log.data.currency as string) || 'EUR' }).format((log.data.value as number) / 100)}
                   </p>
                 )}
               </div>
