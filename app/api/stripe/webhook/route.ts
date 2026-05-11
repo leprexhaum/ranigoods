@@ -39,8 +39,6 @@ async function getCharge(pi: Stripe.PaymentIntent): Promise<Stripe.Charge | null
 
 async function persistPayment(pi: Stripe.PaymentIntent): Promise<void> {
   const charge      = await getCharge(pi)
-  const customer    = charge?.billing_details?.name  ?? pi.metadata?.customerName  ?? 'Cliente'
-  const email       = charge?.billing_details?.email ?? pi.metadata?.customerEmail ?? ''
   const method      = resolveMethod(charge)
 
   // Usar timestamp real do Stripe
@@ -48,12 +46,15 @@ async function persistPayment(pi: Stripe.PaymentIntent): Promise<void> {
   const isoDate     = stripeDate.toISOString().slice(0, 10)
   const dateLabel   = stripeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 
-  // Tentar obter nome real do produto via checkout_payment
-  const cpName = await prisma.checkoutPayment.findFirst({
+  // Tentar obter dados reais do CheckoutPayment (preenchidos pelo formulário)
+  const cpData = await prisma.checkoutPayment.findFirst({
     where:  { stripePaymentIntentId: pi.id },
-    select: { product: { select: { name: true } } },
+    select: { customerName: true, customerEmail: true, product: { select: { name: true } } },
   })
-  const productName = cpName?.product?.name ?? pi.metadata?.productName ?? pi.description ?? 'Produto'
+
+  const customer    = cpData?.customerName || charge?.billing_details?.name || pi.metadata?.customerName || 'Cliente'
+  const email       = cpData?.customerEmail || charge?.billing_details?.email || pi.metadata?.customerEmail || ''
+  const productName = cpData?.product?.name ?? pi.metadata?.productName ?? pi.description ?? 'Produto'
 
   await prisma.payment.upsert({
     where:  { id: pi.id },
@@ -875,6 +876,21 @@ export async function POST(req: NextRequest) {
           },
           update: { active: p.active, timesRedeemed: p.times_redeemed },
         }).catch(() => {})
+        break
+      }
+
+      case 'charge.updated': {
+        const charge = event.data.object as Stripe.Charge
+        const piId = typeof charge.payment_intent === 'string'
+          ? charge.payment_intent
+          : charge.payment_intent?.id
+        if (piId) {
+          const method = resolveMethod(charge)
+          await prisma.payment.updateMany({
+            where: { id: piId },
+            data:  { method },
+          })
+        }
         break
       }
 

@@ -933,6 +933,9 @@ interface RightColumnProps {
   stripePromise: ReturnType<typeof loadStripe> | null
   paymentId: string; paymentAmount: number
   onAddPaymentInfo?: () => void
+  onNameBlur?: () => void
+  onEmailBlur?: () => void
+  onPhoneBlur?: () => void
 }
 
 function RightColumn({
@@ -944,6 +947,7 @@ function RightColumn({
   address, setAddress,
   clientSecret, stripePromise, paymentId, paymentAmount,
   onAddPaymentInfo,
+  onNameBlur, onEmailBlur, onPhoneBlur,
 }: RightColumnProps) {
   const [focused,   setFocused]   = useState<string | null>(null)
   const [touched,   setTouched]   = useState<Record<string, boolean>>({})
@@ -952,7 +956,10 @@ function RightColumn({
   const touch = useCallback((id: string) => {
     setTouched(t => ({ ...t, [id]: true }))
     setFocused(null)
-  }, [])
+    if (id === 'name' || id === 'addr_name') onNameBlur?.()
+    if (id === 'email') onEmailBlur?.()
+    if (id === 'addr_phone') onPhoneBlur?.()
+  }, [onNameBlur, onEmailBlur, onPhoneBlur])
 
   void submitted
   void setSubmitted
@@ -1163,6 +1170,29 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Atualizar dados do cliente no CheckoutPayment quando preenche os campos
+  const updatePayment = useCallback((fields: { customerName?: string; customerEmail?: string; customerPhone?: string }) => {
+    if (!paymentId) return
+    fetch(`/api/checkout/payment/${paymentId}/update`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    }).catch(() => {})
+  }, [paymentId])
+
+  // Debounced update: salvar dados quando o utilizador sai do campo
+  const handleNameBlur = useCallback(() => {
+    if (name.trim()) updatePayment({ customerName: name.trim() })
+  }, [name, updatePayment])
+
+  const handleEmailBlur = useCallback(() => {
+    if (email.trim()) updatePayment({ customerEmail: email.trim() })
+  }, [email, updatePayment])
+
+  const handlePhoneBlur = useCallback(() => {
+    if (phone.trim()) updatePayment({ customerPhone: phone.trim() })
+  }, [phone, updatePayment])
+
   const stripePromise = useMemo(
     () => loadStripe(publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''),
     [publishableKey],
@@ -1245,6 +1275,9 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
             paymentId={paymentId}
             paymentAmount={paymentAmount}
             onAddPaymentInfo={() => trackEvent('AddPaymentInfo', { value: total, currency: product.currency, content_ids: [product.id] })}
+            onNameBlur={handleNameBlur}
+            onEmailBlur={handleEmailBlur}
+            onPhoneBlur={handlePhoneBlur}
           />
         </div>
       </div>
