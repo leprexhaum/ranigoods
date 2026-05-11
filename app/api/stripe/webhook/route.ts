@@ -293,8 +293,8 @@ export async function POST(req: NextRequest) {
 
           // Pushcut com userId do dono do produto para filtrar configs correctamente
           pushcutService.notify('payment.succeeded', {
-            title:   'Venda aprovada',
-            message: `${cpRecord?.customerName ?? pi.metadata?.customerName ?? 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
+            title:   `💰 Venda aprovada — ${cpRecord?.product?.name ?? pi.metadata?.productName ?? 'Produto'}`,
+            message: `${cpRecord?.customerName || pi.metadata?.customerName || 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
             userId:  ownerUserId,
           }),
 
@@ -319,9 +319,16 @@ export async function POST(req: NextRequest) {
           data:  { stripeErrorCode: errCode, stripeErrorMsg: errMsg.slice(0, 500), lastStripeEventId: event.id },
         })
 
+        // Buscar dados do CheckoutPayment para notificação
+        const cpFailed = await prisma.checkoutPayment.findFirst({
+          where: { stripePaymentIntentId: pi.id },
+          select: { customerName: true, product: { select: { name: true, userId: true } } },
+        })
+
         await pushcutService.notify('payment.failed', {
-          title:   'Pagamento falhado',
-          message: `${pi.metadata?.customerName ?? 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
+          title:   `❌ Pagamento falhado — ${cpFailed?.product?.name ?? pi.metadata?.productName ?? 'Produto'}`,
+          message: `${cpFailed?.customerName || pi.metadata?.customerName || 'Cliente'} — ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()}`,
+          userId:  cpFailed?.product?.userId,
         })
 
         await webhookNotifyService.notifyWebhooks('payment.failed', {
@@ -750,9 +757,18 @@ export async function POST(req: NextRequest) {
           }).catch(() => {})
         }
         await persistRefund(charge)
+
+        // Buscar dados do CheckoutPayment para notificação
+        const piIdRefund = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id
+        const cpRefund = piIdRefund ? await prisma.checkoutPayment.findFirst({
+          where: { stripePaymentIntentId: piIdRefund },
+          select: { customerName: true, product: { select: { name: true, userId: true } } },
+        }) : null
+
         await pushcutService.notify('payment.refunded', {
-          title:   'Reembolso processado',
-          message: `Charge ${charge.id} — ${(charge.amount_refunded / 100).toFixed(2)} ${charge.currency.toUpperCase()}`,
+          title:   `🔄 Reembolso — ${cpRefund?.product?.name ?? 'Produto'}`,
+          message: `${cpRefund?.customerName || 'Cliente'} — ${(charge.amount_refunded / 100).toFixed(2)} ${charge.currency.toUpperCase()}`,
+          userId:  cpRefund?.product?.userId,
         })
         await webhookNotifyService.notifyWebhooks('payment.refunded', {
           chargeId: charge.id, amount: charge.amount_refunded, currency: charge.currency,
