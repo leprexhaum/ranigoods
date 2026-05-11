@@ -188,9 +188,11 @@ export default function DevIntegracoesPage() {
   const [pushEvent, setPushEvent] = useState('payment.succeeded')
   const [pushTitle, setPushTitle] = useState('🧪 Teste Pushcut')
   const [pushMessage, setPushMessage] = useState('Notificação de teste — TechPags Dev')
+  const [pushUrl, setPushUrl] = useState('')
 
   // UTMify state
   const [utmConfigId, setUtmConfigId] = useState('')
+  const [utmApiToken, setUtmApiToken] = useState('')
   const [utmProduct, setUtmProduct] = useState('')
   const [utmAmount, setUtmAmount] = useState('1000')
 
@@ -198,6 +200,8 @@ export default function DevIntegracoesPage() {
   const [whEvent, setWhEvent] = useState('payment.succeeded')
   const [whProduct, setWhProduct] = useState('')
   const [whAmount, setWhAmount] = useState('1000')
+  const [whUrl, setWhUrl] = useState('')
+  const [whSecret, setWhSecret] = useState('')
 
   // Stripe Webhook state
   const [stripeEvent, setStripeEvent] = useState('payment_intent.succeeded')
@@ -253,7 +257,7 @@ export default function DevIntegracoesPage() {
           title="Pushcut"
           icon={<Bell size={16} />}
           running={running === 'pushcut'}
-          onRun={() => runTest('pushcut', { event: pushEvent, title: pushTitle, message: pushMessage })}
+          onRun={() => runTest('pushcut', { event: pushEvent, title: pushTitle, message: pushMessage, customUrl: pushUrl || undefined })}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -271,6 +275,11 @@ export default function DevIntegracoesPage() {
             <label className="text-ep-secondary text-xs font-medium block mb-1">Mensagem</label>
             <input value={pushMessage} onChange={e => setPushMessage(e.target.value)} className={INPUT_CLS} />
           </div>
+          <div>
+            <label className="text-ep-secondary text-xs font-medium block mb-1">URL customizado (opcional)</label>
+            <input value={pushUrl} onChange={e => setPushUrl(e.target.value)} placeholder="https://api.pushcut.io/... — deixe vazio para usar configs salvas" className={INPUT_CLS} />
+            <p className="text-ep-muted text-xs mt-1">Se preenchido, envia direto para este URL em vez de usar as configs do banco</p>
+          </div>
         </TestPanel>
 
         {/* UTMify */}
@@ -281,7 +290,8 @@ export default function DevIntegracoesPage() {
           onRun={() => {
             const prod = selectedProduct(utmProduct)
             runTest('utmify', {
-              configId: utmConfigId,
+              configId: utmConfigId || undefined,
+              customApiToken: utmApiToken || undefined,
               productId: prod?.id || 'prod_test',
               productName: prod?.name || 'Produto Teste',
               amount: utmAmount,
@@ -291,9 +301,9 @@ export default function DevIntegracoesPage() {
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-ep-secondary text-xs font-medium block mb-1">Config UTMify *</label>
+              <label className="text-ep-secondary text-xs font-medium block mb-1">Config UTMify salva</label>
               <select value={utmConfigId} onChange={e => setUtmConfigId(e.target.value)} className={SELECT_CLS}>
-                <option value="">Selecionar config…</option>
+                <option value="">Nenhuma (usar token abaixo)</option>
                 {utmifyConfigs.map(c => <option key={c.id} value={c.id}>{c.name || 'Sem nome'}{!c.enabled ? ' (desativado)' : ''}</option>)}
               </select>
             </div>
@@ -304,6 +314,11 @@ export default function DevIntegracoesPage() {
                 {products.map(p => <option key={p.id} value={p.id}>{p.name} — {(p.price / 100).toFixed(2)} {p.currency}</option>)}
               </select>
             </div>
+          </div>
+          <div>
+            <label className="text-ep-secondary text-xs font-medium block mb-1">API Token customizado (opcional)</label>
+            <input value={utmApiToken} onChange={e => setUtmApiToken(e.target.value)} placeholder="Cole aqui um token UTMify para testar direto" className={INPUT_CLS} />
+            <p className="text-ep-muted text-xs mt-1">Se preenchido, usa este token em vez da config selecionada acima</p>
           </div>
           <div>
             <label className="text-ep-secondary text-xs font-medium block mb-1">Valor (centavos)</label>
@@ -324,6 +339,8 @@ export default function DevIntegracoesPage() {
               productName: prod?.name || 'Produto Teste',
               amount: whAmount,
               currency: prod?.currency || 'EUR',
+              customUrl: whUrl || undefined,
+              customSecret: whSecret || undefined,
             })
           }}
         >
@@ -342,6 +359,17 @@ export default function DevIntegracoesPage() {
               </select>
             </div>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-ep-secondary text-xs font-medium block mb-1">URL customizado (opcional)</label>
+              <input value={whUrl} onChange={e => setWhUrl(e.target.value)} placeholder="https://meusite.com/webhook" className={INPUT_CLS} />
+            </div>
+            <div>
+              <label className="text-ep-secondary text-xs font-medium block mb-1">Secret (opcional)</label>
+              <input value={whSecret} onChange={e => setWhSecret(e.target.value)} placeholder="whsec_..." className={INPUT_CLS} />
+            </div>
+          </div>
+          <p className="text-ep-muted text-xs">Se URL preenchido, envia direto para esse endpoint. Senão, usa os webhooks configurados no banco.</p>
           <div>
             <label className="text-ep-secondary text-xs font-medium block mb-1">Valor (centavos)</label>
             <input type="number" value={whAmount} onChange={e => setWhAmount(e.target.value)} placeholder="1000" className={INPUT_CLS + ' max-w-[200px]'} />

@@ -21,6 +21,26 @@ export async function POST(req: NextRequest) {
         const title = (payload.title as string) || '🧪 Teste Pushcut'
         const message = (payload.message as string) || 'Notificação de teste — TechPags Dev'
         const userId = payload.userId as string | undefined
+        const customUrl = payload.customUrl as string | undefined
+
+        // Se URL customizado, enviar direto
+        if (customUrl) {
+          const res = await fetch(customUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, text: message }),
+          })
+          return NextResponse.json({
+            success: res.ok,
+            duration: Date.now() - startTime,
+            details: {
+              mode: 'custom_url',
+              url: customUrl,
+              statusCode: res.status,
+              payload: { title, text: message },
+            },
+          })
+        }
 
         // Buscar configs que vão receber
         const configs = await prisma.pushcutConfig.findMany({
@@ -43,6 +63,7 @@ export async function POST(req: NextRequest) {
           success: true,
           duration: Date.now() - startTime,
           details: {
+            mode: 'saved_configs',
             event,
             configsMatched: matching.length,
             urls: matching.map(c => c.webhookUrl),
@@ -52,14 +73,23 @@ export async function POST(req: NextRequest) {
       }
 
       case 'utmify': {
-        const configId = payload.configId as string
-        if (!configId) {
-          return NextResponse.json({ success: false, duration: Date.now() - startTime, error: 'configId é obrigatório' })
-        }
+        const configId = payload.configId as string | undefined
+        const customApiToken = payload.customApiToken as string | undefined
 
-        const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: configId } })
-        if (!utmCfg) {
-          return NextResponse.json({ success: false, duration: Date.now() - startTime, error: 'Config UTMify não encontrada' })
+        let apiToken = ''
+        let configName = 'Token customizado'
+
+        if (customApiToken) {
+          apiToken = customApiToken
+        } else if (configId) {
+          const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: configId } })
+          if (!utmCfg) {
+            return NextResponse.json({ success: false, duration: Date.now() - startTime, error: 'Config UTMify não encontrada' })
+          }
+          apiToken = utmCfg.apiToken
+          configName = utmCfg.name || 'Sem nome'
+        } else {
+          return NextResponse.json({ success: false, duration: Date.now() - startTime, error: 'Selecione uma config ou insira um API token' })
         }
 
         const orderId = `test_${Date.now()}`
@@ -90,13 +120,13 @@ export async function POST(req: NextRequest) {
           gatewayFeeInCents: 0,
         }
 
-        await utmifyService.sendOrder(utmCfg.apiToken, orderInput)
+        await utmifyService.sendOrder(apiToken, orderInput)
 
         return NextResponse.json({
           success: true,
           duration: Date.now() - startTime,
           details: {
-            configName: utmCfg.name,
+            configName,
             orderId,
             endpoint: 'https://api.utmify.com.br/api-credentials/orders',
             payload: orderInput,
@@ -107,6 +137,8 @@ export async function POST(req: NextRequest) {
       case 'outbound_webhook': {
         const event = (payload.event as string) || 'payment.succeeded'
         const userId = payload.userId as string | undefined
+        const customUrl = payload.customUrl as string | undefined
+        const customSecret = payload.customSecret as string | undefined
         const testPayload = {
           productId: (payload.productId as string) || 'prod_test',
           productName: (payload.productName as string) || 'Produto Teste',
@@ -117,6 +149,36 @@ export async function POST(req: NextRequest) {
           status: 'paid',
           isTest: true,
           timestamp: new Date().toISOString(),
+        }
+
+        // Se URL customizado, enviar direto
+        if (customUrl) {
+          const { createHmac } = await import('crypto')
+          const bodyStr = JSON.stringify({ event, payload: testPayload, timestamp: new Date().toISOString() })
+          const sig = customSecret
+            ? createHmac('sha256', customSecret).update(Buffer.from(bodyStr)).digest('hex')
+            : 'no_secret'
+          const res = await fetch(customUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Webhook-Signature': `sha256=${sig}`,
+              'X-Webhook-Event': event,
+            },
+            body: bodyStr,
+          })
+          const responseText = await res.text().catch(() => '')
+          return NextResponse.json({
+            success: res.ok,
+            duration: Date.now() - startTime,
+            details: {
+              mode: 'custom_url',
+              url: customUrl,
+              statusCode: res.status,
+              response: responseText.slice(0, 2000),
+              payload: testPayload,
+            },
+          })
         }
 
         // Buscar webhooks que vão receber
@@ -143,6 +205,7 @@ export async function POST(req: NextRequest) {
           success: true,
           duration: Date.now() - startTime,
           details: {
+            mode: 'saved_configs',
             event,
             webhooksMatched: matching.length,
             urls: matching.map(w => w.url),
