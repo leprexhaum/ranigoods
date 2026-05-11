@@ -2,6 +2,7 @@ import { createHash } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { decryptIfNotEmpty } from '@/lib/crypto'
 import { getGoogleAdsCredentials } from '@/lib/services/platform-config.service'
+import { eurToBrlCents } from '@/lib/utils/currency'
 import type {
   PixelConfig, PixelFireLog, TrackEventPayload, PixelEventConfig,
 } from '@/lib/types/pixel'
@@ -320,9 +321,13 @@ async function fireGoogleAdsAPI(
     return { success: false, message: `Google Ads: evento "${eventName}" não é uma conversão suportada` }
   }
 
-  const value    = payload.data?.value ? payload.data.value / 100 : 0
-  const currency = payload.data?.currency ?? 'EUR'
-  const orderId  = payload.data?.order_id ?? ''
+  const rawValueCents = payload.data?.value ?? 0
+  const rawCurrency   = (payload.data?.currency ?? 'EUR').toUpperCase()
+  // Contas Google Ads são brasileiras — converter EUR para BRL
+  const valueCents = rawCurrency === 'EUR' ? eurToBrlCents(rawValueCents) : rawValueCents
+  const value      = valueCents ? valueCents / 100 : 0
+  const currency   = rawCurrency === 'EUR' ? 'BRL' : rawCurrency
+  const orderId    = payload.data?.order_id ?? ''
 
   // Formato exigido pela API: "yyyy-MM-dd HH:mm:ss+HH:MM"
   const now = new Date()
@@ -593,6 +598,17 @@ export const pixelService = {
             res = { success: true, message: 'Evento registrado' }
         }
 
+        // Para Google Ads, salvar log com valor convertido em BRL
+        const logData = config.platform === 'google_ads' && payload.data?.value
+          ? {
+              ...payload.data,
+              value: (payload.data.currency ?? 'EUR').toString().toUpperCase() === 'EUR'
+                ? eurToBrlCents(payload.data.value as number)
+                : payload.data.value,
+              currency: (payload.data.currency ?? 'EUR').toString().toUpperCase() === 'EUR' ? 'BRL' : payload.data.currency,
+            }
+          : payload.data
+
         return this.addLog({
           userId:   config.userId,
           configId: config.id,
@@ -600,7 +616,7 @@ export const pixelService = {
           event:    eventName,
           success:  res.success,
           message:  res.message,
-          data:     payload.data,
+          data:     logData,
         })
       }),
     )
