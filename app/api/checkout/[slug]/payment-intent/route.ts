@@ -109,13 +109,35 @@ export async function POST(
       },
     }
 
-    // Criar PI com logging
-    const pi = await stripeLogger.logApiCall(
-      'createPaymentIntent',
-      '',
-      piParams,
-      () => stripe.paymentIntents.create(piParams),
-    )
+    // Criar PI com logging — fallback removendo métodos não suportados
+    let pi
+    try {
+      pi = await stripeLogger.logApiCall(
+        'createPaymentIntent',
+        '',
+        piParams,
+        () => stripe.paymentIntents.create(piParams),
+      )
+    } catch (stripeErr: unknown) {
+      const isInvalidMethod = stripeErr instanceof Error && stripeErr.message?.includes('payment method type')
+      if (isInvalidMethod && paymentMethodTypes.length > 1) {
+        // Extrair o método inválido da mensagem de erro e remover
+        const match = (stripeErr as Error).message.match(/type "([^"]+)" is invalid/)
+        const invalidMethod = match?.[1]
+        const filteredMethods = invalidMethod
+          ? paymentMethodTypes.filter(m => m !== invalidMethod)
+          : paymentMethodTypes.filter(m => m === 'card')
+        const fallbackParams = { ...piParams, payment_method_types: filteredMethods.length > 0 ? filteredMethods : ['card'] }
+        pi = await stripeLogger.logApiCall(
+          'createPaymentIntent',
+          '',
+          fallbackParams,
+          () => stripe.paymentIntents.create(fallbackParams),
+        )
+      } else {
+        throw stripeErr
+      }
+    }
 
     const payment = await checkoutService.createPayment({
       productId:             product.id,
