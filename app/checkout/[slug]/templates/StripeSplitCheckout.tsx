@@ -566,6 +566,7 @@ interface PaymentSectionProps {
   paymentAmount: number
   product: CheckoutProduct
   onAddPaymentInfo?: () => void
+  onBeforeConfirm?: () => Promise<void>
 }
 
 function PollingScreen() {
@@ -578,9 +579,9 @@ function PollingScreen() {
   )
 }
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo }: {
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo, onBeforeConfirm }: {
   paymentId: string; successUrl: string; amount: number; currency: string
-  brandName: string; legalName: string; onAddPaymentInfo?: () => void
+  brandName: string; legalName: string; onAddPaymentInfo?: () => void; onBeforeConfirm?: () => Promise<void>
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -622,6 +623,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     if (!stripe || !elements) return
     setLoading(true); setError('')
     onAddPaymentInfo?.()
+    await onBeforeConfirm?.()
     const returnUrl = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}`
     const { error: err, paymentIntent } = await stripe.confirmPayment({
       elements,
@@ -703,7 +705,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
   )
 }
 
-function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount, product, onAddPaymentInfo }: PaymentSectionProps) {
+function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount, product, onAddPaymentInfo, onBeforeConfirm }: PaymentSectionProps) {
   const brandName = product.brandName || product.name
 
   return (
@@ -756,6 +758,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
               brandName={brandName}
               legalName={product.legalName || ''}
               onAddPaymentInfo={onAddPaymentInfo}
+              onBeforeConfirm={onBeforeConfirm}
             />
           </Elements>
         )
@@ -944,6 +947,7 @@ interface RightColumnProps {
   onEmailBlur?: () => void
   onPhoneBlur?: () => void
   onAddressBlur?: () => void
+  onBeforeConfirm?: () => Promise<void>
 }
 
 function RightColumn({
@@ -955,7 +959,7 @@ function RightColumn({
   address, setAddress,
   clientSecret, stripePromise, paymentId, paymentAmount,
   onAddPaymentInfo,
-  onNameBlur, onEmailBlur, onPhoneBlur, onAddressBlur,
+  onNameBlur, onEmailBlur, onPhoneBlur, onAddressBlur, onBeforeConfirm,
 }: RightColumnProps) {
   const [focused,   setFocused]   = useState<string | null>(null)
   const [touched,   setTouched]   = useState<Record<string, boolean>>({})
@@ -1021,6 +1025,7 @@ function RightColumn({
         paymentAmount={paymentAmount}
         product={product}
         onAddPaymentInfo={onAddPaymentInfo}
+        onBeforeConfirm={onBeforeConfirm}
       />
 
       {/* Footer */}
@@ -1259,6 +1264,23 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
     }
   }, [paymentId, address])
 
+  // Salvar todos os dados do cliente antes de confirmar o pagamento
+  // Garante que nome/email/phone ficam salvos mesmo sem blur
+  const handleBeforeConfirm = useCallback(async () => {
+    if (!paymentId) return
+    const fields: Record<string, string> = {}
+    if (name.trim())  fields.customerName  = name.trim()
+    if (email.trim()) fields.customerEmail = email.trim()
+    if (phone.trim()) fields.customerPhone = phone.trim()
+    if (Object.keys(fields).length > 0) {
+      await fetch(`/api/checkout/payment/${paymentId}/update`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
+      }).catch(() => {})
+    }
+  }, [paymentId, name, email, phone])
+
   const stripePromise = useMemo(
     () => loadStripe(publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''),
     [publishableKey],
@@ -1345,6 +1367,7 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
             onEmailBlur={handleEmailBlur}
             onPhoneBlur={handlePhoneBlur}
             onAddressBlur={handleAddressBlur}
+            onBeforeConfirm={handleBeforeConfirm}
           />
         </div>
       </div>

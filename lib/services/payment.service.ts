@@ -1,6 +1,11 @@
 import { prisma } from '@/lib/prisma'
 import type { Payment, PaymentsQuery, PaymentsResponse } from '@/lib/types/payment'
 
+const METHOD_MAP: Record<string, string> = {
+  card: 'Cartão', mb_way: 'MB WAY', multibanco: 'Multibanco',
+  sepa_debit: 'SEPA', paypal: 'PayPal', pix: 'Pix', boleto: 'Boleto',
+}
+
 function toPayment(r: {
   id: string
   customerName: string; customerEmail: string; amount: number; status: string
@@ -19,7 +24,7 @@ function toPayment(r: {
     date:             r.createdAt.toISOString().slice(0, 10),
     createdAt:        r.createdAt.toISOString(),
     product:          r.product.name,
-    method:           (r.paymentMethod || 'Cartão') as Payment['method'],
+    method:           (METHOD_MAP[r.paymentMethod] || r.paymentMethod || 'Cartão') as Payment['method'],
     cardLast4:        r.cardLast4,
     cardBrand:        r.cardBrand,
     cardCountry:      r.cardCountry,

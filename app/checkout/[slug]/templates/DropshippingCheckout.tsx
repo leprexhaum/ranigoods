@@ -26,8 +26,8 @@ function buildSuccessUrl(baseUrl: string, paymentId: string): string {
   return url.toString()
 }
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo }: {
-  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; legalName: string; onAddPaymentInfo?: () => void
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo, onBeforeConfirm }: {
+  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; legalName: string; onAddPaymentInfo?: () => void; onBeforeConfirm?: () => Promise<void>
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -71,6 +71,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     setLoading(true)
     setError('')
     onAddPaymentInfo?.()
+    await onBeforeConfirm?.()
     const returnUrl = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}`
     const { error: err, paymentIntent } = await stripe.confirmPayment({
       elements,
@@ -343,7 +344,20 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
                   },
                 },
               }}>
-                <PaymentForm paymentId={paymentId} successUrl={product.successUrl} amount={paymentAmount} currency={product.currency} brandName={brandName} legalName={product.legalName || ''} onAddPaymentInfo={() => trackEvent('AddPaymentInfo', { value: total, currency: product.currency, content_ids: [product.id] })} />
+                <PaymentForm paymentId={paymentId} successUrl={product.successUrl} amount={paymentAmount} currency={product.currency} brandName={brandName} legalName={product.legalName || ''} onAddPaymentInfo={() => trackEvent('AddPaymentInfo', { value: total, currency: product.currency, content_ids: [product.id] })} onBeforeConfirm={async () => {
+                  if (!paymentId) return
+                  const fields: Record<string, string> = {}
+                  if (name.trim())  fields.customerName  = name.trim()
+                  if (email.trim()) fields.customerEmail = email.trim()
+                  if (phone.trim()) fields.customerPhone = phone.trim()
+                  if (Object.keys(fields).length > 0) {
+                    await fetch(`/api/checkout/payment/${paymentId}/update`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(fields),
+                    }).catch(() => {})
+                  }
+                }} />
               </Elements>
             )
           )}
