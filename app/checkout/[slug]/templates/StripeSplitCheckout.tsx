@@ -400,11 +400,11 @@ function ContactSection({
 
   return (
     <section style={{ marginBottom: '32px' }}>
-      <h2 style={H2_STYLE}>Informações de envio</h2>
+      <h2 style={H2_STYLE}>Contacto</h2>
 
       {/* Dados de contacto — email + nome agrupados */}
       <div style={{ marginBottom: '12px' }}>
-        <label style={LABEL_STYLE}>Dados de contacto</label>
+        <label style={LABEL_STYLE}>E-mail e nome</label>
         <div style={{ position: 'relative' }}>
           <input
             type="email"
@@ -807,10 +807,10 @@ function AddressSection({
 
   return (
     <section style={{ marginBottom: '32px' }}>
-      <h2 style={H2_STYLE}>Informações de envio</h2>
+      <h2 style={H2_STYLE}>Endereço de entrega</h2>
 
       <div>
-        <label style={LABEL_STYLE}>Morada de envio</label>
+        <label style={LABEL_STYLE}>Morada</label>
 
         {/* Nome completo */}
         <input
