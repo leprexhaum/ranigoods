@@ -567,6 +567,7 @@ interface PaymentSectionProps {
   product: CheckoutProduct
   onAddPaymentInfo?: () => void
   onBeforeConfirm?: () => Promise<void>
+  onValidate?: () => boolean
 }
 
 function PollingScreen() {
@@ -579,9 +580,9 @@ function PollingScreen() {
   )
 }
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo, onBeforeConfirm }: {
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo, onBeforeConfirm, onValidate }: {
   paymentId: string; successUrl: string; amount: number; currency: string
-  brandName: string; legalName: string; onAddPaymentInfo?: () => void; onBeforeConfirm?: () => Promise<void>
+  brandName: string; legalName: string; onAddPaymentInfo?: () => void; onBeforeConfirm?: () => Promise<void>; onValidate?: () => boolean
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -621,6 +622,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!stripe || !elements) return
+    if (onValidate && !onValidate()) return
     setLoading(true); setError('')
     onAddPaymentInfo?.()
     await onBeforeConfirm?.()
@@ -705,7 +707,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
   )
 }
 
-function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount, product, onAddPaymentInfo, onBeforeConfirm }: PaymentSectionProps) {
+function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount, product, onAddPaymentInfo, onBeforeConfirm, onValidate }: PaymentSectionProps) {
   const brandName = product.brandName || product.name
 
   return (
@@ -759,6 +761,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
               legalName={product.legalName || ''}
               onAddPaymentInfo={onAddPaymentInfo}
               onBeforeConfirm={onBeforeConfirm}
+              onValidate={onValidate}
             />
           </Elements>
         )
@@ -948,6 +951,7 @@ interface RightColumnProps {
   onPhoneBlur?: () => void
   onAddressBlur?: () => void
   onBeforeConfirm?: () => Promise<void>
+  requireAddress?: boolean
 }
 
 function RightColumn({
@@ -960,6 +964,7 @@ function RightColumn({
   clientSecret, stripePromise, paymentId, paymentAmount,
   onAddPaymentInfo,
   onNameBlur, onEmailBlur, onPhoneBlur, onAddressBlur, onBeforeConfirm,
+  requireAddress,
 }: RightColumnProps) {
   const [focused,   setFocused]   = useState<string | null>(null)
   const [touched,   setTouched]   = useState<Record<string, boolean>>({})
@@ -974,8 +979,19 @@ function RightColumn({
     if (id === 'addr_line1' || id === 'addr_line2' || id === 'addr_postal' || id === 'addr_city') onAddressBlur?.()
   }, [onNameBlur, onEmailBlur, onPhoneBlur, onAddressBlur])
 
-  void submitted
-  void setSubmitted
+  const validate = useCallback((): boolean => {
+    const hasEmailErr = !!valEmail(email)
+    const hasNameErr  = !!valName(name)
+    let hasAddressErr = false
+    if (requireAddress) {
+      hasAddressErr = !!(valName(address.recipientName) || valRequired(address.line1, 'A morada') || valPostalCode(address.postalCode) || valRequired(address.city, 'A cidade'))
+    }
+    if (hasEmailErr || hasNameErr || hasAddressErr) {
+      setSubmitted(true)
+      return false
+    }
+    return true
+  }, [email, name, requireAddress, address])
 
   return (
     <div style={{
@@ -1026,6 +1042,7 @@ function RightColumn({
         product={product}
         onAddPaymentInfo={onAddPaymentInfo}
         onBeforeConfirm={onBeforeConfirm}
+        onValidate={validate}
       />
 
       {/* Footer */}
@@ -1186,36 +1203,31 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ─── Recriar PI quando bumps ou shipping mudam (debounce 500ms) ───────────
+  // ─── Atualizar amount do PI quando bumps ou shipping mudam (debounce 500ms) ───
   const piInitialized = useRef(false)
   useEffect(() => {
-    // Marcar como inicializado após o primeiro render (o useEffect inicial já cria o PI)
     if (!piInitialized.current) {
       piInitialized.current = true
       return
     }
 
+    if (!paymentId) return
+
+    const newTotal = product.price
+      + selectedBumps.reduce((s, id) => s + (product.orderBumps.find(b => b.id === id)?.price ?? 0), 0)
+      + (product.shippingOptions.find(s => s.id === selectedShip)?.price ?? 0)
+
+    if (newTotal === paymentAmount) return
+
     const timer = setTimeout(async () => {
       try {
-        const urlParams = getStoredUrlParams()
-        const res = await fetch(`/api/checkout/${product.slug}/payment-intent`, {
-          method: 'POST',
+        const res = await fetch(`/api/checkout/payment/${paymentId}/update`, {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerName:  name.trim(),
-            customerEmail: email.trim(),
-            customerPhone: phone.trim(),
-            bumpIds:       selectedBumps,
-            shippingId:    selectedShip || undefined,
-            urlParams,
-          }),
+          body: JSON.stringify({ amount: newTotal }),
         })
-        const data = await res.json()
         if (res.ok) {
-          setClientSecret(data.clientSecret)
-          setPublishableKey(data.publishableKey)
-          setPaymentId(data.paymentId)
-          setPaymentAmount(data.amount)
+          setPaymentAmount(newTotal)
         }
       } catch { /* silent */ }
     }, 500)
@@ -1281,10 +1293,10 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
     }
   }, [paymentId, name, email, phone])
 
-  const stripePromise = useMemo(
-    () => loadStripe(publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''),
-    [publishableKey],
-  )
+  const stripePromise = useMemo(() => {
+    const key = publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
+    return key ? loadStripe(key) : null
+  }, [publishableKey])
 
   return (
     <>
@@ -1368,6 +1380,7 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
             onPhoneBlur={handlePhoneBlur}
             onAddressBlur={handleAddressBlur}
             onBeforeConfirm={handleBeforeConfirm}
+            requireAddress={product.requireAddress}
           />
         </div>
       </div>

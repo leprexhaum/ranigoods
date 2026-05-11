@@ -12,7 +12,7 @@ export async function PATCH(
   { params }: { params: { id: string } },
 ) {
   try {
-    const { customerName, customerEmail, customerPhone, addressLine1, addressLine2, addressCity, addressPostalCode, addressCountry } = await req.json() as {
+    const { customerName, customerEmail, customerPhone, addressLine1, addressLine2, addressCity, addressPostalCode, addressCountry, amount } = await req.json() as {
       customerName?:  string
       customerEmail?: string
       customerPhone?: string
@@ -21,6 +21,7 @@ export async function PATCH(
       addressCity?: string
       addressPostalCode?: string
       addressCountry?: string
+      amount?: number
     }
 
     const payment = await prisma.checkoutPayment.findUnique({
@@ -49,14 +50,23 @@ export async function PATCH(
 
     await prisma.checkoutPayment.update({ where: { id: params.id }, data })
 
+    // Atualizar amount no Stripe e no banco se solicitado
+    if (amount && amount > 0 && amount !== payment.amount && payment.stripePaymentIntentId) {
+      await stripe.paymentIntents.update(payment.stripePaymentIntentId, { amount })
+        .catch(err => console.warn('[update-payment] stripe amount update failed:', err))
+      await prisma.checkoutPayment.update({ where: { id: params.id }, data: { amount } })
+    }
+
     // Sincronizar metadata no PaymentIntent do Stripe
     if (payment.stripePaymentIntentId) {
       const meta: Record<string, string> = {}
       if (data.customerName)  meta.customerName  = data.customerName
       if (data.customerEmail) meta.customerEmail = data.customerEmail
       if (data.customerPhone) meta.customerPhone = data.customerPhone
-      await stripe.paymentIntents.update(payment.stripePaymentIntentId, { metadata: meta })
-        .catch(err => console.warn('[update-payment] stripe metadata update failed:', err))
+      if (Object.keys(meta).length > 0) {
+        await stripe.paymentIntents.update(payment.stripePaymentIntentId, { metadata: meta })
+          .catch(err => console.warn('[update-payment] stripe metadata update failed:', err))
+      }
     }
 
     // Criar/atualizar registo de carrinho abandonado com os dados do cliente
