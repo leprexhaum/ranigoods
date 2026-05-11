@@ -131,7 +131,7 @@ export const checkoutService = {
   async getPaymentByIntentId(stripePaymentIntentId: string) {
     return prisma.checkoutPayment.findUnique({
       where: { stripePaymentIntentId },
-      include: { product: { select: { name: true, successUrl: true, utmifyConfigId: true } } },
+      include: { product: { select: { name: true, successUrl: true, utmifyConfigId: true, utmifyConfigIds: true } } },
     })
   },
 }

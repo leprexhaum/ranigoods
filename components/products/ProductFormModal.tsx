@@ -32,7 +32,7 @@ type FormData = {
   checkoutLanguage: string
   requirePhone:     boolean
   requireAddress:   boolean
-  utmifyConfigId:   string
+  utmifyConfigIds:  string[]
   successUrl:       string
   metaPixelId:      string
   customDomain:     string
@@ -169,7 +169,7 @@ function toForm(p?: Product | null): FormData {
     checkoutLanguage: p?.checkoutLanguage ?? 'pt',
     requirePhone:     p?.requirePhone     ?? false,
     requireAddress:   p?.requireAddress   ?? false,
-    utmifyConfigId:   p?.utmifyConfigId   ?? '',
+    utmifyConfigIds:  (p?.utmifyConfigIds ?? (p?.utmifyConfigId ? [p.utmifyConfigId] : [])) as string[],
     successUrl:       p?.successUrl       ?? '',
     metaPixelId:      p?.metaPixelId      ?? '',
     customDomain:     p?.customDomain     ?? '',
@@ -183,7 +183,7 @@ function toForm(p?: Product | null): FormData {
 
 interface UtmifyConfigItem { id: string; name: string; enabled: boolean }
 
-function UtmifySelector({ selected, onChange }: { selected: string; onChange: (id: string) => void }) {
+function UtmifySelector({ selected, onChange }: { selected: string[]; onChange: (ids: string[]) => void }) {
   const [configs,  setConfigs]  = useState<UtmifyConfigItem[]>([])
   const [loading,  setLoading]  = useState(true)
 
@@ -193,6 +193,10 @@ function UtmifySelector({ selected, onChange }: { selected: string; onChange: (i
       .then((data: UtmifyConfigItem[]) => { setConfigs(data); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
+
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter(s => s !== id) : [...selected, id])
+  }
 
   if (loading) return <p className="text-ep-muted text-xs">Carregando configs UTMify…</p>
 
@@ -207,41 +211,33 @@ function UtmifySelector({ selected, onChange }: { selected: string; onChange: (i
 
   return (
     <div className="space-y-2">
-      <p className="text-ep-secondary text-xs">Selecione qual config UTMify usar para este produto</p>
+      <p className="text-ep-secondary text-xs">Selecione as configs UTMify para este produto</p>
       <div className="space-y-1.5">
-        <button
-          type="button"
-          onClick={() => onChange('')}
-          className={clsx(
-            'w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-xs transition-all',
-            !selected
-              ? 'bg-ep-accent/10 border-ep-accent text-ep-accent'
-              : 'bg-ep-raised border-ep-border-default text-ep-secondary hover:border-ep-border-subtle',
-          )}
-        >
-          Nenhuma
-        </button>
-        {configs.map(c => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => onChange(c.id)}
-            className={clsx(
-              'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left text-xs transition-all',
-              selected === c.id
-                ? 'bg-ep-accent/10 border-ep-accent'
-                : 'bg-ep-raised border-ep-border-default hover:border-ep-border-subtle',
-              !c.enabled && 'opacity-50',
-            )}
-          >
-            <span className={clsx('font-medium', selected === c.id ? 'text-ep-accent' : 'text-ep-primary')}>
-              {c.name || 'Sem nome'}
-            </span>
-            {!c.enabled && <span className="text-ep-muted">desativado</span>}
-            {selected === c.id && <CheckCircle2 size={12} className="text-ep-accent flex-shrink-0" />}
-          </button>
-        ))}
+        {configs.map(c => {
+          const isActive = selected.includes(c.id)
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => toggle(c.id)}
+              className={clsx(
+                'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left text-xs transition-all',
+                isActive
+                  ? 'bg-ep-accent/10 border-ep-accent'
+                  : 'bg-ep-raised border-ep-border-default hover:border-ep-border-subtle',
+                !c.enabled && 'opacity-50',
+              )}
+            >
+              <span className={clsx('font-medium', isActive ? 'text-ep-accent' : 'text-ep-primary')}>
+                {c.name || 'Sem nome'}
+              </span>
+              {!c.enabled && <span className="text-ep-muted">desativado</span>}
+              {isActive && <CheckCircle2 size={12} className="text-ep-accent flex-shrink-0" />}
+            </button>
+          )
+        })}
       </div>
+      {selected.length > 0 && <p className="text-ep-muted text-xs">{selected.length} config{selected.length !== 1 ? 's' : ''} selecionada{selected.length !== 1 ? 's' : ''}</p>}
     </div>
   )
 }
@@ -412,7 +408,8 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         checkoutLanguage: form.checkoutLanguage,
         requirePhone:     form.requirePhone,
         requireAddress:   form.requireAddress,
-        utmifyConfigId:   form.utmifyConfigId || null,
+        utmifyConfigId:   form.utmifyConfigIds[0] || null,
+        utmifyConfigIds:  form.utmifyConfigIds,
         successUrl:       form.successUrl.trim(),
         metaPixelId:      form.metaPixelId.trim(),
         customDomain:     form.customDomain.trim(),
@@ -688,7 +685,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
 
           {/* UTMify */}
           <Section title="Integração UTMify" collapsible>
-            <UtmifySelector selected={form.utmifyConfigId} onChange={v => set('utmifyConfigId', v)} />
+            <UtmifySelector selected={form.utmifyConfigIds} onChange={ids => set('utmifyConfigIds', ids)} />
           </Section>
 
           {/* Pixels */}

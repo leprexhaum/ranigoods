@@ -91,6 +91,7 @@ model Product {
   pixelIds         Json     @default("[]") @map("pixel_ids")
   customDomain     String   @default("") @map("custom_domain")
   utmifyConfigId   String?  @map("utmify_config_id")
+  utmifyConfigIds  Json     @default("[]") @map("utmify_config_ids")
   utmifyConfig     UtmifyConfig? @relation("ProductUtmify", fields: [utmifyConfigId], references: [id], onDelete: SetNull)
   checkoutPayments CheckoutPayment[]
   cartItems        CartItem[]

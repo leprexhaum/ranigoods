@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
           select: {
             urlParams: true, customerEmail: true, customerPhone: true,
             customerName: true, productId: true,
-            product: { select: { name: true, utmifyConfigId: true, userId: true } },
+            product: { select: { name: true, utmifyConfigId: true, utmifyConfigIds: true, userId: true } },
           },
         })
         const urlParams  = (cpRecord?.urlParams ?? {}) as Record<string, string>
@@ -246,10 +246,14 @@ export async function POST(req: NextRequest) {
             },
           }),
 
-          // UTMify via config vinculada ao produto
+          // UTMify via configs vinculadas ao produto (suporta múltiplas)
           (async () => {
-            if (cpRecord?.product?.utmifyConfigId) {
-              const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: cpRecord.product.utmifyConfigId } })
+            if (!cpRecord?.product) return
+            const configIds = (cpRecord.product.utmifyConfigIds as string[] ?? []).length > 0
+              ? (cpRecord.product.utmifyConfigIds as string[])
+              : cpRecord.product.utmifyConfigId ? [cpRecord.product.utmifyConfigId] : []
+            for (const cfgId of configIds) {
+              const utmCfg = await prisma.utmifyConfig.findUnique({ where: { id: cfgId } })
               if (utmCfg?.enabled && utmCfg.apiToken) {
                 await utmifyService.sendOrder(utmCfg.apiToken, {
                   orderId:      pi.id,

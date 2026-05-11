@@ -31,6 +31,7 @@ export interface Product {
   successUrl:       string
   metaPixelId:      string
   utmifyConfigId:   string | null
+  utmifyConfigIds:  string[]
   stock:            number
   pixelIds:         string[]
   customDomain:     string
@@ -46,7 +47,7 @@ type ProductRow = {
   checkoutTemplate: string; checkoutLanguage: string;
   requirePhone: boolean; requireAddress: boolean;
   logoUrl: string; brandName: string; legalName: string; successUrl: string;
-  metaPixelId: string; utmifyConfigId: string | null; stock: number; pixelIds: unknown; customDomain: string;
+  metaPixelId: string; utmifyConfigId: string | null; utmifyConfigIds: unknown; stock: number; pixelIds: unknown; customDomain: string;
 }
 
 function toProduct(r: ProductRow): Product {
@@ -80,6 +81,7 @@ function toProduct(r: ProductRow): Product {
     successUrl:       r.successUrl,
     metaPixelId:      r.metaPixelId,
     utmifyConfigId:   r.utmifyConfigId ?? null,
+    utmifyConfigIds:  (r.utmifyConfigIds as string[]) ?? [],
     stock:            r.stock,
     pixelIds:         (r.pixelIds as string[]) ?? [],
     customDomain:     r.customDomain,
@@ -135,6 +137,8 @@ export const productService = {
         legalName:        data.legalName ?? '',
         metaPixelId:      data.metaPixelId ?? '',
         utmifyConfigId:   data.utmifyConfigId ?? null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        utmifyConfigIds:  (data.utmifyConfigIds ?? []) as any,
         stock:            data.stock ?? -1,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pixelIds:         (data.pixelIds ?? []) as any,
@@ -161,6 +165,8 @@ export const productService = {
           orderBumps:      data.orderBumps !== undefined ? (data.orderBumps as any) : undefined,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           reviews:         data.reviews !== undefined ? (data.reviews as any) : undefined,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          utmifyConfigIds: data.utmifyConfigIds !== undefined ? (data.utmifyConfigIds as any) : undefined,
         },
       })
       return toProduct(r)

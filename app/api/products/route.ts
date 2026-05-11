@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       successUrl:       body.successUrl       ?? '',
       metaPixelId:      body.metaPixelId      ?? '',
       utmifyConfigId:   body.utmifyConfigId   ?? null,
+      utmifyConfigIds:  body.utmifyConfigIds  ?? [],
       stock:            body.stock !== undefined ? Number(body.stock) : -1,
       pixelIds:         body.pixelIds ?? [],
       customDomain:     body.customDomain ?? '',
