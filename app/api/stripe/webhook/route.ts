@@ -878,6 +878,30 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'payment_intent.created': {
+        const pi = event.data.object as Stripe.PaymentIntent
+        // Garantir que o CheckoutPayment existe — se foi criado via API/dashboard Stripe
+        // e não pelo nosso checkout, criar um registro pendente
+        const existing = await prisma.checkoutPayment.findFirst({
+          where: { stripePaymentIntentId: pi.id },
+        })
+        if (!existing && pi.metadata?.productId) {
+          await prisma.checkoutPayment.create({
+            data: {
+              productId: pi.metadata.productId,
+              status: 'pending',
+              amount: pi.amount,
+              currency: pi.currency.toUpperCase(),
+              stripePaymentIntentId: pi.id,
+              customerName: pi.metadata?.customerName ?? '',
+              customerEmail: pi.metadata?.customerEmail ?? '',
+            },
+          }).catch(() => {}) // Ignorar se já existe (race condition)
+        }
+        console.log(`[webhook] payment_intent.created: ${pi.id} amount=${pi.amount} currency=${pi.currency}`)
+        break
+      }
+
       default:
         console.log(`Evento não tratado: ${event.type}`)
     }
