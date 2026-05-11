@@ -17,8 +17,14 @@ function fmt(cents: number, currency: string) {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
 }
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName }: {
-  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; legalName: string
+function buildSuccessUrl(baseUrl: string, paymentId: string): string {
+  const url = new URL(baseUrl)
+  url.searchParams.set('payment_id', paymentId)
+  return url.toString()
+}
+
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo }: {
+  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; legalName: string; onAddPaymentInfo?: () => void
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -28,7 +34,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
 
   const pollAndRedirect = async () => {
     setPolling(true)
-    const successDest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
+    const successDest = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}`
     let attempts = 0
     const poll = async (): Promise<void> => {
       try {
@@ -46,10 +52,10 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
           return
         }
         if (data.status === 'failed') { setError('Pagamento recusado. Tente novamente.'); setPolling(false); setLoading(false); return }
-        if (attempts < 20) { attempts++; setTimeout(poll, 3000) }
+        if (attempts < 30) { attempts++; setTimeout(poll, 1500) }
         else { window.location.href = successDest }
       } catch {
-        if (attempts < 20) { attempts++; setTimeout(poll, 3000) }
+        if (attempts < 30) { attempts++; setTimeout(poll, 1500) }
         else { window.location.href = successDest }
       }
     }
@@ -61,7 +67,8 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     if (!stripe || !elements) return
     setLoading(true)
     setError('')
-    const returnUrl = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
+    onAddPaymentInfo?.()
+    const returnUrl = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}`
     const { error: err, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: { return_url: returnUrl },
@@ -70,7 +77,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     if (err) { setError(err.message ?? 'Erro ao processar pagamento'); setLoading(false); return }
     if (paymentIntent) {
       if (paymentIntent.status === 'succeeded') {
-        const dest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
+        const dest = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
         try {
           const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
           if (upsellRes.ok) {
@@ -225,7 +232,7 @@ export default function InfoProductCheckout({ product }: { product: CheckoutProd
                   onBlur={e => { if (e.target.value.trim()) updatePayment({ customerEmail: e.target.value.trim() }) }}
                 />
               </div>
-              <div className={fieldWrapMid}>
+              <div className={product.requirePhone ? fieldWrapMid : fieldWrapBottom}>
                 <span className="pl-3 flex-shrink-0">
                   <svg focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <path fillRule="evenodd" clipRule="evenodd" d="M2.5 14.4H13.5C13.7209 14.4 13.9 14.2209 13.9 14C13.9 12.1222 12.3778 10.6 10.5 10.6H5.5C3.62223 10.6 2.1 12.1222 2.1 14C2.1 14.2209 2.27909 14.4 2.5 14.4ZM2.5 16H13.5C14.6046 16 15.5 15.1046 15.5 14C15.5 11.2386 13.2614 9 10.5 9H5.5C2.73858 9 0.5 11.2386 0.5 14C0.5 15.1046 1.39543 16 2.5 16Z" fill="#1A1A1A" fillOpacity="0.5"/>
@@ -272,7 +279,7 @@ export default function InfoProductCheckout({ product }: { product: CheckoutProd
                     },
                   },
                 }}>
-                  <PaymentForm paymentId={paymentId} successUrl={product.successUrl} amount={paymentAmount} currency={product.currency} brandName={brandName} legalName={product.legalName || ''} />
+                  <PaymentForm paymentId={paymentId} successUrl={product.successUrl} amount={paymentAmount} currency={product.currency} brandName={brandName} legalName={product.legalName || ''} onAddPaymentInfo={() => trackEvent('AddPaymentInfo', { value: product.price, currency: product.currency, content_ids: [product.id] })} />
                 </Elements>
               )
             )}

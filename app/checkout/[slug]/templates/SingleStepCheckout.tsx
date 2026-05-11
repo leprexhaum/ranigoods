@@ -22,6 +22,12 @@ function fmt(cents: number, currency: string) {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
 }
 
+function buildSuccessUrl(baseUrl: string, paymentId: string): string {
+  const url = new URL(baseUrl)
+  url.searchParams.set('payment_id', paymentId)
+  return url.toString()
+}
+
 // ─── Stripe SVG Logo ──────────────────────────────────────────────────────────
 
 function StripeLogo() {
@@ -141,7 +147,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
   const pollAndRedirect = async () => {
     setPolling(true)
     // Passa status=paid no URL para o SuccessContent não precisar de fazer polling
-    const successDest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
+    const successDest = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
     let attempts = 0
     const poll = async (): Promise<void> => {
       try {
@@ -176,7 +182,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     setLoading(true)
     setError('')
     onAddPaymentInfo?.()
-    const returnUrl = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
+    const returnUrl = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}`
     const { error: err, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: { return_url: returnUrl },
@@ -186,7 +192,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     if (paymentIntent) {
       // Pagamento síncrono (cartão) — succeeded imediato, redirecionar sem esperar webhook
       if (paymentIntent.status === 'succeeded') {
-        const dest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
+        const dest = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
         try {
           const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
           if (upsellRes.ok) {

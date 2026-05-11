@@ -12,10 +12,15 @@ export async function PATCH(
   { params }: { params: { id: string } },
 ) {
   try {
-    const { customerName, customerEmail, customerPhone } = await req.json() as {
+    const { customerName, customerEmail, customerPhone, addressLine1, addressLine2, addressCity, addressPostalCode, addressCountry } = await req.json() as {
       customerName?:  string
       customerEmail?: string
       customerPhone?: string
+      addressLine1?: string
+      addressLine2?: string
+      addressCity?: string
+      addressPostalCode?: string
+      addressCountry?: string
     }
 
     const payment = await prisma.checkoutPayment.findUnique({
@@ -32,6 +37,11 @@ export async function PATCH(
     if (customerName?.trim())  data.customerName  = customerName.trim()
     if (customerEmail?.trim()) data.customerEmail = customerEmail.trim()
     if (customerPhone?.trim()) data.customerPhone = customerPhone.trim()
+    if (addressLine1?.trim())      data.addressLine1      = addressLine1.trim()
+    if (addressLine2?.trim())      data.addressLine2      = addressLine2.trim()
+    if (addressCity?.trim())       data.addressCity       = addressCity.trim()
+    if (addressPostalCode?.trim()) data.addressPostalCode = addressPostalCode.trim()
+    if (addressCountry?.trim())    data.addressCountry    = addressCountry.trim()
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ ok: true })
@@ -44,6 +54,7 @@ export async function PATCH(
       const meta: Record<string, string> = {}
       if (data.customerName)  meta.customerName  = data.customerName
       if (data.customerEmail) meta.customerEmail = data.customerEmail
+      if (data.customerPhone) meta.customerPhone = data.customerPhone
       await stripe.paymentIntents.update(payment.stripePaymentIntentId, { metadata: meta })
         .catch(err => console.warn('[update-payment] stripe metadata update failed:', err))
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import {
   Elements,
@@ -22,6 +22,12 @@ function fmt(cents: number, currency: string) {
     style: 'currency',
     currency: currency.toUpperCase(),
   }).format(cents / 100)
+}
+
+function buildSuccessUrl(baseUrl: string, paymentId: string): string {
+  const url = new URL(baseUrl)
+  url.searchParams.set('payment_id', paymentId)
+  return url.toString()
 }
 
 // ─── Shadow tokens (fiel ao clo-stripe) ──────────────────────────────────────
@@ -584,7 +590,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
 
   const pollAndRedirect = async () => {
     setPolling(true)
-    const dest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
+    const dest = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
     let attempts = 0
     const poll = async (): Promise<void> => {
       try {
@@ -616,7 +622,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     if (!stripe || !elements) return
     setLoading(true); setError('')
     onAddPaymentInfo?.()
-    const returnUrl = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
+    const returnUrl = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}`
     const { error: err, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: { return_url: returnUrl },
@@ -626,7 +632,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     if (paymentIntent) {
       // Pagamento síncrono (cartão) — succeeded imediato, redirecionar sem esperar webhook
       if (paymentIntent.status === 'succeeded') {
-        const dest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
+        const dest = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
         try {
           const ur = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
           if (ur.ok) {
@@ -712,6 +718,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
       ) : (
         stripePromise && (
           <Elements
+            key={clientSecret}
             stripe={stripePromise}
             options={{
               clientSecret,
@@ -936,6 +943,7 @@ interface RightColumnProps {
   onNameBlur?: () => void
   onEmailBlur?: () => void
   onPhoneBlur?: () => void
+  onAddressBlur?: () => void
 }
 
 function RightColumn({
@@ -947,7 +955,7 @@ function RightColumn({
   address, setAddress,
   clientSecret, stripePromise, paymentId, paymentAmount,
   onAddPaymentInfo,
-  onNameBlur, onEmailBlur, onPhoneBlur,
+  onNameBlur, onEmailBlur, onPhoneBlur, onAddressBlur,
 }: RightColumnProps) {
   const [focused,   setFocused]   = useState<string | null>(null)
   const [touched,   setTouched]   = useState<Record<string, boolean>>({})
@@ -959,7 +967,8 @@ function RightColumn({
     if (id === 'name' || id === 'addr_name') onNameBlur?.()
     if (id === 'email') onEmailBlur?.()
     if (id === 'addr_phone') onPhoneBlur?.()
-  }, [onNameBlur, onEmailBlur, onPhoneBlur])
+    if (id === 'addr_line1' || id === 'addr_line2' || id === 'addr_postal' || id === 'addr_city') onAddressBlur?.()
+  }, [onNameBlur, onEmailBlur, onPhoneBlur, onAddressBlur])
 
   void submitted
   void setSubmitted
@@ -983,13 +992,15 @@ function RightColumn({
         submitted={submitted}
       />
 
-      <AddressSection
-        address={address} setAddress={setAddress}
-        phone={phone} setPhone={setPhone}
-        focused={focused} setFocused={setFocused}
-        touched={touched} touch={touch}
-        submitted={submitted}
-      />
+      {product.requireAddress && (
+        <AddressSection
+          address={address} setAddress={setAddress}
+          phone={phone} setPhone={setPhone}
+          focused={focused} setFocused={setFocused}
+          touched={touched} touch={touch}
+          submitted={submitted}
+        />
+      )}
 
       <ShippingSection
         product={product}
@@ -1170,6 +1181,44 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ─── Recriar PI quando bumps ou shipping mudam (debounce 500ms) ───────────
+  const piInitialized = useRef(false)
+  useEffect(() => {
+    // Marcar como inicializado após o primeiro render (o useEffect inicial já cria o PI)
+    if (!piInitialized.current) {
+      piInitialized.current = true
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const urlParams = getStoredUrlParams()
+        const res = await fetch(`/api/checkout/${product.slug}/payment-intent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerName:  name.trim(),
+            customerEmail: email.trim(),
+            customerPhone: phone.trim(),
+            bumpIds:       selectedBumps,
+            shippingId:    selectedShip || undefined,
+            urlParams,
+          }),
+        })
+        const data = await res.json()
+        if (res.ok) {
+          setClientSecret(data.clientSecret)
+          setPublishableKey(data.publishableKey)
+          setPaymentId(data.paymentId)
+          setPaymentAmount(data.amount)
+        }
+      } catch { /* silent */ }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBumps, selectedShip])
+
   // Atualizar dados do cliente no CheckoutPayment quando preenche os campos
   const updatePayment = useCallback((fields: { customerName?: string; customerEmail?: string; customerPhone?: string }) => {
     if (!paymentId) return
@@ -1192,6 +1241,23 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
   const handlePhoneBlur = useCallback(() => {
     if (phone.trim()) updatePayment({ customerPhone: phone.trim() })
   }, [phone, updatePayment])
+
+  const handleAddressBlur = useCallback(() => {
+    if (!paymentId) return
+    const fields: Record<string, string> = {}
+    if (address.line1.trim())      fields.addressLine1      = address.line1.trim()
+    if (address.line2.trim())      fields.addressLine2      = address.line2.trim()
+    if (address.city.trim())       fields.addressCity       = address.city.trim()
+    if (address.postalCode.trim()) fields.addressPostalCode = address.postalCode.trim()
+    fields.addressCountry = 'PT'
+    if (Object.keys(fields).length > 0) {
+      fetch(`/api/checkout/payment/${paymentId}/update`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
+      }).catch(() => {})
+    }
+  }, [paymentId, address])
 
   const stripePromise = useMemo(
     () => loadStripe(publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''),
@@ -1278,6 +1344,7 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
             onNameBlur={handleNameBlur}
             onEmailBlur={handleEmailBlur}
             onPhoneBlur={handlePhoneBlur}
+            onAddressBlur={handleAddressBlur}
           />
         </div>
       </div>

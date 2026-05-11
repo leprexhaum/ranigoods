@@ -20,8 +20,14 @@ function fmt(cents: number, currency: string) {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
 }
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName }: {
-  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; legalName: string
+function buildSuccessUrl(baseUrl: string, paymentId: string): string {
+  const url = new URL(baseUrl)
+  url.searchParams.set('payment_id', paymentId)
+  return url.toString()
+}
+
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo }: {
+  paymentId: string; successUrl: string; amount: number; currency: string; brandName: string; legalName: string; onAddPaymentInfo?: () => void
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -31,7 +37,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
 
   const pollAndRedirect = async () => {
     setPolling(true)
-    const successDest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
+    const successDest = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}`
     let attempts = 0
     const poll = async (): Promise<void> => {
       try {
@@ -49,10 +55,10 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
           return
         }
         if (data.status === 'failed') { setError('Pagamento recusado. Tente novamente.'); setPolling(false); setLoading(false); return }
-        if (attempts < 20) { attempts++; setTimeout(poll, 3000) }
+        if (attempts < 30) { attempts++; setTimeout(poll, 1500) }
         else { window.location.href = successDest }
       } catch {
-        if (attempts < 20) { attempts++; setTimeout(poll, 3000) }
+        if (attempts < 30) { attempts++; setTimeout(poll, 1500) }
         else { window.location.href = successDest }
       }
     }
@@ -64,7 +70,8 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     if (!stripe || !elements) return
     setLoading(true)
     setError('')
-    const returnUrl = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}`
+    onAddPaymentInfo?.()
+    const returnUrl = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}`
     const { error: err, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: { return_url: returnUrl },
@@ -73,7 +80,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     if (err) { setError(err.message ?? 'Erro ao processar pagamento'); setLoading(false); return }
     if (paymentIntent) {
       if (paymentIntent.status === 'succeeded') {
-        const dest = successUrl || `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
+        const dest = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
         try {
           const upsellRes = await fetch(`/api/checkout/payment/${paymentId}/upsell`)
           if (upsellRes.ok) {
@@ -336,7 +343,7 @@ export default function DropshippingCheckout({ product }: { product: CheckoutPro
                   },
                 },
               }}>
-                <PaymentForm paymentId={paymentId} successUrl={product.successUrl} amount={paymentAmount} currency={product.currency} brandName={brandName} legalName={product.legalName || ''} />
+                <PaymentForm paymentId={paymentId} successUrl={product.successUrl} amount={paymentAmount} currency={product.currency} brandName={brandName} legalName={product.legalName || ''} onAddPaymentInfo={() => trackEvent('AddPaymentInfo', { value: total, currency: product.currency, content_ids: [product.id] })} />
               </Elements>
             )
           )}
