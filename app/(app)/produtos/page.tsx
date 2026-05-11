@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Package, Plus, ExternalLink, MoreVertical, Check, Pencil, Copy, Globe, ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 import type { Product } from '@/lib/services/product.service'
 import type { PixelConfig } from '@/lib/types/pixel'
-import ProductFormModal from '@/components/products/ProductFormModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useConfirm } from '@/lib/hooks/useConfirm'
 import { ProductCardSkeleton } from '@/components/ui/Skeleton'
@@ -143,13 +143,12 @@ function OpenLinkButton({ slug, customDomain }: { slug: string; customDomain?: s
 }
 
 export default function ProdutosPage() {
+  const router = useRouter()
   const [filter,      setFilter]      = useState<'all' | 'active' | 'archived'>('all')
   const [products,    setProducts]    = useState<Product[]>([])
   const [pixels,      setPixels]      = useState<PixelConfig[]>([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
-  const [modalOpen,   setModalOpen]   = useState(false)
-  const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [duplicating, setDuplicating] = useState<string | null>(null)
   const { confirmProps, confirm }     = useConfirm()
 
@@ -223,7 +222,7 @@ export default function ProdutosPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setEditProduct(null); setModalOpen(true) }}
+            onClick={() => router.push('/produtos/novo')}
             className="flex items-center gap-2 px-4 py-2 bg-ep-accent text-ep-base rounded-md text-sm font-semibold hover:bg-ep-accent-dark transition-colors">
             <Plus size={14} strokeWidth={2.5} />
             Novo Produto
@@ -291,7 +290,7 @@ export default function ProdutosPage() {
                   </button>
                   <div className="absolute right-0 top-6 z-10 hidden group-hover/menu:block bg-ep-surface border border-ep-border-default rounded-md shadow-lg min-w-[140px]">
                     <button
-                      onClick={() => { setEditProduct(product); setModalOpen(true) }}
+                      onClick={() => router.push(`/produtos/${product.id}/editar`)}
                       className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
                     >
                       <Pencil size={11} /> Editar
@@ -410,13 +409,6 @@ export default function ProdutosPage() {
       )}
     </div>
 
-    {modalOpen && (
-      <ProductFormModal
-        product={editProduct}
-        onClose={() => { setModalOpen(false); setEditProduct(null) }}
-        onSaved={() => { fetchProducts() }}
-      />
-    )}
     <ConfirmDialog {...confirmProps} />
     </>
   )
