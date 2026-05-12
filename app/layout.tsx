@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://techpags.shop'),
   title: 'TechPags — Gestão de Pagamentos',
   description: 'Plataforma de gestão de pagamentos integrada com Stripe',
   icons: {

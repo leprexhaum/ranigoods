@@ -70,8 +70,9 @@ export const checkoutService = {
     metadata:              Record<string, unknown>
     address?:              CheckoutAddress
   }) {
-    return prisma.checkoutPayment.create({
-      data: {
+    return prisma.checkoutPayment.upsert({
+      where: { stripePaymentIntentId: data.stripePaymentIntentId },
+      create: {
         productId:             data.productId,
         amount:                data.amount,
         currency:              data.currency,
@@ -92,6 +93,17 @@ export const checkoutService = {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         metadata:              data.metadata as any,
         status:                'pending',
+      },
+      update: {
+        amount:                data.amount,
+        customerName:          data.customerName || undefined,
+        customerEmail:         data.customerEmail || undefined,
+        customerPhone:         data.customerPhone || undefined,
+        stripeCustomerId:      data.stripeCustomerId || undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        urlParams:             data.urlParams as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        metadata:              data.metadata as any,
       },
     })
   },
