@@ -171,9 +171,10 @@ export async function POST(req: NextRequest) {
           // Disparar pixel Purchase para o upsell
           const originalCp = await prisma.checkoutPayment.findUnique({
             where:  { id: originalPaymentId },
-            select: { customerEmail: true, customerPhone: true, urlParams: true },
+            select: { customerEmail: true, customerPhone: true, urlParams: true, product: { select: { userId: true } } },
           })
           const urlParamsUp = (originalCp?.urlParams ?? {}) as Record<string, string>
+          const upsellOwnerUserId = originalCp?.product?.userId ?? ''
           await pixelService.trackEvent('Purchase', {
             event: 'Purchase',
             data: {
@@ -192,7 +193,7 @@ export async function POST(req: NextRequest) {
               ttclid: urlParamsUp.ttclid,
               gclid:  urlParamsUp.gclid,
             },
-          })
+          }, upsellOwnerUserId)
           break
         }
 
@@ -245,7 +246,7 @@ export async function POST(req: NextRequest) {
               ttclid: urlParams.ttclid,
               gclid:  urlParams.gclid,
             },
-          }),
+          }, ownerUserId),
 
           // UTMify via configs vinculadas ao produto (suporta múltiplas)
           (async () => {
@@ -424,11 +425,17 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.created': {
         const sub = event.data.object as Stripe.Subscription
         console.log(`Assinatura criada: ${sub.id}`)
+        const subProductId = sub.metadata?.productId ?? ''
+        let subOwnerUserId = ''
+        if (subProductId) {
+          const subProduct = await prisma.product.findUnique({ where: { id: subProductId }, select: { userId: true } })
+          subOwnerUserId = subProduct?.userId ?? ''
+        }
         await pixelService.trackEvent('Subscribe', {
           event: 'Subscribe',
           data: { currency: 'EUR', content_type: 'product' },
           userData: { ip, userAgent },
-        })
+        }, subOwnerUserId)
         break
       }
 

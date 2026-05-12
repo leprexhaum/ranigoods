@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
         id:              p.id,
         platform:        p.platform,
         pixelId:         p.pixelId,
-        accessToken:     p.accessToken,
+        hasServerTracking: !!p.accessToken,
         enabled:         p.enabled,
         conversionLabel: p.conversionLabel,
         events:          p.events,

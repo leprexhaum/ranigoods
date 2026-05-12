@@ -84,7 +84,7 @@ export default function PixelProvider({ children }: { children: React.ReactNode 
         case 'meta':
           if (window.fbq) {
             data?.value
-              ? window.fbq('track', event, { value: (data.value as number) / 100, currency: data.currency ?? 'BRL', ...data })
+              ? window.fbq('track', event, { value: (data.value as number) / 100, currency: data.currency ?? 'EUR', ...data })
               : window.fbq('track', event)
           }
           break
@@ -102,7 +102,7 @@ export default function PixelProvider({ children }: { children: React.ReactNode 
       }
     })
 
-    // Server-side via CAPI para pixels com accessToken
+    // Server-side via CAPI para pixels com server tracking configurado
     const serverPixels = active.filter(p => p.accessToken)
     if (serverPixels.length > 0) {
       fetch('/api/pixels/track', {

@@ -6,7 +6,7 @@ interface PixelConfigLight {
   id:              string
   platform:        string
   pixelId:         string
-  accessToken:     string
+  hasServerTracking: boolean
   conversionLabel: string
   events:          { event: string; enabled: boolean }[]
 }
@@ -154,16 +154,17 @@ ttq.load('${p.pixelId}');ttq.page();}(window,document,'ttq');`)
       }
     })
 
-    // Server-side via CAPI para pixels com accessToken
-    const serverPixels = active.filter(p => p.accessToken)
+    // Server-side via CAPI para pixels com server tracking configurado
+    const serverPixels = active.filter(p => p.hasServerTracking)
     if (serverPixels.length > 0) {
+      const firstProductId = Array.isArray(productIds) ? productIds[0] : productIds
       fetch('/api/pixels/track', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ event: eventName, data }),
+        body:    JSON.stringify({ event: eventName, data, productId: firstProductId }),
       }).catch(() => {})
     }
-  }, [])
+  }, [idsKey])
 
   return { trackEvent }
 }

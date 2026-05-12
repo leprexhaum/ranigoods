@@ -93,8 +93,18 @@ async function fireMetaCAPI(
   if (payload.userData?.fbc)       userData.fbc = payload.userData.fbc
 
   const customData: Record<string, unknown> = {}
-  if (payload.data?.value)        customData.value        = payload.data.value / 100
-  if (payload.data?.currency)     customData.currency     = payload.data.currency
+  if (payload.data?.value) {
+    const rawCurrency = (payload.data.currency ?? 'EUR').toString().toUpperCase()
+    // Converter EUR para BRL para reportar à Meta em moeda brasileira
+    if (rawCurrency === 'EUR' && eventName === 'Purchase') {
+      customData.value    = eurToBrlCents(payload.data.value as number) / 100
+      customData.currency = 'BRL'
+    } else {
+      customData.value    = payload.data.value / 100
+      customData.currency = rawCurrency
+    }
+  }
+  if (payload.data?.currency && !customData.currency) customData.currency = payload.data.currency
   if (payload.data?.content_ids)  customData.content_ids  = payload.data.content_ids
   if (payload.data?.content_type) customData.content_type = payload.data.content_type
   if (payload.data?.num_items)    customData.num_items    = payload.data.num_items
