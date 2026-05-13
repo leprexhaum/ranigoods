@@ -8,6 +8,7 @@ Sempre responda em **português** (pt-BR).
 - Prisma 7 + pg adapter, PostgreSQL (Railway)
 - Stripe para pagamentos
 - Resend para emails
+- Logger centralizado em `lib/logger.ts`
 
 ## Design System
 Cores via prefixo `ep-` (definidas em `tailwind.config.js` e `globals.css`):
