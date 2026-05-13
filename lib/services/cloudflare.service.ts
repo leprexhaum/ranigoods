@@ -18,7 +18,9 @@ function getAccountId() {
 }
 
 function getProxyIp() {
-  return process.env.CLOUDFLARE_PROXY_IP ?? '192.0.2.1'
+  const ip = process.env.CLOUDFLARE_PROXY_IP
+  if (!ip) throw new Error('CLOUDFLARE_PROXY_IP não configurado')
+  return ip
 }
 
 function getWorkerOrigin() {
