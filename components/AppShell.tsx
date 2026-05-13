@@ -8,7 +8,7 @@ import {
   Menu, X,
   LayoutDashboard, Package, CreditCard,
   Cpu, Calculator, Settings, LogOut, Key, BookOpen,
-  ShoppingCart, GitFork, ShoppingBag, Plug,
+  ShoppingCart, GitFork, ShoppingBag, Plug, Globe,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/components/providers/AuthProvider'
@@ -22,6 +22,7 @@ const navItems = [
   { href: '/funis',                 label: 'Funis',         icon: GitFork         },
   { href: '/carrinhos-abandonados', label: 'Carrinhos',     icon: ShoppingCart    },
   { href: '/integracoes',           label: 'Integrações',   icon: Plug            },
+  { href: '/dominios',              label: 'Domínios',      icon: Globe           },
   { href: '/calculadora',           label: 'Calculadora',   icon: Calculator      },
   { href: '/api-keys',              label: 'API Keys',      icon: Key             },
   { href: '/docs',                  label: 'Docs API',      icon: BookOpen        },
