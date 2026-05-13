@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const start = Date.now()
-  logger.info('CRON', 'Tarefa iniciada', { job: 'redeploy-workers' })
+  logger.info('CRON', 'Tarefa iniciada', { job: 'sync-custom-domains' })
 
   try {
     const activeDomains = await prisma.customDomain.findMany({
@@ -16,22 +16,19 @@ export async function GET() {
 
     let success = 0
     let failed = 0
-    let routesFixed = 0
+    let domainsFixed = 0
 
     for (const row of activeDomains) {
       try {
-        // Re-deploy worker com script atualizado
-        await cloudflareService.redeployWorker(row.domain)
-
-        // Garantir infraestrutura de cada subdomínio (CNAME + Worker Route)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const subs = ((row as any).subdomains as string[]) ?? []
+
         for (const sub of subs) {
           try {
             await cloudflareService.ensureSubdomainInfra(row.cfZoneId, row.domain, sub)
-            routesFixed++
+            domainsFixed++
           } catch (err) {
-            logger.warn('CRON', 'Falha ao garantir infra do subdomínio', {
+            logger.warn('CRON', 'Falha ao garantir Custom Domain', {
               domain: row.domain,
               subdomain: sub,
               error: err instanceof Error ? err.message : String(err),
@@ -39,10 +36,17 @@ export async function GET() {
           }
         }
 
+        // Limpar Worker Routes legadas se existirem
+        try {
+          await cloudflareService.cleanupLegacyWorkerRoutes(row.cfZoneId)
+        } catch {
+          // Ignora erros de cleanup
+        }
+
         success++
       } catch (err) {
         failed++
-        logger.warn('CRON', 'Falha ao re-deploy worker', {
+        logger.warn('CRON', 'Falha ao processar domínio', {
           domain: row.domain,
           error: err instanceof Error ? err.message : String(err),
         })
@@ -50,18 +54,18 @@ export async function GET() {
     }
 
     logger.info('CRON', 'Tarefa concluída', {
-      job: 'redeploy-workers',
+      job: 'sync-custom-domains',
       total: activeDomains.length,
       success,
       failed,
-      routesFixed,
+      domainsFixed,
       duracao: `${Date.now() - start}ms`,
     })
 
-    return NextResponse.json({ total: activeDomains.length, success, failed, routesFixed })
+    return NextResponse.json({ total: activeDomains.length, success, failed, domainsFixed })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro interno'
-    logger.error('CRON', 'Erro na execução', { job: 'redeploy-workers', error: msg })
+    logger.error('CRON', 'Erro na execução', { job: 'sync-custom-domains', error: msg })
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

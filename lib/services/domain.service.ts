@@ -130,9 +130,20 @@ export const domainService = {
     const row = await prisma.customDomain.findFirst({ where: { id, userId } })
     if (!row) return false
 
-    // Remove zona e worker do Cloudflare
+    // Remover Custom Domains dos subdomínios
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subs = ((row as any).subdomains as string[]) ?? []
+    for (const sub of subs) {
+      try {
+        await cloudflareService.deleteSubdomainRecords(row.cfZoneId, row.domain, sub)
+      } catch {
+        // Continua mesmo se falhar
+      }
+    }
+
+    // Remover worker legado e zona do Cloudflare
     try {
-      await cloudflareService.deleteWorker(row.domain)
+      await cloudflareService.deleteLegacyWorker(row.domain)
       await cloudflareService.deleteZone(row.cfZoneId)
     } catch {
       // Continua mesmo se falhar no Cloudflare

@@ -17,14 +17,8 @@ function getAccountId() {
   return id
 }
 
-function getProxyIp() {
-  const ip = process.env.CLOUDFLARE_PROXY_IP
-  if (!ip) throw new Error('CLOUDFLARE_PROXY_IP não configurado')
-  return ip
-}
-
-function getWorkerOrigin() {
-  return process.env.CLOUDFLARE_WORKER_ORIGIN ?? 'http://10.13.0.41:8080'
+function getWorkerName() {
+  return process.env.CLOUDFLARE_WORKER_NAME ?? 'techpags-proxy'
 }
 
 interface CfResponse<T = unknown> {
@@ -63,7 +57,6 @@ async function createZone(domain: string): Promise<{ zoneId: string; nameservers
 
   if (!res.success) {
     const code = res.errors?.[0]?.code
-    // Zone already exists in this account — fetch existing zone data
     if (code === 1061 || res.errors?.[0]?.message?.includes('already exists')) {
       return getExistingZone(domain)
     }
@@ -101,152 +94,212 @@ async function deleteZone(zoneId: string): Promise<void> {
   const res = await cfFetch(`/zones/${zoneId}`, { method: 'DELETE' })
   if (!res.success) {
     const code = res.errors?.[0]?.code
-    if (code === 1000) return // zone not found — already deleted
+    if (code === 1000) return
     throw new Error(res.errors?.[0]?.message ?? 'Erro ao deletar zona')
   }
-}
-
-// ─── DNS Records ─────────────────────────────────────────────────────────────
-
-async function createDnsRecords(zoneId: string, domain: string): Promise<void> {
-  // A record com IP dummy (RFC 5737, não roteável) + proxy ON
-  // O Worker intercepta antes de chegar ao IP
-  await cfFetch(`/zones/${zoneId}/dns_records`, {
-    method: 'POST',
-    body: JSON.stringify({
-      type: 'A',
-      name: '@',
-      content: getProxyIp(),
-      proxied: true,
-      ttl: 1,
-    }),
-  })
-
-  // www CNAME → root
-  await cfFetch(`/zones/${zoneId}/dns_records`, {
-    method: 'POST',
-    body: JSON.stringify({
-      type: 'CNAME',
-      name: 'www',
-      content: domain,
-      proxied: true,
-      ttl: 1,
-    }),
-  })
 }
 
 // ─── SSL ─────────────────────────────────────────────────────────────────────
 
 async function configureSsl(zoneId: string): Promise<void> {
-  // SSL mode: Full (Strict)
   await cfFetch(`/zones/${zoneId}/settings/ssl`, {
     method: 'PATCH',
     body: JSON.stringify({ value: 'full' }),
   })
 
-  // Always Use HTTPS
   await cfFetch(`/zones/${zoneId}/settings/always_use_https`, {
     method: 'PATCH',
     body: JSON.stringify({ value: 'on' }),
   })
 
-  // Minimum TLS 1.2
   await cfFetch(`/zones/${zoneId}/settings/min_tls_version`, {
     method: 'PATCH',
     body: JSON.stringify({ value: '1.2' }),
   })
 
-  // Auto HTTPS Rewrites
   await cfFetch(`/zones/${zoneId}/settings/automatic_https_rewrites`, {
     method: 'PATCH',
     body: JSON.stringify({ value: 'on' }),
   })
 }
 
-// ─── Worker ──────────────────────────────────────────────────────────────────
+// ─── Custom Domains (vincula hostname ao Worker global) ─────────────────────
 
-function buildWorkerScript(_domain: string): string {
-  const origin = getWorkerOrigin()
-  return `export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const origin = "${origin}";
-    const newUrl = new URL(url.pathname + url.search, origin);
-    const headers = new Headers(request.headers);
-    headers.set("x-real-host", url.hostname);
-    headers.set("x-forwarded-proto", "https");
-    headers.delete("cf-connecting-ip");
-    const resp = await fetch(newUrl, {
-      method: request.method,
-      headers,
-      body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
-      redirect: "manual",
-    });
-    const respHeaders = new Headers(resp.headers);
-    respHeaders.delete("x-powered-by");
-    return new Response(resp.body, {
-      status: resp.status,
-      statusText: resp.statusText,
-      headers: respHeaders,
-    });
-  }
-};`
+interface CfWorkerDomain {
+  id: string
+  zone_id: string
+  zone_name: string
+  hostname: string
+  service: string
+  environment: string
 }
 
-function workerName(domain: string): string {
-  return `techpags-proxy-${domain.replace(/\./g, '-')}`
-}
-
-async function setupWorkerRoute(zoneId: string, domain: string): Promise<void> {
+async function createCustomDomain(zoneId: string, hostname: string): Promise<CfWorkerDomain> {
   const accountId = getAccountId()
-  const name = workerName(domain)
-  const script = buildWorkerScript(domain)
+  const workerName = getWorkerName()
 
-  // Upload worker script
-  const formData = new FormData()
-  const metadata = JSON.stringify({
-    main_module: 'worker.js',
-    compatibility_date: '2024-01-01',
-  })
-  formData.append('metadata', new Blob([metadata], { type: 'application/json' }))
-  formData.append('worker.js', new Blob([script], { type: 'application/javascript+module' }), 'worker.js')
+  // Remover DNS records conflitantes antes de criar Custom Domain
+  await removeConflictingDnsRecords(zoneId, hostname)
 
-  const uploadRes = await fetch(
-    `${API_BASE}/accounts/${accountId}/workers/scripts/${name}`,
+  // Remover Worker Routes conflitantes
+  await removeConflictingWorkerRoutes(zoneId, hostname)
+
+  logger.info('DOMÍNIO', 'Criando Custom Domain', { hostname, worker: workerName })
+
+  const res = await cfFetch<CfWorkerDomain>(
+    `/accounts/${accountId}/workers/domains`,
     {
       method: 'PUT',
-      headers: { 'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` },
-      body: formData,
+      body: JSON.stringify({
+        hostname,
+        zone_id: zoneId,
+        service: workerName,
+        environment: 'production',
+      }),
     }
   )
-  const uploadData = await uploadRes.json() as CfResponse
-  if (!uploadData.success) {
-    throw new Error(uploadData.errors?.[0]?.message ?? 'Erro ao fazer upload do Worker')
+
+  if (!res.success) {
+    const msg = res.errors?.[0]?.message ?? 'Erro ao criar Custom Domain'
+    throw new Error(msg)
   }
 
-  // Create worker route for the zone
-  await cfFetch(`/zones/${zoneId}/workers/routes`, {
-    method: 'POST',
-    body: JSON.stringify({
-      pattern: `${domain}/*`,
-      script: name,
-    }),
-  })
-
-  // Also route www
-  await cfFetch(`/zones/${zoneId}/workers/routes`, {
-    method: 'POST',
-    body: JSON.stringify({
-      pattern: `www.${domain}/*`,
-      script: name,
-    }),
-  })
+  logger.info('DOMÍNIO', 'Custom Domain criado', { hostname, id: res.result.id })
+  return res.result
 }
 
-async function deleteWorker(domain: string): Promise<void> {
+async function deleteCustomDomain(hostname: string): Promise<void> {
   const accountId = getAccountId()
-  const name = workerName(domain)
-  logger.info('DOMÍNIO', 'Removendo worker', { domain, workerName: name })
+
+  // Buscar o domain ID pelo hostname
+  const listRes = await cfFetch<CfWorkerDomain[]>(
+    `/accounts/${accountId}/workers/domains?hostname=${encodeURIComponent(hostname)}`
+  )
+
+  if (!listRes.success || !listRes.result?.length) {
+    logger.warn('DOMÍNIO', 'Custom Domain não encontrado para remoção', { hostname })
+    return
+  }
+
+  const domainId = listRes.result[0].id
+  const res = await cfFetch(`/accounts/${accountId}/workers/domains/${domainId}`, {
+    method: 'DELETE',
+  })
+
+  if (!res.success) {
+    const msg = res.errors?.[0]?.message ?? 'Erro ao remover Custom Domain'
+    logger.warn('DOMÍNIO', 'Falha ao remover Custom Domain', { hostname, error: msg })
+    return
+  }
+
+  logger.info('DOMÍNIO', 'Custom Domain removido', { hostname })
+}
+
+async function checkCustomDomainExists(hostname: string): Promise<boolean> {
+  const accountId = getAccountId()
+  const res = await cfFetch<CfWorkerDomain[]>(
+    `/accounts/${accountId}/workers/domains?hostname=${encodeURIComponent(hostname)}`
+  )
+  return res.success && (res.result?.length ?? 0) > 0
+}
+
+// ─── Cleanup helpers ────────────────────────────────────────────────────────
+
+async function removeConflictingDnsRecords(zoneId: string, hostname: string): Promise<void> {
+  const parts = hostname.split('.')
+  const subdomain = parts[0]
+  const domain = parts.slice(1).join('.')
+
+  // Remover CNAME do subdomínio
+  const cnameRes = await cfFetch<{ id: string; name: string; type: string; meta?: { read_only?: boolean } }[]>(
+    `/zones/${zoneId}/dns_records?name=${hostname}`
+  )
+  if (cnameRes.success && cnameRes.result?.length) {
+    for (const record of cnameRes.result) {
+      if (record.meta?.read_only) continue
+      logger.info('DOMÍNIO', 'Removendo DNS record conflitante', { name: record.name, type: record.type })
+      await cfFetch(`/zones/${zoneId}/dns_records/${record.id}`, { method: 'DELETE' })
+    }
+  }
+
+  // Remover registro A raiz se existir (não é mais necessário com Custom Domains)
+  const aRes = await cfFetch<{ id: string; name: string; type: string; meta?: { read_only?: boolean } }[]>(
+    `/zones/${zoneId}/dns_records?type=A&name=${domain}`
+  )
+  if (aRes.success && aRes.result?.length) {
+    for (const record of aRes.result) {
+      if (record.meta?.read_only) continue
+      logger.info('DOMÍNIO', 'Removendo registro A conflitante', { name: record.name })
+      await cfFetch(`/zones/${zoneId}/dns_records/${record.id}`, { method: 'DELETE' })
+    }
+  }
+}
+
+async function removeConflictingWorkerRoutes(zoneId: string, hostname: string): Promise<void> {
+  const routesRes = await cfFetch<{ id: string; pattern: string }[]>(`/zones/${zoneId}/workers/routes`)
+  if (!routesRes.success || !routesRes.result?.length) return
+
+  const pattern = `${hostname}/*`
+  const conflicting = routesRes.result.filter(r => r.pattern === pattern)
+
+  for (const route of conflicting) {
+    logger.info('DOMÍNIO', 'Removendo Worker Route conflitante', { pattern: route.pattern })
+    await cfFetch(`/zones/${zoneId}/workers/routes/${route.id}`, { method: 'DELETE' })
+  }
+}
+
+async function cleanupLegacyWorkerRoutes(zoneId: string): Promise<void> {
+  const routesRes = await cfFetch<{ id: string; pattern: string }[]>(`/zones/${zoneId}/workers/routes`)
+  if (!routesRes.success || !routesRes.result?.length) return
+
+  for (const route of routesRes.result) {
+    logger.info('DOMÍNIO', 'Removendo Worker Route legada', { pattern: route.pattern })
+    await cfFetch(`/zones/${zoneId}/workers/routes/${route.id}`, { method: 'DELETE' })
+  }
+}
+
+// ─── Subdomains ─────────────────────────────────────────────────────────────
+
+async function createSubdomainRecords(zoneId: string, domain: string, subdomain: string): Promise<void> {
+  const hostname = `${subdomain}.${domain}`
+  logger.info('DOMÍNIO', 'Configurando subdomínio via Custom Domain', { domain, subdomain, hostname })
+  await createCustomDomain(zoneId, hostname)
+}
+
+async function deleteSubdomainRecords(_zoneId: string, domain: string, subdomain: string): Promise<void> {
+  const hostname = `${subdomain}.${domain}`
+  logger.info('DOMÍNIO', 'Removendo subdomínio', { domain, subdomain, hostname })
+  await deleteCustomDomain(hostname)
+}
+
+async function ensureSubdomainInfra(zoneId: string, domain: string, subdomain: string): Promise<void> {
+  const hostname = `${subdomain}.${domain}`
+
+  const exists = await checkCustomDomainExists(hostname)
+  if (exists) {
+    logger.info('DOMÍNIO', 'Custom Domain já existe', { hostname })
+    return
+  }
+
+  logger.info('DOMÍNIO', 'Custom Domain ausente, criando', { hostname })
+  await createCustomDomain(zoneId, hostname)
+}
+
+// ─── Full Setup ──────────────────────────────────────────────────────────────
+
+async function setupDomain(zoneId: string, domain: string): Promise<void> {
+  logger.info('DOMÍNIO', 'Setup completo iniciado', { domain, zoneId })
+  await configureSsl(zoneId)
+  await cleanupLegacyWorkerRoutes(zoneId)
+  logger.info('DOMÍNIO', 'Setup completo finalizado', { domain, zoneId })
+}
+
+// ─── Legacy cleanup ─────────────────────────────────────────────────────────
+
+async function deleteLegacyWorker(domain: string): Promise<void> {
+  const accountId = getAccountId()
+  const name = `techpags-proxy-${domain.replace(/\./g, '-')}`
+  logger.info('DOMÍNIO', 'Removendo worker legado', { domain, workerName: name })
   await fetch(
     `${API_BASE}/accounts/${accountId}/workers/scripts/${name}`,
     {
@@ -256,173 +309,18 @@ async function deleteWorker(domain: string): Promise<void> {
   )
 }
 
-// ─── Subdomains ─────────────────────────────────────────────────────────────
-
-async function redeployWorker(domain: string): Promise<void> {
-  const accountId = getAccountId()
-  const name = workerName(domain)
-  const script = buildWorkerScript(domain)
-
-  const formData = new FormData()
-  const metadata = JSON.stringify({
-    main_module: 'worker.js',
-    compatibility_date: '2024-01-01',
-  })
-  formData.append('metadata', new Blob([metadata], { type: 'application/json' }))
-  formData.append('worker.js', new Blob([script], { type: 'application/javascript+module' }), 'worker.js')
-
-  const uploadRes = await fetch(
-    `${API_BASE}/accounts/${accountId}/workers/scripts/${name}`,
-    {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` },
-      body: formData,
-    }
-  )
-  const uploadData = await uploadRes.json() as CfResponse
-  if (!uploadData.success) {
-    throw new Error(uploadData.errors?.[0]?.message ?? 'Erro ao re-deploy do Worker')
-  }
-  logger.info('DOMÍNIO', 'Worker re-deployed com host dinâmico', { domain, workerName: name })
-}
-
-async function ensureSubdomainInfra(zoneId: string, domain: string, subdomain: string): Promise<void> {
-  const name = workerName(domain)
-  const fqdn = `${subdomain}.${domain}`
-
-  // 0. Garantir que o registro A raiz existe (necessário para CNAMEs resolverem)
-  const rootDnsRes = await cfFetch<{ id: string; name: string; type: string }[]>(
-    `/zones/${zoneId}/dns_records?type=A&name=${domain}`
-  )
-  if (!rootDnsRes.success || !rootDnsRes.result?.length) {
-    logger.info('DOMÍNIO', 'Registro A raiz ausente, criando', { domain })
-    await cfFetch(`/zones/${zoneId}/dns_records`, {
-      method: 'POST',
-      body: JSON.stringify({
-        type: 'A',
-        name: '@',
-        content: getProxyIp(),
-        proxied: true,
-        ttl: 1,
-      }),
-    })
-  }
-
-  // 1. Verificar se CNAME existe, criar se não
-  const dnsRes = await cfFetch<{ id: string; name: string; type: string }[]>(
-    `/zones/${zoneId}/dns_records?type=CNAME&name=${fqdn}`
-  )
-  if (!dnsRes.success || !dnsRes.result?.length) {
-    logger.info('DOMÍNIO', 'CNAME ausente, criando', { domain, subdomain })
-    await cfFetch(`/zones/${zoneId}/dns_records`, {
-      method: 'POST',
-      body: JSON.stringify({
-        type: 'CNAME',
-        name: subdomain,
-        content: domain,
-        proxied: true,
-        ttl: 1,
-      }),
-    })
-  }
-
-  // 2. Verificar se Worker Route existe, criar se não
-  const routesRes = await cfFetch<{ id: string; pattern: string }[]>(`/zones/${zoneId}/workers/routes`)
-  const expectedPattern = `${fqdn}/*`
-  const routeExists = routesRes.success && routesRes.result?.some(r => r.pattern === expectedPattern)
-
-  if (!routeExists) {
-    logger.info('DOMÍNIO', 'Worker Route ausente, criando', { domain, subdomain, pattern: expectedPattern })
-    await cfFetch(`/zones/${zoneId}/workers/routes`, {
-      method: 'POST',
-      body: JSON.stringify({
-        pattern: expectedPattern,
-        script: name,
-      }),
-    })
-  }
-
-  logger.info('DOMÍNIO', 'Infraestrutura do subdomínio verificada', { domain, subdomain })
-}
-
-async function createSubdomainRecords(zoneId: string, domain: string, subdomain: string): Promise<void> {
-  logger.info('DOMÍNIO', 'Criando subdomínio', { domain, subdomain })
-
-  // Re-deploy worker com script atualizado (x-real-host dinâmico)
-  await redeployWorker(domain)
-
-  // CNAME: subdomain → domain (proxied)
-  await cfFetch(`/zones/${zoneId}/dns_records`, {
-    method: 'POST',
-    body: JSON.stringify({
-      type: 'CNAME',
-      name: subdomain,
-      content: domain,
-      proxied: true,
-      ttl: 1,
-    }),
-  })
-
-  // Worker route for subdomain
-  const name = workerName(domain)
-  await cfFetch(`/zones/${zoneId}/workers/routes`, {
-    method: 'POST',
-    body: JSON.stringify({
-      pattern: `${subdomain}.${domain}/*`,
-      script: name,
-    }),
-  })
-
-  logger.info('DOMÍNIO', 'Subdomínio configurado', { domain, subdomain, fqdn: `${subdomain}.${domain}` })
-}
-
-async function deleteSubdomainRecords(zoneId: string, domain: string, subdomain: string): Promise<void> {
-  logger.info('DOMÍNIO', 'Removendo subdomínio', { domain, subdomain })
-
-  // Find and delete CNAME record
-  const dnsRes = await cfFetch<{ id: string; name: string; type: string }[]>(
-    `/zones/${zoneId}/dns_records?type=CNAME&name=${subdomain}.${domain}`
-  )
-  if (dnsRes.success && dnsRes.result?.length) {
-    for (const record of dnsRes.result) {
-      await cfFetch(`/zones/${zoneId}/dns_records/${record.id}`, { method: 'DELETE' })
-    }
-  }
-
-  // Find and delete worker route
-  const routesRes = await cfFetch<{ id: string; pattern: string }[]>(`/zones/${zoneId}/workers/routes`)
-  if (routesRes.success && routesRes.result?.length) {
-    const pattern = `${subdomain}.${domain}/*`
-    const route = routesRes.result.find(r => r.pattern === pattern)
-    if (route) {
-      await cfFetch(`/zones/${zoneId}/workers/routes/${route.id}`, { method: 'DELETE' })
-    }
-  }
-
-  logger.info('DOMÍNIO', 'Subdomínio removido', { domain, subdomain })
-}
-
-// ─── Full Setup ──────────────────────────────────────────────────────────────
-
-async function setupDomain(zoneId: string, domain: string): Promise<void> {
-  logger.info('DOMÍNIO', 'Setup completo iniciado', { domain, zoneId })
-  await createDnsRecords(zoneId, domain)
-  await configureSsl(zoneId)
-  await setupWorkerRoute(zoneId, domain)
-  logger.info('DOMÍNIO', 'Setup completo finalizado', { domain, zoneId })
-}
-
 export const cloudflareService = {
   createZone,
   checkZoneStatus,
   deleteZone,
-  createDnsRecords,
   configureSsl,
-  setupWorkerRoute,
   setupDomain,
-  deleteWorker,
+  createCustomDomain,
+  deleteCustomDomain,
+  checkCustomDomainExists,
   createSubdomainRecords,
   deleteSubdomainRecords,
-  redeployWorker,
   ensureSubdomainInfra,
+  cleanupLegacyWorkerRoutes,
+  deleteLegacyWorker,
 }
