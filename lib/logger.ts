@@ -1,5 +1,20 @@
 type LogLevel = 'INFORMAÇÃO' | 'ALERTA' | 'ERRO' | 'FATAL'
 
+const COLORS: Record<LogLevel, string> = {
+  'INFORMAÇÃO': '\x1b[36m',
+  'ALERTA':     '\x1b[33m',
+  'ERRO':       '\x1b[31m',
+  'FATAL':      '\x1b[35m',
+}
+const RESET = '\x1b[0m'
+
+const EMOJIS: Record<LogLevel, string> = {
+  'INFORMAÇÃO': '✅',
+  'ALERTA':     '⚠️',
+  'ERRO':       '❌',
+  'FATAL':      '💀',
+}
+
 function timestamp(): string {
   const now = new Date()
   const br = new Intl.DateTimeFormat('pt-BR', {
@@ -41,7 +56,9 @@ function formatData(data?: Record<string, unknown>): string {
 }
 
 function log(level: LogLevel, module: string, message: string, data?: Record<string, unknown>) {
-  const line = `[${timestamp()}] [${level}] [${module}] ${message}${formatData(data)}`
+  const emoji = EMOJIS[level]
+  const color = COLORS[level]
+  const line = `${emoji} ${color}[${timestamp()}] [${level}] [${module}]${RESET} ${message}${formatData(data)}`
 
   switch (level) {
     case 'FATAL':
