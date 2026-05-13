@@ -5,6 +5,9 @@ const COOKIE       = 'rg_session'
 const PUBLIC_PATHS = ['/login', '/s/registro', '/', '/privacidade', '/termos', '/reembolso', '/entrega', '/cookies', '/contato']
 const PUBLIC_PAGE_PREFIXES = ['/checkout']
 const PUBLIC_API   = ['/api/auth/', '/api/pixels/track', '/api/pixels/config', '/api/stripe/webhook', '/api/checkout/', '/api/cron/', '/api/v1/', '/api/integrations/google-ads/callback', '/api/products/by-domain', '/api/geo-ip']
+const ADMIN_PATHS  = ['/stripe', '/stripe-eventos', '/stripe-payouts', '/dev/integracoes']
+const ADMIN_API    = ['/api/stripe/balance', '/api/stripe/payouts', '/api/stripe/refunds', '/api/stripe/disputes', '/api/stripe/fraud', '/api/stripe/customers', '/api/stripe/backfill', '/api/stripe/coupons', '/api/stripe/transactions', '/api/stripe-events', '/api/dev/test-integration']
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? 'samnkls'
 
 function getKey() {
   const secret = process.env.JWT_SECRET
@@ -117,7 +120,23 @@ export async function middleware(req: NextRequest) {
   try {
     const { payload } = await jwtVerify(token, getKey())
     const userId = (payload as { userId?: string }).userId ?? ''
+    const username = (payload as { username?: string }).username ?? ''
+    const role = (payload as { role?: string }).role ?? 'user'
     mwLog('INFORMAÇÃO', 'Sessão validada', { userId, path: pathname })
+
+    // Proteção de rotas admin
+    const isAdminRoute = ADMIN_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
+    const isAdminApi = ADMIN_API.some(p => pathname.startsWith(p))
+    if (isAdminRoute || isAdminApi) {
+      if (username !== ADMIN_USERNAME && role !== 'admin') {
+        mwLog('ALERTA', 'Acesso admin negado', { username, path: pathname, ip })
+        if (isAdminApi) {
+          return NextResponse.json({ error: 'Acesso restrito' }, { status: 403 })
+        }
+        return NextResponse.redirect(new URL('/dashboard', req.url))
+      }
+    }
+
     if (isPublicPage) return NextResponse.redirect(new URL('/dashboard', req.url))
     return NextResponse.next()
   } catch {

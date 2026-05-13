@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     const user = await userService.create(username, email, password)
 
-    await createSession({ userId: user.id, username: user.username, email: user.email })
+    await createSession({ userId: user.id, username: user.username, email: user.email, role: 'user' })
 
     logger.info('AUTH', 'Registo de novo utilizador', { username: user.username, email: user.email, ip })
 

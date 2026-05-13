@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAdmin } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireAdmin()
   if (auth instanceof NextResponse) return auth
 
   const sp        = req.nextUrl.searchParams
