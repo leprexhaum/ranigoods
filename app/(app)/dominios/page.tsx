@@ -289,7 +289,7 @@ export default function DominiosPage() {
         <div>
           <h1 className="text-ep-primary text-lg md:text-xl font-bold">Domínios Customizados</h1>
           <p className="text-ep-secondary text-xs md:text-sm mt-0.5">
-            Conecte seu próprio domínio ao checkout — configuração automática via nameservers
+            Conecte seu próprio domínio ao checkout
           </p>
         </div>
         <div className="flex items-center gap-2">
