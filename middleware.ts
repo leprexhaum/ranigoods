@@ -69,7 +69,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next()
     }
 
-    // Só permite /checkout/* — valida se o produto pertence ao utilizador do domínio
+    // Só permite /checkout/* — valida se o domínio pertence a um utilizador ativo
     if (pathname.startsWith('/checkout/')) {
       const segment = pathname.split('/')[2]
       if (segment === 'success' || segment === 'upsell' || segment === 'cart') {
@@ -78,20 +78,16 @@ export async function middleware(req: NextRequest) {
       }
 
       try {
-        const slug    = segment
         const internalBase = `https://${appHost}`
-        const res     = await fetch(`${internalBase}/api/products/by-domain?domain=${encodeURIComponent(host)}`)
+        const res = await fetch(`${internalBase}/api/products/by-domain?domain=${encodeURIComponent(host)}`)
         if (res.ok) {
-          const data = await res.json()
-          if (data?.slug && slug === data.slug) {
-            mwLog('INFORMAÇÃO', 'Domínio customizado detectado', { host, path: pathname, acao: 'permitido' })
-            return NextResponse.next()
-          }
+          mwLog('INFORMAÇÃO', 'Domínio customizado detectado', { host, path: pathname, acao: 'permitido' })
+          return NextResponse.next()
         }
       } catch {
         return NextResponse.next()
       }
-      mwLog('ALERTA', 'Domínio customizado — slug não corresponde', { host, slug: pathname.split('/')[2], acao: '404' })
+      mwLog('ALERTA', 'Domínio customizado — domínio não reconhecido', { host, path: pathname, acao: '404' })
       return new NextResponse('Not Found', { status: 404 })
     }
 
