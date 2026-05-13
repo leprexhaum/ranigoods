@@ -37,11 +37,11 @@ export async function PUT(
   try {
     const updated = await domainService.updateSubdomains(params.id, auth.session.userId, body.subdomains)
     if (!updated) return NextResponse.json({ error: 'Domínio não encontrado' }, { status: 404 })
-    logger.info('DOMÍNIO', 'Subdomínios atualizados via API', { userId: auth.session.userId, domainId: params.id, subdomains: body.subdomains })
+    logger.info('DOMÍNIO', 'Subdomínios atualizados via API', { username: auth.session.username, domainId: params.id, subdomains: body.subdomains })
     return NextResponse.json(updated)
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro ao atualizar subdomínios'
-    logger.error('DOMÍNIO', 'Erro ao atualizar subdomínios', { userId: auth.session.userId, domainId: params.id, error: msg })
+    logger.error('DOMÍNIO', 'Erro ao atualizar subdomínios', { username: auth.session.username, domainId: params.id, error: msg })
     return NextResponse.json({ error: msg }, { status: 400 })
   }
 }

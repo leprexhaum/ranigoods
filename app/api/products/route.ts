@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const status = sp.get('status') as 'active' | 'archived' | null
     const { userId } = auth.session
     const products = await productService.getAll(userId, status ?? undefined)
-    logger.info('PRODUTO', 'Listagem consultada', { userId, filtro: status ?? 'all', total: products.length })
+    logger.info('PRODUTO', 'Listagem consultada', { username: auth.session.username, filtro: status ?? 'all', total: products.length })
     return NextResponse.json(products)
   } catch (err) {
     logger.error('PRODUTO', 'Erro ao listar produtos', { error: err instanceof Error ? err.message : String(err) })
@@ -67,10 +67,10 @@ export async function POST(req: NextRequest) {
       pixelIds:         body.pixelIds ?? [],
     })
 
-    logger.info('PRODUTO', 'Produto criado', { productId: product.id, userId, nome: name, preco: price, moeda: body.currency ?? 'EUR' })
+    logger.info('PRODUTO', 'Produto criado', { productId: product.id, username: auth.session.username, nome: name, preco: price, moeda: body.currency ?? 'EUR' })
     return NextResponse.json(product, { status: 201 })
   } catch (err) {
-    logger.error('PRODUTO', 'Erro ao criar produto', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
+    logger.error('PRODUTO', 'Erro ao criar produto', { username: auth.session.username, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

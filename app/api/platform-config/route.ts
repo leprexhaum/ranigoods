@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     update: { value: storedValue, encrypted: isSensitive },
   })
 
-  logger.info('CONFIG', 'Platform config atualizada', { userId: auth.session.userId, key: body.key })
+  logger.info('CONFIG', 'Platform config atualizada', { username: auth.session.username, key: body.key })
   return NextResponse.json({ key: row.key, set: row.value !== '' })
 }
 
@@ -70,6 +70,6 @@ export async function DELETE(req: NextRequest) {
   }
 
   await prisma.platformConfig.deleteMany({ where: { key } })
-  logger.info('CONFIG', 'Platform config removida', { userId: auth.session.userId, key })
+  logger.info('CONFIG', 'Platform config removida', { username: auth.session.username, key })
   return NextResponse.json({ ok: true })
 }

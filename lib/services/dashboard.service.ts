@@ -94,7 +94,8 @@ async function calcStats(userId: string, start?: string, end?: string) {
 
 export const dashboardService = {
   async getStats(userId: string, start?: string, end?: string): Promise<DashboardStats> {
-    logger.info('DASHBOARD', 'Calculando estatísticas', { userId, periodo: `${start ?? 'inicio'}..${end ?? 'hoje'}` })
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+    logger.info('DASHBOARD', 'Calculando estatísticas', { username: user?.username ?? 'unknown', periodo: `${start ?? 'inicio'}..${end ?? 'hoje'}` })
     const prev = previousPeriod(start, end)
     const [cur, pre] = await Promise.all([
       calcStats(userId, start, end),

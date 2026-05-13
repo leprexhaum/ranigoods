@@ -12,7 +12,7 @@ export async function POST(
 
   const body      = await req.json().catch(() => ({})) as { event?: string }
   const eventName = body.event ?? 'Purchase'
-  logger.info('PIXEL', 'Teste de disparo', { userId: auth.session.userId, pixelId: params.id, event: eventName })
+  logger.info('PIXEL', 'Teste de disparo', { username: auth.session.username, pixelId: params.id, event: eventName })
   const result    = await pixelService.testEvent(params.id, auth.session.userId, eventName)
   return NextResponse.json(result)
 }

@@ -12,6 +12,6 @@ export async function POST(
 
   const product = await productService.duplicate(params.id)
   if (!product) return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 })
-  logger.info('PRODUTO', 'Produto duplicado', { userId: auth.session.userId, originalId: params.id, newId: product.id })
+  logger.info('PRODUTO', 'Produto duplicado', { username: auth.session.username, originalId: params.id, newId: product.id })
   return NextResponse.json(product, { status: 201 })
 }

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   const csv = [header, ...rows].map(r => r.join(',')).join('\n')
 
-  logger.info('PAGAMENTO', 'Exportação gerada', { userId: auth.session.userId, formato: 'csv', registos: data.length, periodo: `${sp.get('start') ?? 'inicio'}..${sp.get('end') ?? 'hoje'}` })
+  logger.info('PAGAMENTO', 'Exportação gerada', { username: auth.session.username, formato: 'csv', registos: data.length, periodo: `${sp.get('start') ?? 'inicio'}..${sp.get('end') ?? 'hoje'}` })
 
   return new NextResponse(csv, {
     headers: {

@@ -23,7 +23,7 @@ export async function POST(
     if (cp.status === 'refunded') return NextResponse.json({ error: 'Já reembolsado' }, { status: 409 })
     if (!cp.stripePaymentIntentId) return NextResponse.json({ error: 'Payment Intent não encontrado' }, { status: 404 })
 
-    logger.info('PAGAMENTO', 'Reembolso solicitado', { paymentId: params.id, amount: amount ?? cp.amount, userId: auth.session.userId })
+    logger.info('PAGAMENTO', 'Reembolso solicitado', { paymentId: params.id, amount: amount ?? cp.amount, username: auth.session.username })
 
     const pi = await stripe.paymentIntents.retrieve(cp.stripePaymentIntentId, { expand: ['latest_charge'] })
     const charge = pi.latest_charge as Stripe.Charge | null

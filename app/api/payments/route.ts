@@ -25,10 +25,10 @@ export async function GET(req: NextRequest) {
     }
 
     const result = await paymentService.query(query)
-    logger.info('PAGAMENTO', 'Listagem consultada', { userId: auth.session.userId, status: query.status, pagina: query.page, resultados: `${result.data.length}/${result.total}` })
+    logger.info('PAGAMENTO', 'Listagem consultada', { username: auth.session.username, status: query.status, pagina: query.page, resultados: `${result.data.length}/${result.total}` })
     return NextResponse.json(result)
   } catch (err) {
-    logger.error('PAGAMENTO', 'Erro ao listar pagamentos', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
+    logger.error('PAGAMENTO', 'Erro ao listar pagamentos', { username: auth.session.username, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

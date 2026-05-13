@@ -10,6 +10,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   if (auth instanceof NextResponse) return auth
   const ok = await domainService.delete(params.id, auth.session.userId)
   if (!ok) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  logger.info('DOMÍNIO', 'Domínio removido via API', { userId: auth.session.userId, domainId: params.id })
+  logger.info('DOMÍNIO', 'Domínio removido via API', { username: auth.session.username, domainId: params.id })
   return NextResponse.json({ success: true })
 }

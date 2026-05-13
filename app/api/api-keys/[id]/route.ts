@@ -14,6 +14,6 @@ export async function DELETE(
 
   const ok = await apiKeyService.revoke(params.id, auth.session.userId)
   if (!ok) return NextResponse.json({ error: 'Key não encontrada' }, { status: 404 })
-  logger.info('API-KEY', 'Chave revogada', { userId: auth.session.userId, keyId: params.id })
+  logger.info('API-KEY', 'Chave revogada', { username: auth.session.username, keyId: params.id })
   return NextResponse.json({ success: true })
 }

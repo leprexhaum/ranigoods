@@ -64,7 +64,8 @@ export const domainService = {
         cfNameservers: nameservers,
       },
     })
-    logger.info('DOMÍNIO', 'Domínio adicionado', { domain: clean, userId, status: 'pending_ns' })
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+    logger.info('DOMÍNIO', 'Domínio adicionado', { domain: clean, username: user?.username ?? 'unknown', status: 'pending_ns' })
     return toRecord(row)
   },
 
@@ -150,7 +151,8 @@ export const domainService = {
     }
 
     const result = await prisma.customDomain.deleteMany({ where: { id, userId } })
-    logger.info('DOMÍNIO', 'Domínio removido', { domain: row.domain, userId })
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+    logger.info('DOMÍNIO', 'Domínio removido', { domain: row.domain, username: user?.username ?? 'unknown' })
     return result.count > 0
   },
 

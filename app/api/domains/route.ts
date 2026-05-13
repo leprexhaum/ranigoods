@@ -9,7 +9,7 @@ export async function GET() {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
   const domains = await domainService.list(auth.session.userId)
-  logger.info('DOMÍNIO', 'Listagem consultada', { userId: auth.session.userId, total: domains.length })
+  logger.info('DOMÍNIO', 'Listagem consultada', { username: auth.session.username, total: domains.length })
   return NextResponse.json(domains)
 }
 
@@ -36,15 +36,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const domain = await domainService.create(auth.session.userId, clean)
-    logger.info('DOMÍNIO', 'Domínio criado via API', { userId: auth.session.userId, domain: clean })
+    logger.info('DOMÍNIO', 'Domínio criado via API', { username: auth.session.username, domain: clean })
     return NextResponse.json(domain, { status: 201 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro ao adicionar domínio'
     if (msg.includes('already exists') || msg.includes('Unique constraint')) {
-      logger.warn('DOMÍNIO', 'Domínio duplicado', { userId: auth.session.userId, domain: clean })
+      logger.warn('DOMÍNIO', 'Domínio duplicado', { username: auth.session.username, domain: clean })
       return NextResponse.json({ error: 'Domínio já cadastrado' }, { status: 409 })
     }
-    logger.error('DOMÍNIO', 'Erro ao criar domínio', { userId: auth.session.userId, domain: clean, error: msg })
+    logger.error('DOMÍNIO', 'Erro ao criar domínio', { username: auth.session.username, domain: clean, error: msg })
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

@@ -22,6 +22,6 @@ export async function GET(req: NextRequest) {
     page,
     limit,
   })
-  logger.info('CHECKOUT', 'Carrinhos abandonados consultados', { userId: auth.session.userId, status, page, total: result.total })
+  logger.info('CHECKOUT', 'Carrinhos abandonados consultados', { username: auth.session.username, status, page, total: result.total })
   return NextResponse.json(result)
 }

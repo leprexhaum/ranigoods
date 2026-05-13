@@ -7,6 +7,6 @@ export const dynamic = 'force-dynamic'
 export async function POST() {
   const session = await getSession()
   await destroySession()
-  logger.info('AUTH', 'Sessão encerrada', { userId: session?.userId ?? 'unknown' })
+  logger.info('AUTH', 'Sessão encerrada', { username: session?.username ?? 'unknown' })
   return NextResponse.json({ ok: true })
 }

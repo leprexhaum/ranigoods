@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     await createSession({ userId: user.id, username: user.username, email: user.email })
 
-    logger.info('AUTH', 'Registo de novo utilizador', { userId: user.id, username: user.username, email: user.email, ip })
+    logger.info('AUTH', 'Registo de novo utilizador', { username: user.username, email: user.email, ip })
 
     return NextResponse.json({ user }, { status: 201 })
   } catch (err) {

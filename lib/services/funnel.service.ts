@@ -59,7 +59,8 @@ export const funnelService = {
   },
 
   async create(userId: string, data: Omit<FunnelRecord, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<FunnelRecord> {
-    logger.info('UPSELL', 'Funil criado', { userId, productId: data.productId, upsellId: data.upsellId })
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+    logger.info('UPSELL', 'Funil criado', { username: user?.username ?? 'unknown', productId: data.productId, upsellId: data.upsellId })
     const r = await prisma.funnel.create({
       data: { userId, ...data },
     })
@@ -81,7 +82,10 @@ export const funnelService = {
 
   async delete(id: string, userId: string): Promise<boolean> {
     const r = await prisma.funnel.deleteMany({ where: { id, userId } })
-    if (r.count > 0) logger.info('UPSELL', 'Funil removido', { funnelId: id, userId })
+    if (r.count > 0) {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+      logger.info('UPSELL', 'Funil removido', { funnelId: id, username: user?.username ?? 'unknown' })
+    }
     return r.count > 0
   },
 }

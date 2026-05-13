@@ -16,6 +16,6 @@ export async function GET(
   if (!cart) return NextResponse.json({ error: 'Carrinho não encontrado' }, { status: 404 })
   if (cart.userId !== auth.userId) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
 
-  logger.info('PEDIDO', 'Carrinho consultado via API v1', { userId: auth.userId, cartId: params.id })
+  logger.info('PEDIDO', 'Carrinho consultado via API v1', { username: auth.username, cartId: params.id })
   return NextResponse.json(cart)
 }

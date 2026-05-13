@@ -28,6 +28,6 @@ export async function POST(req: NextRequest) {
     data:  { refreshToken: '', customerId: '', conversionActionId: '' },
   })
 
-  logger.info('PIXEL', 'Google Ads desconectado', { userId: session.userId, configId: body.pixelConfigId })
+  logger.info('PIXEL', 'Google Ads desconectado', { username: session.username, configId: body.pixelConfigId })
   return NextResponse.json({ ok: true })
 }

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { apiKeyService } from '@/lib/services/api-key.service'
+import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 
-export async function requireApiKey(req: NextRequest): Promise<{ userId: string } | NextResponse> {
+export async function requireApiKey(req: NextRequest): Promise<{ userId: string; username: string } | NextResponse> {
   const auth = req.headers.get('authorization') ?? ''
   const raw  = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
   const ip   = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
@@ -20,6 +21,7 @@ export async function requireApiKey(req: NextRequest): Promise<{ userId: string 
     return NextResponse.json({ error: 'API key inválida ou revogada' }, { status: 401 })
   }
 
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
   logger.info('API-KEY', 'Acesso via API Key', { prefix, endpoint, method })
-  return { userId }
+  return { userId, username: user?.username ?? 'unknown' }
 }

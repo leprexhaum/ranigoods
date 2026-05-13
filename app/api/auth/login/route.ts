@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     await createSession({ userId: user.id, username: user.username, email: user.email })
 
-    logger.info('AUTH', 'Login efetuado com sucesso', { userId: user.id, username: user.username, ip })
+    logger.info('AUTH', 'Login efetuado com sucesso', { username: user.username, ip })
 
     return NextResponse.json({
       user: { id: user.id, username: user.username, email: user.email },

@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ...(body.enabled    !== undefined ? { enabled:    body.enabled           } : {}),
     },
   })
-  logger.info('PUSHCUT', 'Config atualizada', { userId: session.userId, configId: params.id })
+  logger.info('PUSHCUT', 'Config atualizada', { username: session.username, configId: params.id })
   return NextResponse.json(updated)
 }
 
@@ -32,6 +32,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const cfg = await prisma.pushcutConfig.findUnique({ where: { id: params.id } })
   if (!cfg || cfg.userId !== session.userId) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
   await prisma.pushcutConfig.delete({ where: { id: params.id } })
-  logger.info('PUSHCUT', 'Config removida', { userId: session.userId, configId: params.id })
+  logger.info('PUSHCUT', 'Config removida', { username: session.username, configId: params.id })
   return NextResponse.json({ ok: true })
 }
