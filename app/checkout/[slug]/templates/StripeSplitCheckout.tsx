@@ -715,9 +715,11 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
       <h2 style={H2_STYLE}>Método de pagamento</h2>
 
       {!clientSecret ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '24px 0', color: 'rgba(26,26,26,0.5)', fontSize: '13px' }}>
-          <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-          A preparar pagamento…
+        <div style={{ padding: '8px 0' }}>
+          <div style={{ height: '18px', width: '60%', background: '#e5e7eb', borderRadius: '4px', marginBottom: '12px', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          <div style={{ height: '40px', width: '100%', background: '#e5e7eb', borderRadius: '6px', marginBottom: '10px', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          <div style={{ height: '40px', width: '100%', background: '#e5e7eb', borderRadius: '6px', marginBottom: '10px', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          <div style={{ height: '40px', width: '50%', background: '#e5e7eb', borderRadius: '6px', animation: 'pulse 1.5s ease-in-out infinite' }} />
         </div>
       ) : (
         stripePromise && (
@@ -1308,6 +1310,10 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
         @keyframes spin {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
         }
 
         /* Desktop: layout split */
