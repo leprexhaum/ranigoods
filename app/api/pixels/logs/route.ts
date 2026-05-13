@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pixelService } from '@/lib/services/pixel.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +10,9 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   const limit = parseInt(new URL(req.url).searchParams.get('limit') ?? '50')
-  return NextResponse.json(await pixelService.getLogs(auth.session.userId, limit))
+  const logs = await pixelService.getLogs(auth.session.userId, limit)
+  logger.info('PIXEL', 'Logs consultados', { userId: auth.session.userId, limit, total: logs.length })
+  return NextResponse.json(logs)
 }
 
 export async function DELETE() {
@@ -17,5 +20,6 @@ export async function DELETE() {
   if (auth instanceof NextResponse) return auth
 
   await pixelService.clearLogs(auth.session.userId)
+  logger.info('PIXEL', 'Logs limpos', { userId: auth.session.userId })
   return NextResponse.json({ cleared: true })
 }

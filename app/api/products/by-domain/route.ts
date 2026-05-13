@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,10 @@ export async function GET(req: NextRequest) {
     where:  { customDomain: domain, active: true },
     select: { id: true, slug: true },
   })
-  if (byProduct?.slug) return NextResponse.json({ id: byProduct.id, slug: byProduct.slug })
+  if (byProduct?.slug) {
+    logger.info('DOMÍNIO', 'Produto encontrado por customDomain', { domain, productId: byProduct.id })
+    return NextResponse.json({ id: byProduct.id, slug: byProduct.slug })
+  }
 
   // 2. Tenta por CustomDomain global do usuário → primeiro produto ativo do userId
   const customDomain = await prisma.customDomain.findUnique({
@@ -29,5 +33,6 @@ export async function GET(req: NextRequest) {
   })
 
   if (!product?.slug) return NextResponse.json({ error: 'not found' }, { status: 404 })
+  logger.info('DOMÍNIO', 'Produto encontrado por CustomDomain global', { domain, productId: product.id })
   return NextResponse.json({ id: product.id, slug: product.slug })
 }

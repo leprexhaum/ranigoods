@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'crypto'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export interface ApiKeyRecord {
   id:        string
@@ -24,6 +25,8 @@ export const apiKeyService = {
     const row = await prisma.apiKey.create({
       data: { userId, name, key: hashed, keyPrefix: prefix },
     })
+
+    logger.info('API-KEY', 'Chave gerada', { userId, prefix, nome: name })
 
     return {
       plaintext: raw,
@@ -60,8 +63,10 @@ export const apiKeyService = {
         where: { id, userId, revokedAt: null },
         data:  { revokedAt: new Date() },
       })
+      logger.info('API-KEY', 'Chave revogada via service', { keyId: id, userId })
       return true
     } catch {
+      logger.error('API-KEY', 'Erro ao revogar chave', { keyId: id, userId })
       return false
     }
   },

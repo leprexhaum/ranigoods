@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,6 +55,7 @@ export async function PATCH(
       ...(body.enabled    !== undefined ? { enabled:    body.enabled         } : {}),
     },
   })
+  logger.info('WEBHOOK-OUT', 'Webhook atualizado', { userId: session.userId, webhookId: params.id })
   return NextResponse.json(updated)
 }
 
@@ -71,5 +73,6 @@ export async function DELETE(
   }
 
   await prisma.outboundWebhook.delete({ where: { id: params.id } })
+  logger.info('WEBHOOK-OUT', 'Webhook removido', { userId: session.userId, webhookId: params.id })
   return NextResponse.json({ ok: true })
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pixelService } from '@/lib/services/pixel.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export async function POST(
   req: NextRequest,
@@ -11,6 +12,7 @@ export async function POST(
 
   const body      = await req.json().catch(() => ({})) as { event?: string }
   const eventName = body.event ?? 'Purchase'
+  logger.info('PIXEL', 'Teste de disparo', { userId: auth.session.userId, pixelId: params.id, event: eventName })
   const result    = await pixelService.testEvent(params.id, auth.session.userId, eventName)
   return NextResponse.json(result)
 }

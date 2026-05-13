@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+
 const API_BASE = 'https://api.cloudflare.com/client/v4'
 
 function getHeaders() {
@@ -43,6 +45,7 @@ interface CfZone {
 }
 
 async function createZone(domain: string): Promise<{ zoneId: string; nameservers: string[] }> {
+  logger.info('DOMÍNIO', 'Criando zona Cloudflare', { domain })
   const res = await cfFetch<CfZone>('/zones', {
     method: 'POST',
     body: JSON.stringify({
@@ -88,6 +91,7 @@ async function checkZoneStatus(zoneId: string): Promise<'active' | 'pending' | '
 
 async function deleteZone(zoneId: string): Promise<void> {
   if (!zoneId) return
+  logger.info('DOMÍNIO', 'Removendo zona Cloudflare', { zoneId })
   const res = await cfFetch(`/zones/${zoneId}`, { method: 'DELETE' })
   if (!res.success) {
     const code = res.errors?.[0]?.code
@@ -236,6 +240,7 @@ async function setupWorkerRoute(zoneId: string, domain: string): Promise<void> {
 async function deleteWorker(domain: string): Promise<void> {
   const accountId = getAccountId()
   const name = workerName(domain)
+  logger.info('DOMÍNIO', 'Removendo worker', { domain, workerName: name })
   await fetch(
     `${API_BASE}/accounts/${accountId}/workers/scripts/${name}`,
     {
@@ -248,9 +253,11 @@ async function deleteWorker(domain: string): Promise<void> {
 // ─── Full Setup ──────────────────────────────────────────────────────────────
 
 async function setupDomain(zoneId: string, domain: string): Promise<void> {
+  logger.info('DOMÍNIO', 'Setup completo iniciado', { domain, zoneId })
   await createDnsRecords(zoneId, domain)
   await configureSsl(zoneId)
   await setupWorkerRoute(zoneId, domain)
+  logger.info('DOMÍNIO', 'Setup completo finalizado', { domain, zoneId })
 }
 
 export const cloudflareService = {

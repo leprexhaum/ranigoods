@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireApiKey } from '@/lib/api-key-auth'
 import { cartService } from '@/lib/services/cart.service'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,12 +28,14 @@ export async function POST(req: NextRequest) {
     const urlParams = (body.urlParams && typeof body.urlParams === 'object') ? body.urlParams : {}
 
     const result = await cartService.create(auth.userId, body.items, urlParams)
+    logger.info('PEDIDO', 'Carrinho criado via API v1', { userId: auth.userId, cartId: result.cartId, itens: body.items.length })
 
     return NextResponse.json(result, { status: 201 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro interno'
     const isClientError = msg.includes('não encontrado') || msg.includes('não pertence') ||
       msg.includes('Quantidade') || msg.includes('disponível') || msg.includes('moeda')
+    logger.error('PEDIDO', 'Erro ao criar carrinho via API v1', { userId: auth.userId, error: msg })
     return NextResponse.json({ error: msg }, { status: isClientError ? 400 : 500 })
   }
 }

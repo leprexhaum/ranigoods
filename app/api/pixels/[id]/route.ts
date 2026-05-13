@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pixelService } from '@/lib/services/pixel.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,7 @@ export async function PUT(
   const data    = await req.json()
   const updated = await pixelService.update(params.id, auth.session.userId, data)
   if (!updated) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+  logger.info('PIXEL', 'Pixel atualizado', { userId: auth.session.userId, pixelId: params.id })
   return NextResponse.json(updated)
 }
 
@@ -38,5 +40,6 @@ export async function DELETE(
 
   const ok = await pixelService.delete(params.id, auth.session.userId)
   if (!ok) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+  logger.info('PIXEL', 'Pixel removido', { userId: auth.session.userId, pixelId: params.id })
   return NextResponse.json({ success: true })
 }

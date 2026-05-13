@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,5 +37,6 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
+  logger.info('WEBHOOK', 'Stripe events consultados', { userId: auth.session.userId, type, page, total })
   return NextResponse.json({ data, total, page, limit, pages: Math.ceil(total / limit) })
 }

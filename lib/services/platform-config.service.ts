@@ -1,9 +1,13 @@
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 import { decryptIfNotEmpty } from '@/lib/crypto'
 
 export async function getPlatformConfig(key: string): Promise<string> {
   const row = await prisma.platformConfig.findUnique({ where: { key } })
-  if (!row || !row.value) return ''
+  if (!row || !row.value) {
+    logger.warn('CONFIG', 'Platform config não encontrada', { key })
+    return ''
+  }
   return row.encrypted ? decryptIfNotEmpty(row.value) : row.value
 }
 

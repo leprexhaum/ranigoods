@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export interface PublicUser {
   id:        string
@@ -18,6 +19,7 @@ export const userService = {
     const user = await prisma.user.create({
       data: { username: username.trim().toLowerCase(), email: email.trim().toLowerCase(), passwordHash },
     })
+    logger.info('AUTH', 'Utilizador criado', { userId: user.id, username: user.username })
     return toPublic(user)
   },
 

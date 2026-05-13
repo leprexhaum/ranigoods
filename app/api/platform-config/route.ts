@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
 import { encrypt, decryptIfNotEmpty } from '@/lib/crypto'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
     update: { value: storedValue, encrypted: isSensitive },
   })
 
+  logger.info('CONFIG', 'Platform config atualizada', { userId: auth.session.userId, key: body.key })
   return NextResponse.json({ key: row.key, set: row.value !== '' })
 }
 
@@ -68,5 +70,6 @@ export async function DELETE(req: NextRequest) {
   }
 
   await prisma.platformConfig.deleteMany({ where: { key } })
+  logger.info('CONFIG', 'Platform config removida', { userId: auth.session.userId, key })
   return NextResponse.json({ ok: true })
 }

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export interface FunnelRecord {
   id:          string
@@ -58,6 +59,7 @@ export const funnelService = {
   },
 
   async create(userId: string, data: Omit<FunnelRecord, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<FunnelRecord> {
+    logger.info('UPSELL', 'Funil criado', { userId, productId: data.productId, upsellId: data.upsellId })
     const r = await prisma.funnel.create({
       data: { userId, ...data },
     })
@@ -79,6 +81,7 @@ export const funnelService = {
 
   async delete(id: string, userId: string): Promise<boolean> {
     const r = await prisma.funnel.deleteMany({ where: { id, userId } })
+    if (r.count > 0) logger.info('UPSELL', 'Funil removido', { funnelId: id, userId })
     return r.count > 0
   },
 }

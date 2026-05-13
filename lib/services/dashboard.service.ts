@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 import type { DashboardStats, DailySale } from '@/lib/types/dashboard'
 import type { Payment } from '@/lib/types/payment'
 
@@ -93,6 +94,7 @@ async function calcStats(userId: string, start?: string, end?: string) {
 
 export const dashboardService = {
   async getStats(userId: string, start?: string, end?: string): Promise<DashboardStats> {
+    logger.info('DASHBOARD', 'Calculando estatísticas', { userId, periodo: `${start ?? 'inicio'}..${end ?? 'hoje'}` })
     const prev = previousPeriod(start, end)
     const [cur, pre] = await Promise.all([
       calcStats(userId, start, end),

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,5 +14,6 @@ export async function GET(
 
   const ev = await prisma.stripeEvent.findUnique({ where: { id: params.id } })
   if (!ev) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+  logger.info('WEBHOOK', 'Stripe event detalhe', { userId: auth.session.userId, eventId: params.id, type: ev.type })
   return NextResponse.json(ev)
 }

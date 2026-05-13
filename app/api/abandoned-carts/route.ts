@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,5 +22,6 @@ export async function GET(req: NextRequest) {
     page,
     limit,
   })
+  logger.info('CHECKOUT', 'Carrinhos abandonados consultados', { userId: auth.session.userId, status, page, total: result.total })
   return NextResponse.json(result)
 }

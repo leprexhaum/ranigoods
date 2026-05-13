@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,5 +17,6 @@ export async function POST() {
     data:  { userId },
   })
 
+  logger.info('PRODUTO', 'Fix userId executado', { userId, atualizados: result.count })
   return NextResponse.json({ updated: result.count, userId })
 }

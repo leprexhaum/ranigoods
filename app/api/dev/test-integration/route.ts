@@ -4,6 +4,7 @@ import { pushcutService } from '@/lib/services/pushcut.service'
 import { utmifyService } from '@/lib/services/utmify.service'
 import { webhookNotifyService } from '@/lib/services/webhook-notify.service'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth()
@@ -11,6 +12,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { type, payload } = body as { type: string; payload: Record<string, unknown> }
+  logger.info('WEBHOOK-OUT', 'Teste de integração', { userId: auth.session.userId, type })
 
   const startTime = Date.now()
 

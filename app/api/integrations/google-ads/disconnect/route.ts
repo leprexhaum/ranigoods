@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,5 +28,6 @@ export async function POST(req: NextRequest) {
     data:  { refreshToken: '', customerId: '', conversionActionId: '' },
   })
 
+  logger.info('PIXEL', 'Google Ads desconectado', { userId: session.userId, configId: body.pixelConfigId })
   return NextResponse.json({ ok: true })
 }

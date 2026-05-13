@@ -14,6 +14,12 @@ function getKey() {
 
 type LogLevel = 'INFORMAÇÃO' | 'ALERTA' | 'ERRO'
 
+const LEVEL_EMOJIS: Record<LogLevel, string> = {
+  'INFORMAÇÃO': '✅',
+  'ALERTA':     '⚠️',
+  'ERRO':       '❌',
+}
+
 function mwLog(level: LogLevel, message: string, data?: Record<string, unknown>) {
   const now = new Date()
   const br = new Intl.DateTimeFormat('pt-BR', {
@@ -25,7 +31,7 @@ function mwLog(level: LogLevel, message: string, data?: Record<string, unknown>)
   for (const p of br) { if (p.type !== 'literal') parts[p.type] = p.value }
   const ts = `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}:${parts.second}`
   const pairs = data ? ' | ' + Object.entries(data).filter(([,v]) => v !== undefined && v !== null && v !== '').map(([k,v]) => `${k}=${v}`).join(' ') : ''
-  const line = `[${ts}] [${level}] [MIDDLEWARE] ${message}${pairs}`
+  const line = `${LEVEL_EMOJIS[level]} [${ts}] [${level}] [🚧🚦 MIDDLEWARE] ${message}${pairs}`
   if (level === 'ERRO') console.error(line)
   else if (level === 'ALERTA') console.warn(line)
   else console.log(line)

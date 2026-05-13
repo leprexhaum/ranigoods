@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 import type {
   CheckoutProduct, CheckoutPaymentDetail,
   OrderBump, ShippingOption, CheckoutReview, CheckoutAddress,
@@ -54,7 +55,12 @@ export const checkoutService = {
         logoUrl: true, brandName: true, legalName: true, requirePhone: true, requireAddress: true,
       },
     })
-    return r ? toCheckoutProduct(r) : null
+    if (!r) {
+      logger.warn('CHECKOUT', 'Produto não encontrado por slug', { slug })
+      return null
+    }
+    logger.info('CHECKOUT', 'Produto carregado para checkout', { slug, productId: r.id })
+    return toCheckoutProduct(r)
   },
 
   async createPayment(data: {
@@ -70,6 +76,7 @@ export const checkoutService = {
     metadata:              Record<string, unknown>
     address?:              CheckoutAddress
   }) {
+    logger.info('CHECKOUT', 'Criando pagamento', { productId: data.productId, amount: data.amount, currency: data.currency, piId: data.stripePaymentIntentId })
     return prisma.checkoutPayment.upsert({
       where: { stripePaymentIntentId: data.stripePaymentIntentId },
       create: {
@@ -113,6 +120,7 @@ export const checkoutService = {
     status: 'paid' | 'failed' | 'processing',
     paymentMethod?: string,
   ) {
+    logger.info('CHECKOUT', 'Status atualizado', { piId: stripePaymentIntentId, status, paymentMethod })
     return prisma.checkoutPayment.updateMany({
       where: { stripePaymentIntentId },
       data:  {

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 import type { Payment, PaymentsQuery, PaymentsResponse } from '@/lib/types/payment'
 
 const METHOD_MAP: Record<string, string> = {
@@ -48,6 +49,7 @@ function mapStatus(status?: string): string | undefined {
 export const paymentService = {
   async query(params: PaymentsQuery & { userId: string }): Promise<PaymentsResponse> {
     const { userId, status, search, start, end, page = 1, limit = 20 } = params
+    logger.info('PAGAMENTO', 'Consulta de pagamentos', { userId, status, page, search: search ? 'sim' : 'não' })
 
     // Buscar produtos do userId
     const products = await prisma.product.findMany({

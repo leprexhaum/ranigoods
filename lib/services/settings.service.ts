@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export interface AppSettings {
   companyName: string
@@ -39,6 +40,7 @@ export const settingsService = {
   },
 
   async update(data: Partial<AppSettings>): Promise<AppSettings> {
+    logger.info('CONFIG', 'Atualizando configurações via service', { campos: Object.keys(data).join(',') })
     const row = await prisma.settings.upsert({
       where: { id: 1 },
       create: { id: 1, ...data },

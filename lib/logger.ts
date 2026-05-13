@@ -15,6 +15,28 @@ const EMOJIS: Record<LogLevel, string> = {
   'FATAL':      '💀',
 }
 
+const MODULE_EMOJIS: Record<string, string> = {
+  'WEBHOOK':     '📩',
+  'AUTH':        '🔑',
+  'CHECKOUT':    '🛒',
+  'STRIPE-API':  '🧩',
+  'PIXEL':       '📈',
+  'DOMÍNIO':     '🌐',
+  'CRON':        '⏳',
+  'PRODUTO':     '📦',
+  'PAGAMENTO':   '💲',
+  'PEDIDO':      '🧾',
+  'DASHBOARD':   '🗃️',
+  'CONFIG':      '🛠️',
+  'API-KEY':     '💊',
+  'PUSHCUT':     '📲',
+  'UTMIFY':      '🎯',
+  'WEBHOOK-OUT': '🛫',
+  'EMAIL':       '📩',
+  'UPSELL':      '🫰',
+  'MIDDLEWARE':  '🚧🚦',
+}
+
 function timestamp(): string {
   const now = new Date()
   const br = new Intl.DateTimeFormat('pt-BR', {
@@ -58,7 +80,9 @@ function formatData(data?: Record<string, unknown>): string {
 function log(level: LogLevel, module: string, message: string, data?: Record<string, unknown>) {
   const emoji = EMOJIS[level]
   const color = COLORS[level]
-  const line = `${emoji} ${color}[${timestamp()}] [${level}] [${module}]${RESET} ${message}${formatData(data)}`
+  const moduleEmoji = MODULE_EMOJIS[module] ?? ''
+  const moduleTag = moduleEmoji ? `${moduleEmoji} ${module}` : module
+  const line = `${emoji} ${color}[${timestamp()}] [${level}] [${moduleTag}]${RESET} ${message}${formatData(data)}`
 
   switch (level) {
     case 'FATAL':

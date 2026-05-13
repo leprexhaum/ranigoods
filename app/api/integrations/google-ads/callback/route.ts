@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getGoogleAdsCredentials } from '@/lib/services/platform-config.service'
 import { decrypt, encrypt } from '@/lib/crypto'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
   const baseUrl = `https://${appHost}`
 
   if (error) {
+    logger.warn('PIXEL', 'Google Ads OAuth negado', { error })
     return NextResponse.redirect(`${baseUrl}/pixels?error=google_ads_denied`)
   }
 
@@ -86,5 +88,6 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  logger.info('PIXEL', 'Google Ads OAuth concluído', { userId })
   return NextResponse.redirect(`${baseUrl}/pixels?success=google_ads_connected`)
 }

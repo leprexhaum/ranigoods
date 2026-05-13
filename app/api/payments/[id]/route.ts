@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,8 @@ export async function GET(
     include: { product: { select: { name: true } } },
   })
   if (!cp) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+
+  logger.info('PAGAMENTO', 'Detalhe consultado', { userId: auth.session.userId, paymentId: params.id })
 
   const payment = {
     id:               cp.id,

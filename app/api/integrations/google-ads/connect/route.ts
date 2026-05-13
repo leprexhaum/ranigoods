@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { getGoogleAdsCredentials } from '@/lib/services/platform-config.service'
 import { encrypt } from '@/lib/crypto'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,7 @@ export async function GET() {
   const { clientId, redirectUri } = await getGoogleAdsCredentials()
 
   if (!clientId || !redirectUri) {
+    logger.warn('PIXEL', 'Google Ads não configurado', { userId: session.userId })
     return NextResponse.json(
       { error: 'Google Ads não configurado. Configure as credenciais no painel de administração.' },
       { status: 400 },
@@ -21,6 +23,7 @@ export async function GET() {
 
   // state carrega o userId criptografado para validação CSRF no callback
   const state = encrypt(session.userId)
+  logger.info('PIXEL', 'Google Ads OAuth iniciado', { userId: session.userId })
 
   const params = new URLSearchParams({
     client_id:     clientId,

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 import type { ShippingOption, OrderBump, CheckoutReview } from '@/lib/types/checkout'
 
 export interface Product {
@@ -104,6 +105,7 @@ export const productService = {
 
   async create(data: Omit<Product, 'id' | 'sales' | 'revenue' | 'createdAt'> & { userId: string }): Promise<Product> {
     const id = `prod_${Date.now()}`
+    logger.info('PRODUTO', 'Criando produto', { id, nome: data.name, userId: data.userId, preco: data.price })
     const r = await prisma.product.create({
       data: {
         id,
@@ -151,6 +153,7 @@ export const productService = {
 
   async update(id: string, data: Partial<Omit<Product, 'id'>>): Promise<Product | null> {
     try {
+      logger.info('PRODUTO', 'Atualizando produto', { productId: id, campos: Object.keys(data).join(',') })
       const r = await prisma.product.update({
         where: { id },
         data: {
@@ -178,8 +181,10 @@ export const productService = {
   async delete(id: string): Promise<boolean> {
     try {
       await prisma.product.delete({ where: { id } })
+      logger.info('PRODUTO', 'Produto removido', { productId: id })
       return true
     } catch {
+      logger.error('PRODUTO', 'Erro ao remover produto', { productId: id })
       return false
     }
   },
@@ -188,6 +193,7 @@ export const productService = {
     const original = await prisma.product.findUnique({ where: { id } })
     if (!original) return null
     const newId = `prod_${Date.now()}`
+    logger.info('PRODUTO', 'Duplicando produto', { originalId: id, newId })
     const r = await prisma.product.create({
       data: {
         id:               newId,
@@ -271,6 +277,7 @@ export const productService = {
       where: { id: productId, stock: { lt: -1 } },
       data:  { stock: -1 },
     })
+    if (result.count > 0) logger.info('PRODUTO', 'Estoque decrementado', { productId, quantidade: quantity })
     return result.count > 0
   },
 }
