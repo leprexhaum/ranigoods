@@ -53,6 +53,11 @@ async function createZone(domain: string): Promise<{ zoneId: string; nameservers
   })
 
   if (!res.success) {
+    const code = res.errors?.[0]?.code
+    // Zone already exists in this account — fetch existing zone data
+    if (code === 1061 || res.errors?.[0]?.message?.includes('already exists')) {
+      return getExistingZone(domain)
+    }
     const msg = res.errors?.[0]?.message ?? 'Erro ao criar zona'
     throw new Error(msg)
   }
@@ -60,6 +65,18 @@ async function createZone(domain: string): Promise<{ zoneId: string; nameservers
   return {
     zoneId: res.result.id,
     nameservers: res.result.name_servers,
+  }
+}
+
+async function getExistingZone(domain: string): Promise<{ zoneId: string; nameservers: string[] }> {
+  const res = await cfFetch<CfZone[]>(`/zones?name=${encodeURIComponent(domain)}&account.id=${getAccountId()}`)
+  if (!res.success || !res.result?.length) {
+    throw new Error('Zona já existe mas não foi possível recuperar os dados')
+  }
+  const zone = res.result[0]
+  return {
+    zoneId: zone.id,
+    nameservers: zone.name_servers,
   }
 }
 
