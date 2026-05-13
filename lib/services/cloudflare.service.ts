@@ -159,7 +159,7 @@ async function configureSsl(zoneId: string): Promise<void> {
 
 // ─── Worker ──────────────────────────────────────────────────────────────────
 
-function buildWorkerScript(domain: string): string {
+function buildWorkerScript(_domain: string): string {
   const origin = getWorkerOrigin()
   return `export default {
   async fetch(request) {
@@ -167,7 +167,7 @@ function buildWorkerScript(domain: string): string {
     const origin = "${origin}";
     const newUrl = new URL(url.pathname + url.search, origin);
     const headers = new Headers(request.headers);
-    headers.set("x-real-host", "${domain}");
+    headers.set("x-real-host", url.hostname);
     headers.set("x-forwarded-proto", "https");
     headers.delete("cf-connecting-ip");
     const resp = await fetch(newUrl, {
@@ -252,8 +252,39 @@ async function deleteWorker(domain: string): Promise<void> {
 
 // ─── Subdomains ─────────────────────────────────────────────────────────────
 
+async function redeployWorker(domain: string): Promise<void> {
+  const accountId = getAccountId()
+  const name = workerName(domain)
+  const script = buildWorkerScript(domain)
+
+  const formData = new FormData()
+  const metadata = JSON.stringify({
+    main_module: 'worker.js',
+    compatibility_date: '2024-01-01',
+  })
+  formData.append('metadata', new Blob([metadata], { type: 'application/json' }))
+  formData.append('worker.js', new Blob([script], { type: 'application/javascript+module' }), 'worker.js')
+
+  const uploadRes = await fetch(
+    `${API_BASE}/accounts/${accountId}/workers/scripts/${name}`,
+    {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` },
+      body: formData,
+    }
+  )
+  const uploadData = await uploadRes.json() as CfResponse
+  if (!uploadData.success) {
+    throw new Error(uploadData.errors?.[0]?.message ?? 'Erro ao re-deploy do Worker')
+  }
+  logger.info('DOMÍNIO', 'Worker re-deployed com host dinâmico', { domain, workerName: name })
+}
+
 async function createSubdomainRecords(zoneId: string, domain: string, subdomain: string): Promise<void> {
   logger.info('DOMÍNIO', 'Criando subdomínio', { domain, subdomain })
+
+  // Re-deploy worker com script atualizado (x-real-host dinâmico)
+  await redeployWorker(domain)
 
   // CNAME: subdomain → domain (proxied)
   await cfFetch(`/zones/${zoneId}/dns_records`, {
@@ -327,4 +358,5 @@ export const cloudflareService = {
   deleteWorker,
   createSubdomainRecords,
   deleteSubdomainRecords,
+  redeployWorker,
 }
