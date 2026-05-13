@@ -8,17 +8,7 @@ export async function GET(req: NextRequest) {
   const domain = req.nextUrl.searchParams.get('domain')
   if (!domain) return NextResponse.json({ error: 'domain required' }, { status: 400 })
 
-  // 1. Tenta por customDomain direto no produto (legado)
-  const byProduct = await prisma.product.findFirst({
-    where:  { customDomain: domain, active: true },
-    select: { id: true, slug: true },
-  })
-  if (byProduct?.slug) {
-    logger.info('DOMÍNIO', 'Produto encontrado por customDomain', { domain, productId: byProduct.id })
-    return NextResponse.json({ id: byProduct.id, slug: byProduct.slug })
-  }
-
-  // 2. Tenta por CustomDomain global do usuário → primeiro produto ativo do userId
+  // Busca pela tabela CustomDomain do usuário → primeiro produto ativo do userId
   const customDomain = await prisma.customDomain.findUnique({
     where: { domain },
   })
@@ -33,6 +23,6 @@ export async function GET(req: NextRequest) {
   })
 
   if (!product?.slug) return NextResponse.json({ error: 'not found' }, { status: 404 })
-  logger.info('DOMÍNIO', 'Produto encontrado por CustomDomain global', { domain, productId: product.id })
+  logger.info('DOMÍNIO', 'Produto encontrado por CustomDomain', { domain, productId: product.id })
   return NextResponse.json({ id: product.id, slug: product.slug })
 }

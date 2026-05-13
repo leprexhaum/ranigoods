@@ -65,7 +65,6 @@ export async function POST(req: NextRequest) {
       utmifyConfigIds:  body.utmifyConfigIds  ?? [],
       stock:            body.stock !== undefined ? Number(body.stock) : -1,
       pixelIds:         body.pixelIds ?? [],
-      customDomain:     body.customDomain ?? '',
     })
 
     logger.info('PRODUTO', 'Produto criado', { productId: product.id, userId, nome: name, preco: price, moeda: body.currency ?? 'EUR' })

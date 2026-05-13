@@ -35,7 +35,6 @@ export interface Product {
   utmifyConfigIds:  string[]
   stock:            number
   pixelIds:         string[]
-  customDomain:     string
 }
 
 type ProductRow = {
@@ -48,7 +47,7 @@ type ProductRow = {
   checkoutTemplate: string; checkoutLanguage: string;
   requirePhone: boolean; requireAddress: boolean;
   logoUrl: string; brandName: string; legalName: string; successUrl: string;
-  metaPixelId: string; utmifyConfigId: string | null; utmifyConfigIds: unknown; stock: number; pixelIds: unknown; customDomain: string;
+  metaPixelId: string; utmifyConfigId: string | null; utmifyConfigIds: unknown; stock: number; pixelIds: unknown;
 }
 
 function toProduct(r: ProductRow): Product {
@@ -85,7 +84,6 @@ function toProduct(r: ProductRow): Product {
     utmifyConfigIds:  (r.utmifyConfigIds as string[]) ?? [],
     stock:            r.stock,
     pixelIds:         (r.pixelIds as string[]) ?? [],
-    customDomain:     r.customDomain,
   }
 }
 
@@ -144,7 +142,6 @@ export const productService = {
         stock:            data.stock ?? -1,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pixelIds:         (data.pixelIds ?? []) as any,
-        customDomain:     data.customDomain ?? '',
         userId:           data.userId,
       },
     })
@@ -231,7 +228,6 @@ export const productService = {
         stock:            original.stock,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pixelIds:         original.pixelIds as any,
-        customDomain:     '',
         active:           true,
         countdownMinutes: original.countdownMinutes,
         userId:           original.userId,

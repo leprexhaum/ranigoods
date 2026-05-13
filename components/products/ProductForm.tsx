@@ -20,7 +20,7 @@ type FormData = {
   showReviews: boolean; paymentMethods: string[]; checkoutTemplate: string
   checkoutLanguage: string; requirePhone: boolean; requireAddress: boolean
   utmifyConfigIds: string[]; successUrl: string; metaPixelId: string
-  customDomain: string; status: 'active' | 'archived'; stock: string; pixelIds: string[]
+  status: 'active' | 'archived'; stock: string; pixelIds: string[]
 }
 
 const PAYMENT_METHODS = [
@@ -76,7 +76,7 @@ function toForm(p?: Product | null): FormData {
     requirePhone: p?.requirePhone ?? false, requireAddress: p?.requireAddress ?? false,
     utmifyConfigIds: (p?.utmifyConfigIds ?? (p?.utmifyConfigId ? [p.utmifyConfigId] : [])) as string[],
     successUrl: p?.successUrl ?? '',
-    metaPixelId: p?.metaPixelId ?? '', customDomain: p?.customDomain ?? '',
+    metaPixelId: p?.metaPixelId ?? '',
     status: p?.status ?? 'active', stock: String(p?.stock ?? -1),
     pixelIds: (p?.pixelIds ?? []) as string[],
   }
@@ -294,7 +294,7 @@ export default function ProductForm({ product }: ProductFormProps) {
       case 'avaliacoes': return form.reviews.length > 0
       case 'pagamento': return form.paymentMethods.length > 0
       case 'checkout': return !!(form.checkoutTemplate !== 'single_step' || form.requirePhone || form.requireAddress)
-      case 'avancado': return !!(form.successUrl || form.metaPixelId || form.customDomain || form.pixelIds.length > 0 || form.utmifyConfigIds.length > 0)
+      case 'avancado': return !!(form.successUrl || form.metaPixelId || form.pixelIds.length > 0 || form.utmifyConfigIds.length > 0)
       default: return false
     }
   }, [form])
@@ -320,7 +320,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         utmifyConfigId: form.utmifyConfigIds[0] || null,
         utmifyConfigIds: form.utmifyConfigIds,
         successUrl: form.successUrl.trim(),
-        metaPixelId: form.metaPixelId.trim(), customDomain: form.customDomain.trim(),
+        metaPixelId: form.metaPixelId.trim(),
         status: form.status, stock: parseInt(form.stock) || -1, pixelIds: form.pixelIds,
         stripeId: product?.stripeId ?? '',
       }
@@ -579,9 +579,6 @@ export default function ProductForm({ product }: ProductFormProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Meta Pixel ID" hint="Para rastreamento de conversões">
                 <input value={form.metaPixelId} onChange={e => set('metaPixelId', e.target.value)} placeholder="123456789012345" className={INPUT_CLS} />
-              </Field>
-              <Field label="Domínio customizado" hint="Ex: checkout.suamarca.com">
-                <input value={form.customDomain} onChange={e => set('customDomain', e.target.value)} placeholder="checkout.suamarca.com" className={INPUT_CLS} />
               </Field>
             </div>
             <ToggleRow checked={form.status === 'active'} onChange={v => set('status', v ? 'active' : 'archived')} label="Ativo" desc="Produtos inativos não aparecem no checkout" />

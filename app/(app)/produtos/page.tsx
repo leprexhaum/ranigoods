@@ -17,26 +17,26 @@ function formatCurrency(cents: number, currency = 'EUR') {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency }).format(cents / 100)
 }
 
-function buildCheckoutUrl(slug: string, customDomain?: string) {
+function buildCheckoutUrl(slug: string, activeDomain?: string) {
   const defaultUrl = `https://${DEFAULT_HOST}/checkout/${slug}`
-  const customUrl  = customDomain ? `https://${customDomain}/checkout/${slug}` : null
+  const customUrl  = activeDomain ? `https://${activeDomain}/checkout/${slug}` : null
   return { defaultUrl, customUrl }
 }
 
 function DomainPicker({
   slug,
-  customDomain,
+  activeDomain,
   mode,
 }: {
   slug: string
-  customDomain: string
+  activeDomain: string
   mode: 'copy' | 'open'
 }) {
   const [open,   setOpen]   = useState(false)
   const [copied, setCopied] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  const { defaultUrl, customUrl } = buildCheckoutUrl(slug, customDomain)
+  const { defaultUrl, customUrl } = buildCheckoutUrl(slug, activeDomain)
 
   useEffect(() => {
     if (!open) return
@@ -82,7 +82,7 @@ function DomainPicker({
             className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
           >
             <Globe size={11} className="text-ep-accent flex-shrink-0" />
-            <span className="truncate">{customDomain}</span>
+            <span className="truncate">{activeDomain}</span>
           </button>
           <button
             onClick={() => handleSelect(defaultUrl)}
@@ -97,12 +97,12 @@ function DomainPicker({
   )
 }
 
-function CopyLinkButton({ slug, customDomain }: { slug: string; customDomain?: string }) {
+function CopyLinkButton({ slug, activeDomain }: { slug: string; activeDomain?: string }) {
   const [copied, setCopied] = useState(false)
   const { defaultUrl } = buildCheckoutUrl(slug)
 
-  if (customDomain) {
-    return <DomainPicker slug={slug} customDomain={customDomain} mode="copy" />
+  if (activeDomain) {
+    return <DomainPicker slug={slug} activeDomain={activeDomain} mode="copy" />
   }
 
   const copy = () => {
@@ -122,11 +122,11 @@ function CopyLinkButton({ slug, customDomain }: { slug: string; customDomain?: s
   )
 }
 
-function OpenLinkButton({ slug, customDomain }: { slug: string; customDomain?: string }) {
+function OpenLinkButton({ slug, activeDomain }: { slug: string; activeDomain?: string }) {
   const { defaultUrl } = buildCheckoutUrl(slug)
 
-  if (customDomain) {
-    return <DomainPicker slug={slug} customDomain={customDomain} mode="open" />
+  if (activeDomain) {
+    return <DomainPicker slug={slug} activeDomain={activeDomain} mode="open" />
   }
 
   return (
@@ -147,6 +147,7 @@ export default function ProdutosPage() {
   const [filter,      setFilter]      = useState<'all' | 'active' | 'archived'>('all')
   const [products,    setProducts]    = useState<Product[]>([])
   const [pixels,      setPixels]      = useState<PixelConfig[]>([])
+  const [activeDomain, setActiveDomain] = useState<string | undefined>(undefined)
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
   const [duplicating, setDuplicating] = useState<string | null>(null)
@@ -156,6 +157,13 @@ export default function ProdutosPage() {
     fetch('/api/pixels')
       .then(r => r.json())
       .then((data: PixelConfig[]) => setPixels(data))
+      .catch(() => {})
+    fetch('/api/domains')
+      .then(r => r.json())
+      .then((data: { domain: string; status: string }[]) => {
+        const active = Array.isArray(data) ? data.find(d => d.status === 'active') : undefined
+        setActiveDomain(active?.domain)
+      })
       .catch(() => {})
   }, [])
 
@@ -343,12 +351,6 @@ export default function ProdutosPage() {
                   <span className="text-ep-secondary text-xs">Template</span>
                   <span className="text-ep-muted text-xs font-mono">{product.checkoutTemplate}</span>
                 </div>
-                {product.customDomain && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-ep-secondary text-xs">Domínio</span>
-                    <span className="text-ep-muted text-xs font-mono truncate max-w-[140px]">{product.customDomain}</span>
-                  </div>
-                )}
               </div>
 
               {/* Pixels vinculados */}
@@ -397,8 +399,8 @@ export default function ProdutosPage() {
                 <div className="flex items-center gap-3">
                   {product.slug && (
                     <div className="flex items-center gap-1.5">
-                      <CopyLinkButton slug={product.slug} customDomain={product.customDomain || undefined} />
-                      <OpenLinkButton slug={product.slug} customDomain={product.customDomain || undefined} />
+                      <CopyLinkButton slug={product.slug} activeDomain={activeDomain} />
+                      <OpenLinkButton slug={product.slug} activeDomain={activeDomain} />
                     </div>
                   )}
                 </div>
