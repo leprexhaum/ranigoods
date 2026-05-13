@@ -17,26 +17,25 @@ function formatCurrency(cents: number, currency = 'EUR') {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency }).format(cents / 100)
 }
 
-function buildCheckoutUrl(slug: string, activeDomain?: string) {
+function buildCheckoutUrl(slug: string) {
   const defaultUrl = `https://${DEFAULT_HOST}/checkout/${slug}`
-  const customUrl  = activeDomain ? `https://${activeDomain}/checkout/${slug}` : null
-  return { defaultUrl, customUrl }
+  return { defaultUrl }
 }
 
 function DomainPicker({
   slug,
-  activeDomain,
+  domainUrls,
   mode,
 }: {
   slug: string
-  activeDomain: string
+  domainUrls: string[]
   mode: 'copy' | 'open'
 }) {
   const [open,   setOpen]   = useState(false)
   const [copied, setCopied] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  const { defaultUrl, customUrl } = buildCheckoutUrl(slug, activeDomain)
+  const defaultUrl = `https://${DEFAULT_HOST}/checkout/${slug}`
 
   useEffect(() => {
     if (!open) return
@@ -73,17 +72,20 @@ function DomainPicker({
       </button>
 
       {open && (
-        <div className="absolute right-0 bottom-6 z-20 bg-ep-surface border border-ep-border-default rounded-md shadow-lg min-w-[200px] py-1">
+        <div className="absolute right-0 bottom-6 z-20 bg-ep-surface border border-ep-border-default rounded-md shadow-lg min-w-[220px] py-1">
           <p className="px-3 py-1.5 text-ep-muted text-[10px] uppercase tracking-wider font-medium border-b border-ep-border-subtle mb-1">
             {mode === 'copy' ? 'Copiar link' : 'Abrir checkout'}
           </p>
-          <button
-            onClick={() => handleSelect(customUrl!)}
-            className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
-          >
-            <Globe size={11} className="text-ep-accent flex-shrink-0" />
-            <span className="truncate">{activeDomain}</span>
-          </button>
+          {domainUrls.map(d => (
+            <button
+              key={d}
+              onClick={() => handleSelect(`https://${d}/checkout/${slug}`)}
+              className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
+            >
+              <Globe size={11} className="text-ep-accent flex-shrink-0" />
+              <span className="truncate">{d}</span>
+            </button>
+          ))}
           <button
             onClick={() => handleSelect(defaultUrl)}
             className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
@@ -97,12 +99,12 @@ function DomainPicker({
   )
 }
 
-function CopyLinkButton({ slug, activeDomain }: { slug: string; activeDomain?: string }) {
+function CopyLinkButton({ slug, domainUrls }: { slug: string; domainUrls: string[] }) {
   const [copied, setCopied] = useState(false)
   const { defaultUrl } = buildCheckoutUrl(slug)
 
-  if (activeDomain) {
-    return <DomainPicker slug={slug} activeDomain={activeDomain} mode="copy" />
+  if (domainUrls.length > 0) {
+    return <DomainPicker slug={slug} domainUrls={domainUrls} mode="copy" />
   }
 
   const copy = () => {
@@ -122,11 +124,11 @@ function CopyLinkButton({ slug, activeDomain }: { slug: string; activeDomain?: s
   )
 }
 
-function OpenLinkButton({ slug, activeDomain }: { slug: string; activeDomain?: string }) {
+function OpenLinkButton({ slug, domainUrls }: { slug: string; domainUrls: string[] }) {
   const { defaultUrl } = buildCheckoutUrl(slug)
 
-  if (activeDomain) {
-    return <DomainPicker slug={slug} activeDomain={activeDomain} mode="open" />
+  if (domainUrls.length > 0) {
+    return <DomainPicker slug={slug} domainUrls={domainUrls} mode="open" />
   }
 
   return (
@@ -147,7 +149,7 @@ export default function ProdutosPage() {
   const [filter,      setFilter]      = useState<'all' | 'active' | 'archived'>('all')
   const [products,    setProducts]    = useState<Product[]>([])
   const [pixels,      setPixels]      = useState<PixelConfig[]>([])
-  const [activeDomain, setActiveDomain] = useState<string | undefined>(undefined)
+  const [domainUrls, setDomainUrls] = useState<string[]>([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
   const [duplicating, setDuplicating] = useState<string | null>(null)
@@ -160,9 +162,13 @@ export default function ProdutosPage() {
       .catch(() => {})
     fetch('/api/domains')
       .then(r => r.json())
-      .then((data: { domain: string; status: string }[]) => {
+      .then((data: { domain: string; status: string; subdomains?: string[] }[]) => {
         const active = Array.isArray(data) ? data.find(d => d.status === 'active') : undefined
-        setActiveDomain(active?.domain)
+        if (active) {
+          const subs = (active.subdomains ?? []) as string[]
+          const urls = [active.domain, ...subs.map(s => `${s}.${active.domain}`)]
+          setDomainUrls(urls)
+        }
       })
       .catch(() => {})
   }, [])
@@ -399,8 +405,8 @@ export default function ProdutosPage() {
                 <div className="flex items-center gap-3">
                   {product.slug && (
                     <div className="flex items-center gap-1.5">
-                      <CopyLinkButton slug={product.slug} activeDomain={activeDomain} />
-                      <OpenLinkButton slug={product.slug} activeDomain={activeDomain} />
+                      <CopyLinkButton slug={product.slug} domainUrls={domainUrls} />
+                      <OpenLinkButton slug={product.slug} domainUrls={domainUrls} />
                     </div>
                   )}
                 </div>

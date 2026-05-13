@@ -24,6 +24,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Formato de domínio inválido' }, { status: 400 })
   }
 
+  // Apenas domínios raiz — rejeitar subdomínios (ex: checkout.loja.com)
+  // Permitir TLDs compostos: .com.br, .co.uk, .com.pt, etc.
+  const COMPOUND_TLDS = ['com.br', 'com.pt', 'co.uk', 'com.au', 'co.nz', 'com.ar', 'com.mx', 'co.za', 'com.ng', 'org.br', 'net.br']
+  const isCompoundTld = COMPOUND_TLDS.some(tld => clean.endsWith(`.${tld}`))
+  const parts = clean.split('.')
+  const maxParts = isCompoundTld ? 3 : 2
+  if (parts.length > maxParts) {
+    return NextResponse.json({ error: 'Apenas domínios raiz são permitidos (ex: meudominio.com). Configure subdomínios após adicionar.' }, { status: 400 })
+  }
+
   try {
     const domain = await domainService.create(auth.session.userId, clean)
     logger.info('DOMÍNIO', 'Domínio criado via API', { userId: auth.session.userId, domain: clean })

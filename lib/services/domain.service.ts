@@ -4,6 +4,9 @@ import { logger } from '@/lib/logger'
 
 export type DomainStatus = 'pending_ns' | 'propagating' | 'configuring' | 'active' | 'failed'
 
+export const ALLOWED_SUBDOMAINS = ['checkout', 'pay', 'seguro', 'comprar', 'pedido', 'loja'] as const
+export type AllowedSubdomain = typeof ALLOWED_SUBDOMAINS[number]
+
 export interface CustomDomainRecord {
   id:            string
   userId:        string
@@ -12,13 +15,14 @@ export interface CustomDomainRecord {
   failReason:    string
   cfZoneId:      string
   cfNameservers: string[]
+  subdomains:    string[]
   verifiedAt:    string | null
   createdAt:     string
 }
 
 function toRecord(r: {
   id: string; userId: string; domain: string; status: string;
-  failReason: string; cfZoneId: string; cfNameservers: unknown;
+  failReason: string; cfZoneId: string; cfNameservers: unknown; subdomains?: unknown;
   verifiedAt: Date | null; createdAt: Date;
 }): CustomDomainRecord {
   return {
@@ -29,6 +33,7 @@ function toRecord(r: {
     failReason:    r.failReason,
     cfZoneId:      r.cfZoneId,
     cfNameservers: (r.cfNameservers as string[]) ?? [],
+    subdomains:    (r.subdomains as string[]) ?? [],
     verifiedAt:    r.verifiedAt?.toISOString() ?? null,
     createdAt:     r.createdAt.toISOString(),
   }
@@ -141,6 +146,53 @@ export const domainService = {
   async getByDomain(domain: string): Promise<CustomDomainRecord | null> {
     const row = await prisma.customDomain.findUnique({ where: { domain } })
     return row ? toRecord(row) : null
+  },
+
+  async updateSubdomains(id: string, userId: string, subdomains: string[]): Promise<CustomDomainRecord | null> {
+    const row = await prisma.customDomain.findFirst({ where: { id, userId } })
+    if (!row) return null
+    if (row.status !== 'active') {
+      throw new Error('Domínio precisa estar ativo para configurar subdomínios')
+    }
+
+    // Validar que todos estão na lista permitida
+    const invalid = subdomains.filter(s => !ALLOWED_SUBDOMAINS.includes(s as AllowedSubdomain))
+    if (invalid.length > 0) {
+      throw new Error(`Subdomínios inválidos: ${invalid.join(', ')}`)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const current = ((row as any).subdomains as string[]) ?? []
+    const toAdd = subdomains.filter(s => !current.includes(s))
+    const toRemove = current.filter(s => !subdomains.includes(s))
+
+    // Criar novos subdomínios no Cloudflare
+    for (const sub of toAdd) {
+      try {
+        await cloudflareService.createSubdomainRecords(row.cfZoneId, row.domain, sub)
+      } catch (err) {
+        logger.warn('DOMÍNIO', 'Erro ao criar subdomínio (pode já existir)', { domain: row.domain, subdomain: sub, error: err instanceof Error ? err.message : String(err) })
+      }
+    }
+
+    // Remover subdomínios antigos do Cloudflare
+    for (const sub of toRemove) {
+      try {
+        await cloudflareService.deleteSubdomainRecords(row.cfZoneId, row.domain, sub)
+      } catch (err) {
+        logger.warn('DOMÍNIO', 'Erro ao remover subdomínio', { domain: row.domain, subdomain: sub, error: err instanceof Error ? err.message : String(err) })
+      }
+    }
+
+    // Atualizar banco
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updated = await (prisma.customDomain as any).update({
+      where: { id },
+      data: { subdomains },
+    })
+
+    logger.info('DOMÍNIO', 'Subdomínios atualizados', { domain: row.domain, subdomains, adicionados: toAdd, removidos: toRemove })
+    return toRecord(updated)
   },
 
   async checkPropagation(): Promise<{ checked: number; activated: number }> {

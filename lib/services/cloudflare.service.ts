@@ -250,6 +250,62 @@ async function deleteWorker(domain: string): Promise<void> {
   )
 }
 
+// ─── Subdomains ─────────────────────────────────────────────────────────────
+
+async function createSubdomainRecords(zoneId: string, domain: string, subdomain: string): Promise<void> {
+  logger.info('DOMÍNIO', 'Criando subdomínio', { domain, subdomain })
+
+  // CNAME: subdomain → domain (proxied)
+  await cfFetch(`/zones/${zoneId}/dns_records`, {
+    method: 'POST',
+    body: JSON.stringify({
+      type: 'CNAME',
+      name: subdomain,
+      content: domain,
+      proxied: true,
+      ttl: 1,
+    }),
+  })
+
+  // Worker route for subdomain
+  const name = workerName(domain)
+  await cfFetch(`/zones/${zoneId}/workers/routes`, {
+    method: 'POST',
+    body: JSON.stringify({
+      pattern: `${subdomain}.${domain}/*`,
+      script: name,
+    }),
+  })
+
+  logger.info('DOMÍNIO', 'Subdomínio configurado', { domain, subdomain, fqdn: `${subdomain}.${domain}` })
+}
+
+async function deleteSubdomainRecords(zoneId: string, domain: string, subdomain: string): Promise<void> {
+  logger.info('DOMÍNIO', 'Removendo subdomínio', { domain, subdomain })
+
+  // Find and delete CNAME record
+  const dnsRes = await cfFetch<{ id: string; name: string; type: string }[]>(
+    `/zones/${zoneId}/dns_records?type=CNAME&name=${subdomain}.${domain}`
+  )
+  if (dnsRes.success && dnsRes.result?.length) {
+    for (const record of dnsRes.result) {
+      await cfFetch(`/zones/${zoneId}/dns_records/${record.id}`, { method: 'DELETE' })
+    }
+  }
+
+  // Find and delete worker route
+  const routesRes = await cfFetch<{ id: string; pattern: string }[]>(`/zones/${zoneId}/workers/routes`)
+  if (routesRes.success && routesRes.result?.length) {
+    const pattern = `${subdomain}.${domain}/*`
+    const route = routesRes.result.find(r => r.pattern === pattern)
+    if (route) {
+      await cfFetch(`/zones/${zoneId}/workers/routes/${route.id}`, { method: 'DELETE' })
+    }
+  }
+
+  logger.info('DOMÍNIO', 'Subdomínio removido', { domain, subdomain })
+}
+
 // ─── Full Setup ──────────────────────────────────────────────────────────────
 
 async function setupDomain(zoneId: string, domain: string): Promise<void> {
@@ -269,4 +325,6 @@ export const cloudflareService = {
   setupWorkerRoute,
   setupDomain,
   deleteWorker,
+  createSubdomainRecords,
+  deleteSubdomainRecords,
 }

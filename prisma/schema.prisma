@@ -390,6 +390,7 @@ model CustomDomain {
   failReason    String    @default("") @map("fail_reason")
   cfZoneId      String    @default("") @map("cf_zone_id")
   cfNameservers Json      @default("[]") @map("cf_nameservers")
+  subdomains    Json      @default("[]")
   verifiedAt    DateTime? @map("verified_at")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")

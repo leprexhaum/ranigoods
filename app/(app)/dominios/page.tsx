@@ -16,6 +16,7 @@ interface CustomDomain {
   failReason: string
   cfZoneId: string
   cfNameservers: string[]
+  subdomains: string[]
   verifiedAt: string | null
   createdAt: string
 }
@@ -199,10 +200,82 @@ function DomainDetails({ domain }: { domain: CustomDomain }) {
   )
 }
 
-function DomainCard({ domain, onVerify, onDelete, verifying }: {
+const AVAILABLE_SUBDOMAINS = ['checkout', 'pay', 'seguro', 'comprar', 'pedido', 'loja'] as const
+
+function SubdomainSelector({ domain, onUpdate }: { domain: CustomDomain; onUpdate: (updated: CustomDomain) => void }) {
+  const [saving, setSaving] = useState(false)
+  const active = domain.subdomains ?? []
+
+  const toggle = async (sub: string) => {
+    const next = active.includes(sub)
+      ? active.filter(s => s !== sub)
+      : [...active, sub]
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/domains/${domain.id}/subdomains`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subdomains: next }),
+      })
+      if (res.ok) {
+        const data = await res.json() as CustomDomain
+        onUpdate(data)
+      }
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Globe size={13} className="text-ep-accent" />
+        <p className="text-ep-primary text-xs font-semibold">Subdomínios</p>
+        <span className="text-ep-muted text-[10px]">(opcional)</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {AVAILABLE_SUBDOMAINS.map(sub => {
+          const isActive = active.includes(sub)
+          return (
+            <button
+              key={sub}
+              onClick={() => toggle(sub)}
+              disabled={saving}
+              className={clsx(
+                'px-3 py-1.5 rounded-lg border text-xs font-medium transition-all disabled:opacity-50',
+                isActive
+                  ? 'bg-ep-accent/10 border-ep-accent/30 text-ep-accent'
+                  : 'bg-ep-raised border-ep-border-default text-ep-muted hover:text-ep-primary hover:border-ep-accent/30'
+              )}
+            >
+              {sub}.{domain.domain}
+            </button>
+          )
+        })}
+      </div>
+      {active.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-ep-muted text-[10px] uppercase tracking-wider font-medium">URLs ativas</p>
+          <div className="space-y-1">
+            <p className="text-ep-secondary text-xs font-mono">https://{domain.domain}/checkout/...</p>
+            {active.map(sub => (
+              <p key={sub} className="text-ep-secondary text-xs font-mono">https://{sub}.{domain.domain}/checkout/...</p>
+            ))}
+          </div>
+        </div>
+      )}
+      {active.length === 0 && (
+        <p className="text-ep-muted text-xs">
+          Nenhum subdomínio ativo. O checkout funciona pelo domínio raiz: <span className="font-mono">{domain.domain}</span>
+        </p>
+      )}
+    </div>
+  )
+}
+
+function DomainCard({ domain, onVerify, onDelete, onUpdate, verifying }: {
   domain: CustomDomain
   onVerify: (id: string) => void
   onDelete: (id: string) => void
+  onUpdate: (updated: CustomDomain) => void
   verifying: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -268,6 +341,11 @@ function DomainCard({ domain, onVerify, onDelete, verifying }: {
       {/* Expanded details */}
       {expanded && <DomainDetails domain={domain} />}
 
+      {/* Subdomains — show when not pending_ns */}
+      {domain.status !== 'pending_ns' && domain.status !== 'failed' && (
+        <SubdomainSelector domain={domain} onUpdate={onUpdate} />
+      )}
+
       {/* Nameservers hint (collapsed, only for pending) */}
       {!expanded && domain.status !== 'active' && domain.cfNameservers.length > 0 && (
         <div className="flex items-center gap-2 text-ep-muted text-xs">
@@ -320,8 +398,18 @@ export default function DominiosPage() {
   useEffect(() => { load() }, [load])
 
   const handleAdd = async () => {
-    const clean = input.trim().toLowerCase()
+    const clean = input.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
     if (!clean) { setError('Digite um domínio'); return }
+
+    // Validar que é domínio raiz (não subdomínio)
+    const COMPOUND_TLDS = ['com.br', 'com.pt', 'co.uk', 'com.au', 'co.nz', 'com.ar', 'com.mx', 'co.za', 'com.ng', 'org.br', 'net.br']
+    const isCompound = COMPOUND_TLDS.some(tld => clean.endsWith(`.${tld}`))
+    const parts = clean.split('.')
+    if (parts.length > (isCompound ? 3 : 2)) {
+      setError('Apenas domínios raiz são permitidos (ex: meudominio.com). Configure subdomínios após adicionar.')
+      return
+    }
+
     setAdding(true); setError('')
     try {
       const res = await fetch('/api/domains', {
@@ -424,6 +512,7 @@ export default function DominiosPage() {
               domain={d}
               onVerify={handleVerify}
               onDelete={handleDelete}
+              onUpdate={(updated) => setDomains(prev => prev.map(x => x.id === updated.id ? updated : x))}
               verifying={verifying === d.id}
             />
           ))}
