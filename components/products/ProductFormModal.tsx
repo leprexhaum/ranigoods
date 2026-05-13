@@ -34,7 +34,6 @@ type FormData = {
   requireAddress:   boolean
   utmifyConfigIds:  string[]
   successUrl:       string
-  metaPixelId:      string
   status:           'active' | 'archived'
   stock:            string
   pixelIds:         string[]
@@ -50,10 +49,6 @@ const PAYMENT_METHODS = [
 ]
 
 const TEMPLATES = [
-  { id: 'single_step',  label: 'Padrão (Clean)'    },
-  { id: 'promo',        label: 'Promoção'           },
-  { id: 'info_product', label: 'Produto Digital'    },
-  { id: 'dropshipping', label: 'Dropshipping'       },
   { id: 'stripe_split', label: 'Stripe Split'       },
 ]
 
@@ -164,13 +159,12 @@ function toForm(p?: Product | null): FormData {
     legalName:        p?.legalName        ?? '',
     showReviews:      p?.showReviews      ?? false,
     paymentMethods:   p?.paymentMethods?.length ? p.paymentMethods : ['card'],
-    checkoutTemplate: p?.checkoutTemplate ?? 'single_step',
+    checkoutTemplate: p?.checkoutTemplate ?? 'stripe_split',
     checkoutLanguage: p?.checkoutLanguage ?? 'pt',
     requirePhone:     p?.requirePhone     ?? false,
     requireAddress:   p?.requireAddress   ?? false,
     utmifyConfigIds:  (p?.utmifyConfigIds ?? (p?.utmifyConfigId ? [p.utmifyConfigId] : [])) as string[],
     successUrl:       p?.successUrl       ?? '',
-    metaPixelId:      p?.metaPixelId      ?? '',
     status:           p?.status           ?? 'active',
     stock:            String(p?.stock     ?? -1),
     pixelIds:         (p?.pixelIds        ?? []) as string[],
@@ -409,7 +403,6 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         utmifyConfigId:   form.utmifyConfigIds[0] || null,
         utmifyConfigIds:  form.utmifyConfigIds,
         successUrl:       form.successUrl.trim(),
-        metaPixelId:      form.metaPixelId.trim(),
         status:           form.status,
         stock:            parseInt(form.stock) || -1,
         pixelIds:         form.pixelIds,
@@ -705,9 +698,6 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             </Field>
             <Field label="URL de Sucesso (opcional)" hint="Redireciona após pagamento confirmado. Deixe vazio para usar a página padrão.">
               <Input value={form.successUrl} onChange={v => set('successUrl', v)} placeholder="https://seusite.com/obrigado" />
-            </Field>
-            <Field label="Meta Pixel ID (opcional)" hint="Para rastreamento de conversões do Facebook/Meta">
-              <Input value={form.metaPixelId} onChange={v => set('metaPixelId', v)} placeholder="123456789012345" />
             </Field>
             <ToggleRow checked={form.status === 'active'} onChange={v => set('status', v ? 'active' : 'archived')}
               label="Ativo" desc="Produtos inativos não aparecem no checkout" />

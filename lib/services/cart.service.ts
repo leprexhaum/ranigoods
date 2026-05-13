@@ -122,7 +122,7 @@ export const cartService = {
       expiresAt:        cart.expiresAt.toISOString(),
       total,
       currency,
-      checkoutTemplate: firstProduct?.checkoutTemplate ?? 'single_step',
+      checkoutTemplate: 'stripe_split',
       checkoutLanguage: firstProduct?.checkoutLanguage ?? 'pt',
       requirePhone:     cart.items.some(i => i.product.requirePhone),
       logoUrl:          firstProduct?.logoUrl  ?? '',

@@ -28,7 +28,7 @@ function toCheckoutProduct(r: {
     orderBumps:       (r.orderBumps as OrderBump[]) ?? [],
     reviews:          (r.reviews as CheckoutReview[]) ?? [],
     showReviews:      r.showReviews ?? false,
-    checkoutTemplate: (r.checkoutTemplate as CheckoutProduct['checkoutTemplate']) ?? 'single_step',
+    checkoutTemplate: 'stripe_split' as CheckoutProduct['checkoutTemplate'],
     checkoutLanguage: r.checkoutLanguage ?? 'pt',
     countdownMinutes: r.countdownMinutes ?? 15,
     active:           r.active ?? true,
