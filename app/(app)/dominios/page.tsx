@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Globe, Plus, Trash2, Copy, Check, RefreshCw,
   CheckCircle2, AlertCircle, Clock, Loader2, Server,
+  ChevronDown, ChevronUp, Calendar, Shield, ExternalLink,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { ListRowSkeleton } from '@/components/ui/Skeleton'
@@ -13,6 +14,7 @@ interface CustomDomain {
   domain: string
   status: 'pending_ns' | 'propagating' | 'configuring' | 'active' | 'failed'
   failReason: string
+  cfZoneId: string
   cfNameservers: string[]
   verifiedAt: string | null
   createdAt: string
@@ -78,7 +80,7 @@ function StatusBadge({ status }: { status: CustomDomain['status'] }) {
 function ProgressStepper({ currentStep }: { currentStep: number }) {
   return (
     <div className="flex items-center gap-1 w-full">
-      {STEPS.map((s, i) => {
+      {STEPS.map((s) => {
         const done = currentStep >= s.step
         const active = currentStep === s.step
         return (
@@ -102,7 +104,7 @@ function ProgressStepper({ currentStep }: { currentStep: number }) {
   )
 }
 
-function NameserversList({ nameservers, domainId }: { nameservers: string[]; domainId: string }) {
+function NameserversList({ nameservers }: { nameservers: string[] }) {
   const [copied, setCopied] = useState<number | null>(null)
 
   const copyNs = (ns: string, idx: number) => {
@@ -114,12 +116,12 @@ function NameserversList({ nameservers, domainId }: { nameservers: string[]; dom
   if (!nameservers.length) return null
 
   return (
-    <div className="mt-4 p-4 bg-ep-base rounded-lg border border-ep-border-subtle space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center gap-2">
         <Server size={13} className="text-ep-accent" />
-        <p className="text-ep-primary text-xs font-semibold">Configure estes nameservers no seu registrador</p>
+        <p className="text-ep-primary text-xs font-semibold">Nameservers</p>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {nameservers.map((ns, i) => (
           <div key={i} className="flex items-center justify-between gap-2 px-3 py-2 bg-ep-raised rounded-md border border-ep-border-default">
             <code className="text-ep-primary text-sm font-mono">{ns}</code>
@@ -134,9 +136,65 @@ function NameserversList({ nameservers, domainId }: { nameservers: string[]; dom
         ))}
       </div>
       <p className="text-ep-muted text-xs leading-relaxed">
-        Substitua os nameservers atuais do seu domínio pelos listados acima.
-        A propagação pode levar de alguns minutos até 48 horas.
+        Configure estes nameservers no registrador do seu domínio. A propagação pode levar de alguns minutos até 48 horas.
       </p>
+    </div>
+  )
+}
+
+function DomainDetails({ domain }: { domain: CustomDomain }) {
+  return (
+    <div className="mt-4 p-4 bg-ep-base rounded-lg border border-ep-border-subtle space-y-5">
+      {/* Nameservers */}
+      {domain.cfNameservers.length > 0 && (
+        <NameserversList nameservers={domain.cfNameservers} />
+      )}
+
+      {/* Info grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <p className="text-ep-muted text-xs flex items-center gap-1.5">
+            <Calendar size={11} /> Adicionado em
+          </p>
+          <p className="text-ep-primary text-sm">
+            {new Date(domain.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+
+        {domain.verifiedAt && (
+          <div className="space-y-1">
+            <p className="text-ep-muted text-xs flex items-center gap-1.5">
+              <Shield size={11} /> Verificado em
+            </p>
+            <p className="text-ep-primary text-sm">
+              {new Date(domain.verifiedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        )}
+
+        {domain.cfZoneId && (
+          <div className="space-y-1">
+            <p className="text-ep-muted text-xs flex items-center gap-1.5">
+              <Globe size={11} /> Zone ID (Cloudflare)
+            </p>
+            <code className="text-ep-secondary text-xs font-mono">{domain.cfZoneId}</code>
+          </div>
+        )}
+
+        <div className="space-y-1">
+          <p className="text-ep-muted text-xs flex items-center gap-1.5">
+            <ExternalLink size={11} /> Status
+          </p>
+          <StatusBadge status={domain.status} />
+        </div>
+      </div>
+
+      {domain.status === 'failed' && domain.failReason && (
+        <div className="p-3 bg-ep-danger/5 border border-ep-danger/20 rounded-md">
+          <p className="text-ep-danger text-xs font-medium">Motivo da falha:</p>
+          <p className="text-ep-danger/80 text-xs mt-1">{domain.failReason}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -147,6 +205,7 @@ function DomainCard({ domain, onVerify, onDelete, verifying }: {
   onDelete: (id: string) => void
   verifying: boolean
 }) {
+  const [expanded, setExpanded] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const cfg = STATUS_CONFIG[domain.status]
 
@@ -154,7 +213,10 @@ function DomainCard({ domain, onVerify, onDelete, verifying }: {
     <div className="bg-ep-surface border border-ep-border-default rounded-xl p-5 space-y-4 transition-all hover:border-ep-border-default/80">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="min-w-0 flex-1 text-left"
+        >
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <div className={clsx(
@@ -168,16 +230,16 @@ function DomainCard({ domain, onVerify, onDelete, verifying }: {
               <p className="text-ep-primary text-base font-semibold font-mono">{domain.domain}</p>
             </div>
             <StatusBadge status={domain.status} />
+            <div className="text-ep-muted">
+              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </div>
           </div>
-          {domain.status === 'active' && domain.verifiedAt && (
+          {domain.status === 'active' && domain.verifiedAt && !expanded && (
             <p className="text-ep-muted text-xs mt-2 ml-10">
               Ativo desde {new Date(domain.verifiedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
             </p>
           )}
-          {domain.status === 'failed' && domain.failReason && (
-            <p className="text-ep-danger text-xs mt-2 ml-10">{domain.failReason}</p>
-          )}
-        </div>
+        </button>
         <div className="flex items-center gap-2 flex-shrink-0">
           {domain.status !== 'active' && domain.status !== 'configuring' && (
             <button
@@ -203,9 +265,15 @@ function DomainCard({ domain, onVerify, onDelete, verifying }: {
         <ProgressStepper currentStep={cfg.step} />
       )}
 
-      {/* Nameservers */}
-      {domain.status !== 'active' && domain.cfNameservers.length > 0 && (
-        <NameserversList nameservers={domain.cfNameservers} domainId={domain.id} />
+      {/* Expanded details */}
+      {expanded && <DomainDetails domain={domain} />}
+
+      {/* Nameservers hint (collapsed, only for pending) */}
+      {!expanded && domain.status !== 'active' && domain.cfNameservers.length > 0 && (
+        <div className="flex items-center gap-2 text-ep-muted text-xs">
+          <Server size={11} />
+          <span>Nameservers: <code className="text-ep-secondary font-mono">{domain.cfNameservers.join(', ')}</code></span>
+        </div>
       )}
 
       {/* Delete confirmation */}
