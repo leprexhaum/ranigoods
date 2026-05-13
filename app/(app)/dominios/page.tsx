@@ -202,8 +202,15 @@ function DomainDetails({ domain }: { domain: CustomDomain }) {
 
 const AVAILABLE_SUBDOMAINS = ['checkout', 'pay', 'seguro', 'comprar', 'pedido', 'loja'] as const
 
+function isValidSubdomain(sub: string): boolean {
+  if (!sub || sub.length > 63) return false
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(sub)
+}
+
 function SubdomainSelector({ domain, onUpdate }: { domain: CustomDomain; onUpdate: (updated: CustomDomain) => void }) {
   const [saving, setSaving] = useState(false)
+  const [customInput, setCustomInput] = useState('')
+  const [inputError, setInputError] = useState('')
   const active = domain.subdomains ?? []
 
   const toggle = async (sub: string) => {
@@ -224,12 +231,29 @@ function SubdomainSelector({ domain, onUpdate }: { domain: CustomDomain; onUpdat
     } finally { setSaving(false) }
   }
 
+  const addCustom = async () => {
+    const sub = customInput.trim().toLowerCase()
+    setInputError('')
+    if (!sub) return
+    if (!isValidSubdomain(sub)) {
+      setInputError('Apenas letras minúsculas, números e hífens. Não pode começar/terminar com hífen.')
+      return
+    }
+    if (active.includes(sub)) {
+      setInputError('Subdomínio já está ativo.')
+      return
+    }
+    setCustomInput('')
+    await toggle(sub)
+  }
+
+  const customActive = active.filter(s => !AVAILABLE_SUBDOMAINS.includes(s as typeof AVAILABLE_SUBDOMAINS[number]))
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Globe size={13} className="text-ep-accent" />
         <p className="text-ep-primary text-xs font-semibold">Subdomínios</p>
-        <span className="text-ep-muted text-[10px]">(opcional)</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {AVAILABLE_SUBDOMAINS.map(sub => {
@@ -251,6 +275,40 @@ function SubdomainSelector({ domain, onUpdate }: { domain: CustomDomain; onUpdat
           )
         })}
       </div>
+      {customActive.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {customActive.map(sub => (
+            <button
+              key={sub}
+              onClick={() => toggle(sub)}
+              disabled={saving}
+              className="px-3 py-1.5 rounded-lg border text-xs font-medium transition-all disabled:opacity-50 bg-ep-accent/10 border-ep-accent/30 text-ep-accent flex items-center gap-1.5"
+            >
+              {sub}.{domain.domain}
+              <span className="text-ep-accent/60 text-[10px]">✕</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={customInput}
+          onChange={e => { setCustomInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setInputError('') }}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
+          placeholder="subdominio-personalizado"
+          disabled={saving}
+          className="flex-1 px-3 py-1.5 rounded-lg border border-ep-border-default bg-ep-raised text-ep-primary text-xs placeholder:text-ep-muted focus:outline-none focus:border-ep-accent/50 disabled:opacity-50"
+        />
+        <button
+          onClick={addCustom}
+          disabled={saving || !customInput.trim()}
+          className="px-3 py-1.5 rounded-lg border border-ep-accent/30 bg-ep-accent/10 text-ep-accent text-xs font-medium disabled:opacity-50 hover:bg-ep-accent/20 transition-all"
+        >
+          Adicionar
+        </button>
+      </div>
+      {inputError && <p className="text-red-400 text-[11px]">{inputError}</p>}
       {active.length > 0 && (
         <div className="space-y-1">
           <p className="text-ep-muted text-[10px] uppercase tracking-wider font-medium">URLs ativas</p>
@@ -263,8 +321,8 @@ function SubdomainSelector({ domain, onUpdate }: { domain: CustomDomain; onUpdat
         </div>
       )}
       {active.length === 0 && (
-        <p className="text-ep-muted text-xs">
-          Nenhum subdomínio ativo. O checkout funciona pelo domínio raiz: <span className="font-mono">{domain.domain}</span>
+        <p className="text-yellow-400 text-xs">
+          Configure pelo menos um subdomínio para concluir a configuração do domínio.
         </p>
       )}
     </div>

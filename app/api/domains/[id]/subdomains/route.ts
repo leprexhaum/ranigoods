@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { domainService, ALLOWED_SUBDOMAINS } from '@/lib/services/domain.service'
+import { domainService, SUGGESTED_SUBDOMAINS } from '@/lib/services/domain.service'
 import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +18,8 @@ export async function GET(
 
   return NextResponse.json({
     subdomains: domain.subdomains,
-    available: ALLOWED_SUBDOMAINS,
+    suggested: SUGGESTED_SUBDOMAINS,
+    available: SUGGESTED_SUBDOMAINS,
   })
 }
 
