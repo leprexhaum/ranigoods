@@ -4,8 +4,14 @@ import { logger } from '@/lib/logger'
 
 export type DomainStatus = 'pending_ns' | 'propagating' | 'configuring' | 'active' | 'failed'
 
-export const ALLOWED_SUBDOMAINS = ['checkout', 'pay', 'seguro', 'comprar', 'pedido', 'loja'] as const
-export type AllowedSubdomain = typeof ALLOWED_SUBDOMAINS[number]
+export const SUGGESTED_SUBDOMAINS = ['checkout', 'pay', 'seguro', 'comprar', 'pedido', 'loja'] as const
+export const ALLOWED_SUBDOMAINS = SUGGESTED_SUBDOMAINS
+export type AllowedSubdomain = typeof SUGGESTED_SUBDOMAINS[number]
+
+export function isValidSubdomain(sub: string): boolean {
+  if (!sub || sub.length > 63) return false
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(sub)
+}
 
 export interface CustomDomainRecord {
   id:            string
@@ -168,8 +174,8 @@ export const domainService = {
       throw new Error('Domínio precisa estar ativo para configurar subdomínios')
     }
 
-    // Validar que todos estão na lista permitida
-    const invalid = subdomains.filter(s => !ALLOWED_SUBDOMAINS.includes(s as AllowedSubdomain))
+    // Validar formato DNS de cada subdomínio
+    const invalid = subdomains.filter(s => !isValidSubdomain(s))
     if (invalid.length > 0) {
       throw new Error(`Subdomínios inválidos: ${invalid.join(', ')}`)
     }
