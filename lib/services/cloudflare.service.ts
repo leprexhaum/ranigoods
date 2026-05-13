@@ -17,6 +17,10 @@ function getAccountId() {
   return id
 }
 
+function getProxyIp() {
+  return process.env.CLOUDFLARE_PROXY_IP ?? '100.64.0.1'
+}
+
 function getWorkerOrigin() {
   return process.env.CLOUDFLARE_WORKER_ORIGIN ?? 'http://10.13.0.41:8080'
 }
@@ -110,7 +114,7 @@ async function createDnsRecords(zoneId: string, domain: string): Promise<void> {
     body: JSON.stringify({
       type: 'A',
       name: '@',
-      content: '100.64.0.1',
+      content: getProxyIp(),
       proxied: true,
       ttl: 1,
     }),
@@ -295,7 +299,7 @@ async function ensureSubdomainInfra(zoneId: string, domain: string, subdomain: s
       body: JSON.stringify({
         type: 'A',
         name: '@',
-        content: '100.64.0.1',
+        content: getProxyIp(),
         proxied: true,
         ttl: 1,
       }),
