@@ -284,6 +284,24 @@ async function ensureSubdomainInfra(zoneId: string, domain: string, subdomain: s
   const name = workerName(domain)
   const fqdn = `${subdomain}.${domain}`
 
+  // 0. Garantir que o registro A raiz existe (necessário para CNAMEs resolverem)
+  const rootDnsRes = await cfFetch<{ id: string; name: string; type: string }[]>(
+    `/zones/${zoneId}/dns_records?type=A&name=${domain}`
+  )
+  if (!rootDnsRes.success || !rootDnsRes.result?.length) {
+    logger.info('DOMÍNIO', 'Registro A raiz ausente, criando', { domain })
+    await cfFetch(`/zones/${zoneId}/dns_records`, {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'A',
+        name: '@',
+        content: '100.64.0.1',
+        proxied: true,
+        ttl: 1,
+      }),
+    })
+  }
+
   // 1. Verificar se CNAME existe, criar se não
   const dnsRes = await cfFetch<{ id: string; name: string; type: string }[]>(
     `/zones/${zoneId}/dns_records?type=CNAME&name=${fqdn}`
