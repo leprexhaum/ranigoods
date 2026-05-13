@@ -21,6 +21,6 @@ export async function POST(req: NextRequest) {
   const name = typeof body.name === 'string' ? body.name.trim() : ''
 
   const { record, plaintext } = await apiKeyService.generate(auth.session.userId, name)
-  logger.info('API-KEY', 'Chave criada', { userId: auth.session.userId, prefix: record.keyPrefix, nome: name })
+  logger.info('API-KEY', 'Chave criada', { username: auth.session.username, prefix: record.keyPrefix, nome: name })
   return NextResponse.json({ ...record, key: plaintext }, { status: 201 })
 }

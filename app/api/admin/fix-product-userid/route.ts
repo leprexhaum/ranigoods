@@ -17,6 +17,6 @@ export async function POST() {
     data:  { userId },
   })
 
-  logger.info('PRODUTO', 'Fix userId executado', { userId, atualizados: result.count })
+  logger.info('PRODUTO', 'Fix userId executado', { username: auth.session.username, atualizados: result.count })
   return NextResponse.json({ updated: result.count, userId })
 }

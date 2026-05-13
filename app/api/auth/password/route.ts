@@ -27,13 +27,13 @@ export async function PUT(req: NextRequest) {
 
   const valid = await userService.verifyPassword(user.passwordHash, currentPassword)
   if (!valid) {
-    logger.warn('AUTH', 'Alteração de senha falhada — senha atual incorreta', { userId: session.userId, ip })
+    logger.warn('AUTH', 'Alteração de senha falhada — senha atual incorreta', { username: session.username, ip })
     return NextResponse.json({ error: 'Senha atual incorreta' }, { status: 401 })
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 12)
   await prisma.user.update({ where: { id: session.userId }, data: { passwordHash } })
 
-  logger.info('AUTH', 'Senha alterada', { userId: session.userId, ip })
+  logger.info('AUTH', 'Senha alterada', { username: session.username, ip })
   return NextResponse.json({ ok: true })
 }

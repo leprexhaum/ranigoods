@@ -19,7 +19,7 @@ export const userService = {
     const user = await prisma.user.create({
       data: { username: username.trim().toLowerCase(), email: email.trim().toLowerCase(), passwordHash },
     })
-    logger.info('AUTH', 'Utilizador criado', { userId: user.id, username: user.username })
+    logger.info('AUTH', 'Utilizador criado', { username: user.username })
     return toPublic(user)
   },
 

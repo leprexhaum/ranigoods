@@ -19,7 +19,7 @@ export async function GET(
   })
   if (!cp) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
 
-  logger.info('PAGAMENTO', 'Detalhe consultado', { userId: auth.session.userId, paymentId: params.id })
+  logger.info('PAGAMENTO', 'Detalhe consultado', { username: auth.session.username, paymentId: params.id })
 
   const payment = {
     id:               cp.id,

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   const limit = parseInt(new URL(req.url).searchParams.get('limit') ?? '50')
   const logs = await pixelService.getLogs(auth.session.userId, limit)
-  logger.info('PIXEL', 'Logs consultados', { userId: auth.session.userId, limit, total: logs.length })
+  logger.info('PIXEL', 'Logs consultados', { username: auth.session.username, limit, total: logs.length })
   return NextResponse.json(logs)
 }
 
@@ -20,6 +20,6 @@ export async function DELETE() {
   if (auth instanceof NextResponse) return auth
 
   await pixelService.clearLogs(auth.session.userId)
-  logger.info('PIXEL', 'Logs limpos', { userId: auth.session.userId })
+  logger.info('PIXEL', 'Logs limpos', { username: auth.session.username })
   return NextResponse.json({ cleared: true })
 }

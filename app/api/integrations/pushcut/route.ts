@@ -13,7 +13,7 @@ export async function GET() {
     where: { userId: session.userId },
     orderBy: { createdAt: 'asc' },
   })
-  logger.info('PUSHCUT', 'Listagem consultada', { userId: session.userId, total: configs.length })
+  logger.info('PUSHCUT', 'Listagem consultada', { username: session.username, total: configs.length })
   return NextResponse.json(configs)
 }
 
@@ -32,6 +32,6 @@ export async function POST(req: NextRequest) {
       enabled:    body.enabled ?? true,
     },
   })
-  logger.info('PUSHCUT', 'Config criada', { userId: session.userId, configId: config.id })
+  logger.info('PUSHCUT', 'Config criada', { username: session.username, configId: config.id })
   return NextResponse.json(config, { status: 201 })
 }

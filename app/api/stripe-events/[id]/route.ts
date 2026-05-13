@@ -14,6 +14,6 @@ export async function GET(
 
   const ev = await prisma.stripeEvent.findUnique({ where: { id: params.id } })
   if (!ev) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  logger.info('WEBHOOK', 'Stripe event detalhe', { userId: auth.session.userId, eventId: params.id, type: ev.type })
+  logger.info('WEBHOOK', 'Stripe event detalhe', { username: auth.session.username, eventId: params.id, type: ev.type })
   return NextResponse.json(ev)
 }

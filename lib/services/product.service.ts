@@ -103,7 +103,8 @@ export const productService = {
 
   async create(data: Omit<Product, 'id' | 'sales' | 'revenue' | 'createdAt'> & { userId: string }): Promise<Product> {
     const id = `prod_${Date.now()}`
-    logger.info('PRODUTO', 'Criando produto', { id, nome: data.name, userId: data.userId, preco: data.price })
+    const user = await prisma.user.findUnique({ where: { id: data.userId }, select: { username: true } })
+    logger.info('PRODUTO', 'Criando produto', { id, nome: data.name, username: user?.username ?? 'unknown', preco: data.price })
     const r = await prisma.product.create({
       data: {
         id,

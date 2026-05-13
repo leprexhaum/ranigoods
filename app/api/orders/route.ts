@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       }),
     ])
 
-    logger.info('PEDIDO', 'Listagem consultada', { userId: auth.session.userId, status, pagina: page, resultados: `${rows.length}/${total}` })
+    logger.info('PEDIDO', 'Listagem consultada', { username: auth.session.username, status, pagina: page, resultados: `${rows.length}/${total}` })
     return NextResponse.json({
       data:  rows,
       total,
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
       pages: Math.ceil(total / limit),
     })
   } catch (err) {
-    logger.error('PEDIDO', 'Erro ao listar pedidos', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
+    logger.error('PEDIDO', 'Erro ao listar pedidos', { username: auth.session.username, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

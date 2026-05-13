@@ -10,6 +10,6 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if (auth instanceof NextResponse) return auth
   const domain = await domainService.verify(params.id, auth.session.userId)
   if (!domain) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  logger.info('DOMÍNIO', 'Verificação solicitada via API', { userId: auth.session.userId, domainId: params.id })
+  logger.info('DOMÍNIO', 'Verificação solicitada via API', { username: auth.session.username, domainId: params.id })
   return NextResponse.json(domain)
 }

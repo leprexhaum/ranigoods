@@ -26,7 +26,8 @@ export const apiKeyService = {
       data: { userId, name, key: hashed, keyPrefix: prefix },
     })
 
-    logger.info('API-KEY', 'Chave gerada', { userId, prefix, nome: name })
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+    logger.info('API-KEY', 'Chave gerada', { username: user?.username ?? 'unknown', prefix, nome: name })
 
     return {
       plaintext: raw,
@@ -58,15 +59,17 @@ export const apiKeyService = {
   },
 
   async revoke(id: string, userId: string): Promise<boolean> {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+    const username = user?.username ?? 'unknown'
     try {
       await prisma.apiKey.updateMany({
         where: { id, userId, revokedAt: null },
         data:  { revokedAt: new Date() },
       })
-      logger.info('API-KEY', 'Chave revogada via service', { keyId: id, userId })
+      logger.info('API-KEY', 'Chave revogada via service', { keyId: id, username })
       return true
     } catch {
-      logger.error('API-KEY', 'Erro ao revogar chave', { keyId: id, userId })
+      logger.error('API-KEY', 'Erro ao revogar chave', { keyId: id, username })
       return false
     }
   },

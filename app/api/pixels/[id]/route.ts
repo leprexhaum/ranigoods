@@ -27,7 +27,7 @@ export async function PUT(
   const data    = await req.json()
   const updated = await pixelService.update(params.id, auth.session.userId, data)
   if (!updated) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  logger.info('PIXEL', 'Pixel atualizado', { userId: auth.session.userId, pixelId: params.id })
+  logger.info('PIXEL', 'Pixel atualizado', { username: auth.session.username, pixelId: params.id })
   return NextResponse.json(updated)
 }
 
@@ -40,6 +40,6 @@ export async function DELETE(
 
   const ok = await pixelService.delete(params.id, auth.session.userId)
   if (!ok) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  logger.info('PIXEL', 'Pixel removido', { userId: auth.session.userId, pixelId: params.id })
+  logger.info('PIXEL', 'Pixel removido', { username: auth.session.username, pixelId: params.id })
   return NextResponse.json({ success: true })
 }

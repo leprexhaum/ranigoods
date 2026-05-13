@@ -15,7 +15,7 @@ export async function GET() {
     where:   { userId: session.userId },
     orderBy: { createdAt: 'desc' },
   })
-  logger.info('WEBHOOK-OUT', 'Listagem consultada', { userId: session.userId, total: webhooks.length })
+  logger.info('WEBHOOK-OUT', 'Listagem consultada', { username: session.username, total: webhooks.length })
   return NextResponse.json(webhooks)
 }
 
@@ -49,6 +49,6 @@ export async function POST(req: NextRequest) {
       enabled:    true,
     },
   })
-  logger.info('WEBHOOK-OUT', 'Webhook criado', { userId: session.userId, webhookId: webhook.id, url: body.url })
+  logger.info('WEBHOOK-OUT', 'Webhook criado', { username: session.username, webhookId: webhook.id, url: body.url })
   return NextResponse.json(webhook, { status: 201 })
 }

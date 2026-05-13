@@ -88,6 +88,7 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  logger.info('PIXEL', 'Google Ads OAuth concluído', { userId })
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+  logger.info('PIXEL', 'Google Ads OAuth concluído', { username: user?.username ?? 'unknown' })
   return NextResponse.redirect(`${baseUrl}/pixels?success=google_ads_connected`)
 }

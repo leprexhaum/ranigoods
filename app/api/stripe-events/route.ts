@@ -37,6 +37,6 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  logger.info('WEBHOOK', 'Stripe events consultados', { userId: auth.session.userId, type, page, total })
+  logger.info('WEBHOOK', 'Stripe events consultados', { username: auth.session.username, type, page, total })
   return NextResponse.json({ data, total, page, limit, pages: Math.ceil(total / limit) })
 }

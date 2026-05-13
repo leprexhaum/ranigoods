@@ -40,7 +40,8 @@ export const cartService = {
     urlParams: Record<string, string> = {},
   ): Promise<{ cartId: string; checkoutUrl: string; expiresAt: string; total: number; currency: string; items: CartItemDetail[] }> {
     if (!items.length) throw new Error('O carrinho precisa ter pelo menos um item')
-    logger.info('PEDIDO', 'Criando carrinho', { userId, itens: items.length })
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+    logger.info('PEDIDO', 'Criando carrinho', { username: user?.username ?? 'unknown', itens: items.length })
 
     // Buscar todos os produtos de uma vez
     const productIds = [...new Set(items.map(i => i.productId))]
@@ -88,7 +89,7 @@ export const cartService = {
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? ''
     const checkoutUrl = `${baseUrl}/checkout/cart/${cart.id}`
-    logger.info('PEDIDO', 'Carrinho criado', { cartId: cart.id, userId, total, currency, itens: items.length })
+    logger.info('PEDIDO', 'Carrinho criado', { cartId: cart.id, username: user?.username ?? 'unknown', total, currency, itens: items.length })
 
     const itemDetails: CartItemDetail[] = cart.items.map(i => ({
       id:        i.id,

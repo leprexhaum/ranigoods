@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { type, payload } = body as { type: string; payload: Record<string, unknown> }
-  logger.info('WEBHOOK-OUT', 'Teste de integração', { userId: auth.session.userId, type })
+  logger.info('WEBHOOK-OUT', 'Teste de integração', { username: auth.session.username, type })
 
   const startTime = Date.now()
 

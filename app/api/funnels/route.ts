@@ -9,7 +9,7 @@ export async function GET() {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
   const funnels = await funnelService.list(auth.session.userId)
-  logger.info('UPSELL', 'Listagem de funis', { userId: auth.session.userId, total: funnels.length })
+  logger.info('UPSELL', 'Listagem de funis', { username: auth.session.username, total: funnels.length })
   return NextResponse.json(funnels)
 }
 
@@ -27,6 +27,6 @@ export async function POST(req: NextRequest) {
     upsellImage: body.upsellImage ?? '',
     enabled:     body.enabled     ?? true,
   })
-  logger.info('UPSELL', 'Funil criado via API', { userId: auth.session.userId, funnelId: funnel.id })
+  logger.info('UPSELL', 'Funil criado via API', { username: auth.session.username, funnelId: funnel.id })
   return NextResponse.json(funnel, { status: 201 })
 }
