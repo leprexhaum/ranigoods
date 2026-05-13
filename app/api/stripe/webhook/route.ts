@@ -231,6 +231,12 @@ export async function POST(req: NextRequest) {
         const urlParams  = (cpRecord?.urlParams ?? {}) as Record<string, string>
         const ownerUserId = cpRecord?.product?.userId ?? ''
 
+        // Só disparar notificações se o pagamento pertence a um produto do sistema
+        if (!ownerUserId) {
+          logger.warn('WEBHOOK', 'PI sem produto associado — ignorando notificações', { piId: pi.id })
+          break
+        }
+
         // Fire-and-forget — status já está gravado, notificações não bloqueiam
         Promise.allSettled([
           pixelService.trackEvent('Purchase', {
