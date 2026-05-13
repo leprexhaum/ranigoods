@@ -16,6 +16,7 @@ import {
   ShoppingBag,
   Layers,
   Plug,
+  Globe,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -29,6 +30,7 @@ const navItems = [
   { href: '/carrinhos-abandonados', label: 'Carrinhos',           icon: ShoppingCart    },
   { href: '/webhooks',              label: 'Webhooks',            icon: Webhook         },
   { href: '/integracoes',           label: 'Integrações',         icon: Plug            },
+  { href: '/dominios',              label: 'Domínios',            icon: Globe           },
   { href: '/stripe',                label: 'Stripe',              icon: Layers          },
   { href: '/calculadora',           label: 'Calculadora',         icon: Calculator      },
   { href: '/configuracoes',         label: 'Configurações',       icon: Settings        },

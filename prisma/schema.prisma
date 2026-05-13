@@ -383,14 +383,16 @@ model OrderItem {
 }
 
 model CustomDomain {
-  id         String    @id @default(cuid())
-  userId     String    @map("user_id")
-  domain     String    @unique
-  status     String    @default("pending") // pending | active | failed
-  failReason String    @default("") @map("fail_reason")
-  verifiedAt DateTime? @map("verified_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  domain        String    @unique
+  status        String    @default("pending_ns")
+  failReason    String    @default("") @map("fail_reason")
+  cfZoneId      String    @default("") @map("cf_zone_id")
+  cfNameservers Json      @default("[]") @map("cf_nameservers")
+  verifiedAt    DateTime? @map("verified_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@map("custom_domains")
 }

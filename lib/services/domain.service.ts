@@ -1,101 +1,36 @@
 import { prisma } from '@/lib/prisma'
-import { promises as dns } from 'dns'
+import { cloudflareService } from './cloudflare.service'
 
-const PROXY_HOST = process.env.NEXT_PUBLIC_PROXY_HOST ?? 'proxy.techpags.shop'
+export type DomainStatus = 'pending_ns' | 'propagating' | 'configuring' | 'active' | 'failed'
 
 export interface CustomDomainRecord {
-  id:         string
-  userId:     string
-  domain:     string
-  status:     'pending' | 'active' | 'failed'
-  failReason: string
-  verifiedAt: string | null
-  createdAt:  string
+  id:            string
+  userId:        string
+  domain:        string
+  status:        DomainStatus
+  failReason:    string
+  cfZoneId:      string
+  cfNameservers: string[]
+  verifiedAt:    string | null
+  createdAt:     string
 }
 
 function toRecord(r: {
   id: string; userId: string; domain: string; status: string;
-  failReason: string; verifiedAt: Date | null; createdAt: Date;
+  failReason: string; cfZoneId: string; cfNameservers: unknown;
+  verifiedAt: Date | null; createdAt: Date;
 }): CustomDomainRecord {
   return {
-    id:         r.id,
-    userId:     r.userId,
-    domain:     r.domain,
-    status:     r.status as CustomDomainRecord['status'],
-    failReason: r.failReason,
-    verifiedAt: r.verifiedAt?.toISOString() ?? null,
-    createdAt:  r.createdAt.toISOString(),
+    id:            r.id,
+    userId:        r.userId,
+    domain:        r.domain,
+    status:        r.status as DomainStatus,
+    failReason:    r.failReason,
+    cfZoneId:      r.cfZoneId,
+    cfNameservers: (r.cfNameservers as string[]) ?? [],
+    verifiedAt:    r.verifiedAt?.toISOString() ?? null,
+    createdAt:     r.createdAt.toISOString(),
   }
-}
-
-async function resolveIps(host: string): Promise<string[]> {
-  try {
-    return await dns.resolve4(host)
-  } catch {
-    return []
-  }
-}
-
-/** Verificação HTTP via Cloudflare Worker.
- *  O worker responde a /.well-known/techpags-verify/{token} com o token em texto.
- *  Funciona mesmo com proxy Cloudflare ligado (laranja).
- */
-async function checkHttp(domain: string): Promise<{ ok: boolean; reason: string }> {
-  const token = `techpags-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  const url   = `https://${domain}/.well-known/techpags-verify/${token}`
-  try {
-    const res  = await fetch(url, { signal: AbortSignal.timeout(8000) })
-    const body = await res.text()
-    if (res.ok && body.trim() === token) {
-      return { ok: true, reason: '' }
-    }
-    return {
-      ok:     false,
-      reason: `Verificação HTTP falhou — o domínio não respondeu corretamente (status ${res.status})`,
-    }
-  } catch {
-    return {
-      ok:     false,
-      reason: 'Verificação HTTP falhou — o domínio não está acessível. Verifique se o CNAME está correto e o proxy está ativo.',
-    }
-  }
-}
-
-async function checkCname(domain: string): Promise<{ ok: boolean; reason: string }> {
-  // 1. Tenta CNAME direto (proxy Cloudflare desligado — DNS only)
-  try {
-    const addresses = await dns.resolveCname(domain)
-    const found = addresses.some(a => a.replace(/\.$/, '') === PROXY_HOST.replace(/\.$/, ''))
-    if (found) return { ok: true, reason: '' }
-    // CNAME existe mas aponta para outro lugar — falha imediata
-    return { ok: false, reason: `CNAME aponta para ${addresses[0] ?? 'desconhecido'}, esperado ${PROXY_HOST}` }
-  } catch (err: unknown) {
-    const code = (err as NodeJS.ErrnoException).code
-    if (code === 'ENOTFOUND') {
-      return { ok: false, reason: 'Domínio não encontrado — verifique se o DNS foi configurado' }
-    }
-    // ENODATA = sem CNAME visível (proxy Cloudflare ligado ou Flattening)
-    if (code !== 'ENODATA') {
-      return { ok: false, reason: 'Erro ao consultar DNS' }
-    }
-  }
-
-  // 2. Fallback: Cloudflare Flattening (CNAME raiz @) — compara IPs
-  const [domainIps, proxyIps] = await Promise.all([
-    resolveIps(domain),
-    resolveIps(PROXY_HOST),
-  ])
-
-  if (domainIps.length > 0 && proxyIps.length > 0) {
-    const proxySet = new Set(proxyIps)
-    if (domainIps.some(ip => proxySet.has(ip))) {
-      return { ok: true, reason: '' }
-    }
-  }
-
-  // 3. Fallback HTTP: proxy Cloudflare ligado (laranja) oculta o CNAME e os IPs.
-  //    Verifica se o domínio responde ao endpoint do worker.
-  return checkHttp(domain)
 }
 
 export const domainService = {
@@ -109,8 +44,18 @@ export const domainService = {
 
   async create(userId: string, domain: string): Promise<CustomDomainRecord> {
     const clean = domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
+
+    // Cria zona no Cloudflare
+    const { zoneId, nameservers } = await cloudflareService.createZone(clean)
+
     const row = await prisma.customDomain.create({
-      data: { userId, domain: clean, status: 'pending' },
+      data: {
+        userId,
+        domain: clean,
+        status: 'pending_ns',
+        cfZoneId: zoneId,
+        cfNameservers: nameservers,
+      },
     })
     return toRecord(row)
   },
@@ -118,21 +63,67 @@ export const domainService = {
   async verify(id: string, userId: string): Promise<CustomDomainRecord | null> {
     const row = await prisma.customDomain.findFirst({ where: { id, userId } })
     if (!row) return null
+    if (row.status === 'active') return toRecord(row)
 
-    const { ok, reason } = await checkCname(row.domain)
+    try {
+      const zoneStatus = await cloudflareService.checkZoneStatus(row.cfZoneId)
 
-    const updated = await prisma.customDomain.update({
-      where: { id },
-      data: {
-        status:     ok ? 'active' : 'failed',
-        failReason: ok ? '' : reason,
-        verifiedAt: ok ? new Date() : null,
-      },
-    })
-    return toRecord(updated)
+      if (zoneStatus === 'active') {
+        // Zona ativa — configurar Worker + DNS + SSL
+        const updated = await prisma.customDomain.update({
+          where: { id },
+          data: { status: 'configuring', failReason: '' },
+        })
+
+        try {
+          await cloudflareService.setupDomain(row.cfZoneId, row.domain)
+          const final = await prisma.customDomain.update({
+            where: { id },
+            data: { status: 'active', verifiedAt: new Date(), failReason: '' },
+          })
+          return toRecord(final)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Erro ao configurar domínio'
+          const failed = await prisma.customDomain.update({
+            where: { id },
+            data: { status: 'failed', failReason: msg },
+          })
+          return toRecord(failed)
+        }
+      }
+
+      // Zona ainda pendente
+      const newStatus = row.status === 'pending_ns' ? 'propagating' : row.status
+      const updated = await prisma.customDomain.update({
+        where: { id },
+        data: {
+          status: newStatus as string,
+          failReason: '',
+        },
+      })
+      return toRecord(updated)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao verificar DNS'
+      const failed = await prisma.customDomain.update({
+        where: { id },
+        data: { status: 'failed', failReason: msg },
+      })
+      return toRecord(failed)
+    }
   },
 
   async delete(id: string, userId: string): Promise<boolean> {
+    const row = await prisma.customDomain.findFirst({ where: { id, userId } })
+    if (!row) return false
+
+    // Remove zona e worker do Cloudflare
+    try {
+      await cloudflareService.deleteWorker(row.domain)
+      await cloudflareService.deleteZone(row.cfZoneId)
+    } catch {
+      // Continua mesmo se falhar no Cloudflare
+    }
+
     const result = await prisma.customDomain.deleteMany({ where: { id, userId } })
     return result.count > 0
   },
@@ -140,5 +131,54 @@ export const domainService = {
   async getByDomain(domain: string): Promise<CustomDomainRecord | null> {
     const row = await prisma.customDomain.findUnique({ where: { domain } })
     return row ? toRecord(row) : null
+  },
+
+  async checkPropagation(): Promise<{ checked: number; activated: number }> {
+    const pending = await prisma.customDomain.findMany({
+      where: {
+        status: { in: ['pending_ns', 'propagating'] },
+      },
+      take: 5,
+      orderBy: { updatedAt: 'asc' },
+    })
+
+    let activated = 0
+
+    for (const row of pending) {
+      try {
+        const zoneStatus = await cloudflareService.checkZoneStatus(row.cfZoneId)
+
+        if (zoneStatus === 'active') {
+          await prisma.customDomain.update({
+            where: { id: row.id },
+            data: { status: 'configuring' },
+          })
+
+          try {
+            await cloudflareService.setupDomain(row.cfZoneId, row.domain)
+            await prisma.customDomain.update({
+              where: { id: row.id },
+              data: { status: 'active', verifiedAt: new Date(), failReason: '' },
+            })
+            activated++
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Erro ao configurar'
+            await prisma.customDomain.update({
+              where: { id: row.id },
+              data: { status: 'failed', failReason: msg },
+            })
+          }
+        } else if (row.status === 'pending_ns') {
+          await prisma.customDomain.update({
+            where: { id: row.id },
+            data: { status: 'propagating' },
+          })
+        }
+      } catch {
+        // Skip this domain, try next
+      }
+    }
+
+    return { checked: pending.length, activated }
   },
 }

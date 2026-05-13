@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
   const body = await req.json() as { domain?: string }
   if (!body.domain?.trim()) return NextResponse.json({ error: 'Domínio é obrigatório' }, { status: 400 })
 
-  // Validação básica de formato
   const clean = body.domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
   if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(clean)) {
     return NextResponse.json({ error: 'Formato de domínio inválido' }, { status: 400 })
@@ -26,7 +25,11 @@ export async function POST(req: NextRequest) {
   try {
     const domain = await domainService.create(auth.session.userId, clean)
     return NextResponse.json(domain, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: 'Domínio já cadastrado' }, { status: 409 })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Erro ao adicionar domínio'
+    if (msg.includes('already exists') || msg.includes('Unique constraint')) {
+      return NextResponse.json({ error: 'Domínio já cadastrado' }, { status: 409 })
+    }
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
