@@ -165,6 +165,7 @@ export const domainService = {
     const current = ((row as any).subdomains as string[]) ?? []
     const toAdd = subdomains.filter(s => !current.includes(s))
     const toRemove = current.filter(s => !subdomains.includes(s))
+    const toKeep = subdomains.filter(s => current.includes(s))
 
     // Criar novos subdomínios no Cloudflare
     for (const sub of toAdd) {
@@ -172,6 +173,15 @@ export const domainService = {
         await cloudflareService.createSubdomainRecords(row.cfZoneId, row.domain, sub)
       } catch (err) {
         logger.warn('DOMÍNIO', 'Erro ao criar subdomínio (pode já existir)', { domain: row.domain, subdomain: sub, error: err instanceof Error ? err.message : String(err) })
+      }
+    }
+
+    // Garantir infraestrutura dos subdomínios que já existiam (reconciliação)
+    for (const sub of toKeep) {
+      try {
+        await cloudflareService.ensureSubdomainInfra(row.cfZoneId, row.domain, sub)
+      } catch (err) {
+        logger.warn('DOMÍNIO', 'Erro ao reconciliar subdomínio', { domain: row.domain, subdomain: sub, error: err instanceof Error ? err.message : String(err) })
       }
     }
 
@@ -191,7 +201,7 @@ export const domainService = {
       data: { subdomains },
     })
 
-    logger.info('DOMÍNIO', 'Subdomínios atualizados', { domain: row.domain, subdomains, adicionados: toAdd, removidos: toRemove })
+    logger.info('DOMÍNIO', 'Subdomínios atualizados', { domain: row.domain, subdomains, adicionados: toAdd, removidos: toRemove, reconciliados: toKeep })
     return toRecord(updated)
   },
 

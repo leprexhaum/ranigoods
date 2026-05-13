@@ -280,6 +280,47 @@ async function redeployWorker(domain: string): Promise<void> {
   logger.info('DOMÍNIO', 'Worker re-deployed com host dinâmico', { domain, workerName: name })
 }
 
+async function ensureSubdomainInfra(zoneId: string, domain: string, subdomain: string): Promise<void> {
+  const name = workerName(domain)
+  const fqdn = `${subdomain}.${domain}`
+
+  // 1. Verificar se CNAME existe, criar se não
+  const dnsRes = await cfFetch<{ id: string; name: string; type: string }[]>(
+    `/zones/${zoneId}/dns_records?type=CNAME&name=${fqdn}`
+  )
+  if (!dnsRes.success || !dnsRes.result?.length) {
+    logger.info('DOMÍNIO', 'CNAME ausente, criando', { domain, subdomain })
+    await cfFetch(`/zones/${zoneId}/dns_records`, {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'CNAME',
+        name: subdomain,
+        content: domain,
+        proxied: true,
+        ttl: 1,
+      }),
+    })
+  }
+
+  // 2. Verificar se Worker Route existe, criar se não
+  const routesRes = await cfFetch<{ id: string; pattern: string }[]>(`/zones/${zoneId}/workers/routes`)
+  const expectedPattern = `${fqdn}/*`
+  const routeExists = routesRes.success && routesRes.result?.some(r => r.pattern === expectedPattern)
+
+  if (!routeExists) {
+    logger.info('DOMÍNIO', 'Worker Route ausente, criando', { domain, subdomain, pattern: expectedPattern })
+    await cfFetch(`/zones/${zoneId}/workers/routes`, {
+      method: 'POST',
+      body: JSON.stringify({
+        pattern: expectedPattern,
+        script: name,
+      }),
+    })
+  }
+
+  logger.info('DOMÍNIO', 'Infraestrutura do subdomínio verificada', { domain, subdomain })
+}
+
 async function createSubdomainRecords(zoneId: string, domain: string, subdomain: string): Promise<void> {
   logger.info('DOMÍNIO', 'Criando subdomínio', { domain, subdomain })
 
@@ -359,4 +400,5 @@ export const cloudflareService = {
   createSubdomainRecords,
   deleteSubdomainRecords,
   redeployWorker,
+  ensureSubdomainInfra,
 }
