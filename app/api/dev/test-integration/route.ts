@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAdmin } from '@/lib/api-auth'
 import { pushcutService } from '@/lib/services/pushcut.service'
 import { utmifyService } from '@/lib/services/utmify.service'
 import { webhookNotifyService } from '@/lib/services/webhook-notify.service'
@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireAdmin()
   if (auth instanceof NextResponse) return auth
 
   const body = await req.json()

@@ -6,11 +6,12 @@ export interface PublicUser {
   id:        string
   username:  string
   email:     string
+  role:      string
   createdAt: string
 }
 
-function toPublic(u: { id: string; username: string; email: string; createdAt: Date }): PublicUser {
-  return { id: u.id, username: u.username, email: u.email, createdAt: u.createdAt.toISOString() }
+function toPublic(u: { id: string; username: string; email: string; role: string; createdAt: Date }): PublicUser {
+  return { id: u.id, username: u.username, email: u.email, role: u.role, createdAt: u.createdAt.toISOString() }
 }
 
 export const userService = {

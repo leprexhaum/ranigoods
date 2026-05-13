@@ -29,12 +29,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Usuário ou senha incorretos' }, { status: 401 })
     }
 
-    await createSession({ userId: user.id, username: user.username, email: user.email })
+    await createSession({ userId: user.id, username: user.username, email: user.email, role: user.role ?? 'user' })
 
     logger.info('AUTH', 'Login efetuado com sucesso', { username: user.username, ip })
 
     return NextResponse.json({
-      user: { id: user.id, username: user.username, email: user.email },
+      user: { id: user.id, username: user.username, email: user.email, role: user.role ?? 'user' },
     })
   } catch (err) {
     logger.error('AUTH', 'Erro interno no login', { error: err instanceof Error ? err.message : String(err), ip })

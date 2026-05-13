@@ -8,6 +8,7 @@ export interface SessionPayload {
   userId:   string
   username: string
   email:    string
+  role:     string
 }
 
 function getKey() {

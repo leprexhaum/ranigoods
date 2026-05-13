@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAdmin } from '@/lib/api-auth'
 import { logger } from '@/lib/logger'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 export const dynamic = 'force-dynamic'
 
 export async function POST() {
-  const auth = await requireAuth()
+  const auth = await requireAdmin()
   if (auth instanceof NextResponse) return auth
 
   const results: Record<string, number> = { payouts: 0, charges: 0, disputes: 0, refunds: 0, customers: 0, transactions: 0, payments_created: 0, payments_updated: 0 }
@@ -183,7 +183,7 @@ export async function POST() {
 
 // GET — corrige createdAt e nomes dos payments existentes usando dados reais do Stripe
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireAdmin()
   if (auth instanceof NextResponse) return auth
 
   let fixed = 0; let errors = 0

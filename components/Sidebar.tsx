@@ -19,6 +19,9 @@ import {
   Globe,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { useAuth } from '@/components/providers/AuthProvider'
+
+const ADMIN_PATHS = ['/stripe', '/stripe-eventos', '/stripe-payouts', '/dev/integracoes']
 
 const navItems = [
   { href: '/dashboard',             label: 'Dashboard',           icon: LayoutDashboard },
@@ -38,6 +41,13 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.username === 'samnkls'
+
+  const visibleItems = navItems.filter(item => {
+    if (ADMIN_PATHS.includes(item.href)) return isAdmin
+    return true
+  })
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-60 flex flex-col bg-ep-surface border-r border-ep-border-subtle z-30">
@@ -53,7 +63,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {visibleItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
             <Link

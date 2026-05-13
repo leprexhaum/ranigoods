@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAdmin } from '@/lib/api-auth'
 import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireAdmin()
   if (auth instanceof NextResponse) return auth
 
   try {
