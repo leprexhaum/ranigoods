@@ -74,7 +74,7 @@ model Product {
   orderBumps       Json     @default("[]") @map("order_bumps")
   reviews          Json     @default("[]")
   showReviews      Boolean  @default(false) @map("show_reviews")
-  checkoutTemplate String   @default("single_step") @map("checkout_template")
+  checkoutTemplate String   @default("stripe_split") @map("checkout_template")
   checkoutLanguage String   @default("pt") @map("checkout_language")
   requirePhone     Boolean  @default(false) @map("require_phone")
   requireAddress   Boolean  @default(false) @map("require_address")

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       orderBumps:       body.orderBumps       ?? [],
       reviews:          body.reviews          ?? [],
       showReviews:      body.showReviews      ?? false,
-      checkoutTemplate: body.checkoutTemplate ?? 'single_step',
+      checkoutTemplate: body.checkoutTemplate ?? 'stripe_split',
       checkoutLanguage: body.checkoutLanguage ?? 'pt',
       requirePhone:     body.requirePhone     ?? false,
       requireAddress:   body.requireAddress   ?? false,

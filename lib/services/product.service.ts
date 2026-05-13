@@ -128,7 +128,7 @@ export const productService = {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reviews:          (data.reviews ?? []) as any,
         showReviews:      data.showReviews ?? false,
-        checkoutTemplate: data.checkoutTemplate ?? 'single_step',
+        checkoutTemplate: data.checkoutTemplate ?? 'stripe_split',
         checkoutLanguage: data.checkoutLanguage ?? 'pt',
         requirePhone:     data.requirePhone ?? false,
         requireAddress:   data.requireAddress ?? false,

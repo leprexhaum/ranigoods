@@ -3,19 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import type { CheckoutProduct } from '@/lib/types/checkout'
-import SingleStepCheckout   from './templates/SingleStepCheckout'
-import PromoCheckout         from './templates/PromoCheckout'
-import InfoProductCheckout   from './templates/InfoProductCheckout'
-import DropshippingCheckout  from './templates/DropshippingCheckout'
 import StripeSplitCheckout   from './templates/StripeSplitCheckout'
-
-const TEMPLATES = {
-  single_step:  SingleStepCheckout,
-  promo:        PromoCheckout,
-  info_product: InfoProductCheckout,
-  dropshipping: DropshippingCheckout,
-  stripe_split: StripeSplitCheckout,
-} as const
 
 export default function CheckoutPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -68,6 +56,5 @@ export default function CheckoutPage() {
     )
   }
 
-  const Template = TEMPLATES[product.checkoutTemplate] ?? SingleStepCheckout
-  return <Template product={product} />
+  return <StripeSplitCheckout product={product} />
 }
