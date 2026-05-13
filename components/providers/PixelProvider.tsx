@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import Script from 'next/script'
 import { usePathname } from 'next/navigation'
+import { getStoredUrlParams } from '@/lib/url-params'
 import type { PixelConfig } from '@/lib/types/pixel'
 
 interface PixelContextValue {
@@ -75,11 +76,30 @@ export default function PixelProvider({ children }: { children: React.ReactNode 
   useEffect(() => { loadPixels() }, [loadPixels])
 
   const trackEvent = useCallback((event: string, data?: Record<string, unknown>) => {
+    const urlParams = getStoredUrlParams()
+    const hasGclid  = !!(urlParams.gclid)
+    const hasFbclid = !!(urlParams.fbclid || urlParams.fbp || urlParams.fbc)
+    const hasTtclid = !!(urlParams.ttclid || urlParams.ttp)
+    const hasAnySource = hasGclid || hasFbclid || hasTtclid
+
     const active = pixels.filter(p =>
       p.enabled && p.pixelId && p.events.some(e => e.event === event && e.enabled),
     )
 
-    active.forEach(p => {
+    // Filtrar por fonte de tráfego para client-side
+    const filtered = hasAnySource
+      ? active.filter(p => {
+          switch (p.platform) {
+            case 'google_ads': return hasGclid
+            case 'meta':       return hasFbclid
+            case 'ga4':        return hasGclid
+            case 'tiktok':     return hasTtclid
+            default:           return true
+          }
+        })
+      : active // Sem params → dispara para todos
+
+    filtered.forEach(p => {
       switch (p.platform) {
         case 'meta':
           if (window.fbq) {
@@ -103,12 +123,23 @@ export default function PixelProvider({ children }: { children: React.ReactNode 
     })
 
     // Server-side via CAPI para pixels com server tracking configurado
-    const serverPixels = active.filter(p => p.accessToken)
+    const serverPixels = filtered.filter(p => p.accessToken)
     if (serverPixels.length > 0) {
       fetch('/api/pixels/track', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ event, data }),
+        body:    JSON.stringify({
+          event,
+          data,
+          userData: {
+            gclid:  urlParams.gclid || undefined,
+            fbp:    urlParams.fbp || undefined,
+            fbc:    urlParams.fbc || (urlParams.fbclid ? `fb.1.${Date.now()}.${urlParams.fbclid}` : undefined),
+            ttp:    urlParams.ttp || undefined,
+            ttclid: urlParams.ttclid || undefined,
+            pageUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+          },
+        }),
       }).catch(() => {})
     }
   }, [pixels])

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
+import { getStoredUrlParams } from '@/lib/url-params'
 
 interface PixelConfigLight {
   id:              string
@@ -127,11 +128,30 @@ ttq.load('${p.pixelId}');ttq.page();}(window,document,'ttq');`)
   }, [idsKey])
 
   const trackEvent = useCallback((eventName: string, data?: Record<string, unknown>) => {
+    const urlParams = getStoredUrlParams()
+    const hasGclid  = !!(urlParams.gclid)
+    const hasFbclid = !!(urlParams.fbclid || urlParams.fbp || urlParams.fbc)
+    const hasTtclid = !!(urlParams.ttclid || urlParams.ttp)
+    const hasAnySource = hasGclid || hasFbclid || hasTtclid
+
     const active = pixelsRef.current.filter(p =>
       p.pixelId && p.events.some(e => e.event === eventName && e.enabled),
     )
 
-    active.forEach(p => {
+    // Filtrar por fonte de tráfego
+    const filtered = hasAnySource
+      ? active.filter(p => {
+          switch (p.platform) {
+            case 'google_ads': return hasGclid
+            case 'meta':       return hasFbclid
+            case 'ga4':        return hasGclid
+            case 'tiktok':     return hasTtclid
+            default:           return true
+          }
+        })
+      : active // Sem params → dispara para todos
+
+    filtered.forEach(p => {
       switch (p.platform) {
         case 'meta':
           if (window.fbq) {
@@ -155,13 +175,25 @@ ttq.load('${p.pixelId}');ttq.page();}(window,document,'ttq');`)
     })
 
     // Server-side via CAPI para pixels com server tracking configurado
-    const serverPixels = active.filter(p => p.hasServerTracking)
+    const serverPixels = filtered.filter(p => p.hasServerTracking)
     if (serverPixels.length > 0) {
       const firstProductId = Array.isArray(productIds) ? productIds[0] : productIds
       fetch('/api/pixels/track', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ event: eventName, data, productId: firstProductId }),
+        body:    JSON.stringify({
+          event: eventName,
+          data,
+          productId: firstProductId,
+          userData: {
+            gclid:  urlParams.gclid || undefined,
+            fbp:    urlParams.fbp || undefined,
+            fbc:    urlParams.fbc || (urlParams.fbclid ? `fb.1.${Date.now()}.${urlParams.fbclid}` : undefined),
+            ttp:    urlParams.ttp || undefined,
+            ttclid: urlParams.ttclid || undefined,
+            pageUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+          },
+        }),
       }).catch(() => {})
     }
   }, [idsKey])

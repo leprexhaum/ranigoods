@@ -580,12 +580,41 @@ export const pixelService = {
       .map(rowToConfig)
       .filter(c => c.events.some(e => e.event === eventName && e.enabled))
 
-    if (configs.length > 0) {
-      logger.info('PIXEL', 'Configurações carregadas', { userId, total: configs.length, plataformas: configs.map(c => c.platform).join(',') })
+    if (configs.length === 0) return []
+
+    // ─── Detectar fonte de tráfego pelos urlParams ───────────────────────
+    const userData = payload.userData ?? {}
+    const hasGclid  = !!(userData.gclid)
+    const hasFbclid = !!(userData.fbp || userData.fbc)
+    const hasTtclid = !!(userData.ttp || userData.ttclid)
+    const hasAnyTrafficSource = hasGclid || hasFbclid || hasTtclid
+
+    // Filtrar pixels por fonte de tráfego:
+    // - Se tem parâmetros de uma fonte → só dispara para pixels dessa fonte
+    // - Se tem múltiplas fontes → dispara para todas as fontes detectadas
+    // - Se não tem nenhum parâmetro → dispara para todos
+    const filteredConfigs = hasAnyTrafficSource
+      ? configs.filter(c => {
+          switch (c.platform) {
+            case 'google_ads': return hasGclid
+            case 'meta':       return hasFbclid
+            case 'tiktok':     return hasTtclid
+            case 'ga4':        return hasGclid // GA4 acompanha Google
+            default:           return true
+          }
+        })
+      : configs // Sem parâmetros → dispara para todos
+
+    if (filteredConfigs.length > 0) {
+      logger.info('PIXEL', 'Configurações filtradas por fonte', {
+        userId, total: configs.length, filtrados: filteredConfigs.length,
+        fontes: { google: hasGclid, meta: hasFbclid, tiktok: hasTtclid, semFonte: !hasAnyTrafficSource },
+        plataformas: filteredConfigs.map(c => c.platform).join(','),
+      })
     }
 
     const results = await Promise.all(
-      configs.map(async config => {
+      filteredConfigs.map(async config => {
         const start = Date.now()
         let res: { success: boolean; message: string }
 
@@ -606,9 +635,9 @@ export const pixelService = {
               : { success: true, message: 'TikTok Pixel: disparado via client-side' }
             break
           case 'google_ads':
-            if (!payload.userData?.gclid) {
-              logger.warn('PIXEL', 'Disparo ignorado — gclid ausente', { platform: 'google_ads', event: eventName, configId: config.id })
-              res = { success: false, message: 'Google Ads: gclid não encontrado nos urlParams' }
+            if (!userData.gclid) {
+              // Sem gclid = tráfego orgânico/direto → ignorar silenciosamente (não é erro)
+              res = { success: true, message: 'Google Ads: ignorado (sem gclid — tráfego orgânico/direto)' }
               break
             }
             res = (config.pixelId || config.refreshToken)
