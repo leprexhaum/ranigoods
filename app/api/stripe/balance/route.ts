@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 
@@ -26,7 +27,7 @@ export async function GET() {
 
     return NextResponse.json({ available, pending, currency })
   } catch (err) {
-    console.error('[stripe/balance]', err)
+    logger.error('STRIPE-API', 'Erro ao consultar balance', { error: err instanceof Error ? err.message : String(err) })
     const cached = await prisma.stripeBalance.findUnique({ where: { id: 1 } }).catch(() => null)
     if (cached) return NextResponse.json({ available: cached.available, pending: cached.pending, currency: cached.currency, cached: true })
     return NextResponse.json({ error: 'Erro ao buscar saldo' }, { status: 500 })

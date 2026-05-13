@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { apiKeyService } from '@/lib/services/api-key.service'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,5 +14,6 @@ export async function DELETE(
 
   const ok = await apiKeyService.revoke(params.id, auth.session.userId)
   if (!ok) return NextResponse.json({ error: 'Key não encontrada' }, { status: 404 })
+  logger.info('API-KEY', 'Chave revogada', { userId: auth.session.userId, keyId: params.id })
   return NextResponse.json({ success: true })
 }

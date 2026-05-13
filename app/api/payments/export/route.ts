@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { paymentService } from '@/lib/services/payment.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 import type { PaymentStatus, PaymentMethod } from '@/lib/types/payment'
 
 export const dynamic = 'force-dynamic'
@@ -34,6 +35,8 @@ export async function GET(req: NextRequest) {
   ])
 
   const csv = [header, ...rows].map(r => r.join(',')).join('\n')
+
+  logger.info('PAGAMENTO', 'Exportação gerada', { userId: auth.session.userId, formato: 'csv', registos: data.length, periodo: `${sp.get('start') ?? 'inicio'}..${sp.get('end') ?? 'hoje'}` })
 
   return new NextResponse(csv, {
     headers: {

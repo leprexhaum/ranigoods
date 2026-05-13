@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pixelService } from '@/lib/services/pixel.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,9 +28,10 @@ export async function POST(req: NextRequest) {
       conversionLabel: body.conversionLabel ?? '',
       enabled:         body.enabled         ?? true,
     })
+    logger.info('PIXEL', 'Pixel criado', { userId: auth.session.userId, platform: body.platform, configId: pixel.id })
     return NextResponse.json(pixel, { status: 201 })
   } catch (err) {
-    console.error('[pixels POST]', err)
+    logger.error('PIXEL', 'Erro ao criar pixel', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

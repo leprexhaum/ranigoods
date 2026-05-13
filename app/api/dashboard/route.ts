@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dashboardService } from '@/lib/services/dashboard.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,9 +21,10 @@ export async function GET(req: NextRequest) {
       dashboardService.getRecentPayments(userId, start, end),
     ])
 
+    logger.info('DASHBOARD', 'Métricas carregadas', { userId, periodo: `${start ?? 'inicio'}..${end ?? 'hoje'}`, receita: stats.receitaTotal, vendas: stats.vendas })
     return NextResponse.json({ stats, sales, payments })
   } catch (err) {
-    console.error('[dashboard]', err)
+    logger.error('DASHBOARD', 'Erro ao carregar métricas', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

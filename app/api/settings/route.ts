@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { settingsService, type AppSettings } from '@/lib/services/settings.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,9 +18,10 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
+    logger.info('CONFIG', 'Configurações consultadas', { userId: auth.session.userId })
     return NextResponse.json(maskSecrets(await settingsService.get()))
   } catch (err) {
-    console.error('[settings GET]', err)
+    logger.error('CONFIG', 'Erro ao consultar configurações', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
@@ -34,9 +36,11 @@ export async function PUT(req: NextRequest) {
     if (typeof body.stripeSecret  === 'string' && body.stripeSecret.startsWith('••••'))  delete body.stripeSecret
     if (typeof body.webhookSecret === 'string' && body.webhookSecret.startsWith('••••')) delete body.webhookSecret
 
-    return NextResponse.json(maskSecrets(await settingsService.update(body)))
+    const result = await settingsService.update(body)
+    logger.info('CONFIG', 'Configurações atualizadas', { userId: auth.session.userId, campos: Object.keys(body).join(',') })
+    return NextResponse.json(maskSecrets(result))
   } catch (err) {
-    console.error('[settings PUT]', err)
+    logger.error('CONFIG', 'Erro ao atualizar configurações', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

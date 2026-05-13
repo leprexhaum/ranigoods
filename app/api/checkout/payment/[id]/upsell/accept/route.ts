@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { funnelService } from '@/lib/services/funnel.service'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,9 +75,11 @@ export async function POST(
       },
     })
 
+    logger.info('UPSELL', 'Oferta aceite', { paymentId: params.id, upsellPiId: upsellPi.id, amount: price })
+
     return NextResponse.json({ success: true, status: upsellPi.status })
   } catch (err) {
-    console.error('[upsell/accept]', err)
+    logger.error('UPSELL', 'Erro ao processar aceitação', { paymentId: params.id, error: err instanceof Error ? err.message : String(err) })
     // Só marca declined se for erro de cartão recusado (authentication_required, card_declined, etc.)
     // Erros técnicos (timeout, rate limit) não devem bloquear o upsell permanentemente
     const stripeErr = err as { type?: string; code?: string }

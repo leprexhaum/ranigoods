@@ -3,12 +3,14 @@ import { requireAuth } from '@/lib/api-auth'
 import { userService } from '@/lib/services/user.service'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { logger } from '@/lib/logger'
 
 export async function PUT(req: NextRequest) {
   const auth = await requireAuth()
   if (auth instanceof NextResponse) return auth
 
   const { session } = auth
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('cf-connecting-ip') || 'unknown'
   const body = await req.json() as { currentPassword?: string; newPassword?: string }
   const { currentPassword = '', newPassword = '' } = body
 
@@ -24,10 +26,14 @@ export async function PUT(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
 
   const valid = await userService.verifyPassword(user.passwordHash, currentPassword)
-  if (!valid) return NextResponse.json({ error: 'Senha atual incorreta' }, { status: 401 })
+  if (!valid) {
+    logger.warn('AUTH', 'Alteração de senha falhada — senha atual incorreta', { userId: session.userId, ip })
+    return NextResponse.json({ error: 'Senha atual incorreta' }, { status: 401 })
+  }
 
   const passwordHash = await bcrypt.hash(newPassword, 12)
   await prisma.user.update({ where: { id: session.userId }, data: { passwordHash } })
 
+  logger.info('AUTH', 'Senha alterada', { userId: session.userId, ip })
   return NextResponse.json({ ok: true })
 }

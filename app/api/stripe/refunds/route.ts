@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data, total, pages: Math.ceil(total / limit), page })
   } catch (err) {
-    console.error('[stripe/refunds]', err)
+    logger.error('STRIPE-API', 'Erro ao listar refunds', { error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

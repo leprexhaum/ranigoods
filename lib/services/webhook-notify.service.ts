@@ -1,5 +1,6 @@
 import { createHmac } from 'crypto'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export const webhookNotifyService = {
   async notifyWebhooks(
@@ -25,14 +26,17 @@ export const webhookNotifyService = {
 
     if (matching.length === 0) return
 
+    logger.info('WEBHOOK-OUT', 'Despacho iniciado', { event, destinos: matching.length })
+
     const body      = JSON.stringify({ event, payload, timestamp: new Date().toISOString() })
     const bodyBuf   = Buffer.from(body)
 
     await Promise.allSettled(
       matching.map(async wh => {
         const sig = createHmac('sha256', wh.secret).update(bodyBuf).digest('hex')
+        const start = Date.now()
         try {
-          await fetch(wh.url, {
+          const res = await fetch(wh.url, {
             method:  'POST',
             headers: {
               'Content-Type':        'application/json',
@@ -41,8 +45,9 @@ export const webhookNotifyService = {
             },
             body,
           })
+          logger.info('WEBHOOK-OUT', 'Entrega concluída', { event, url: wh.url, status: res.status, duracao: `${Date.now() - start}ms` })
         } catch (err) {
-          console.error(`[webhook-notify] failed for ${wh.url}:`, err)
+          logger.error('WEBHOOK-OUT', 'Entrega falhada', { event, url: wh.url, error: err instanceof Error ? err.message : String(err) })
         }
       }),
     )

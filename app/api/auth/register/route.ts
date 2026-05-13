@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { userService } from '@/lib/services/user.service'
 import { createSession } from '@/lib/auth'
+import { logger } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('cf-connecting-ip') || 'unknown'
   try {
     const body = await req.json() as { username?: string; email?: string; password?: string }
     const { username = '', email = '', password = '' } = body
@@ -44,9 +46,11 @@ export async function POST(req: NextRequest) {
 
     await createSession({ userId: user.id, username: user.username, email: user.email })
 
+    logger.info('AUTH', 'Registo de novo utilizador', { userId: user.id, username: user.username, email: user.email, ip })
+
     return NextResponse.json({ user }, { status: 201 })
   } catch (err) {
-    console.error('[register]', err)
+    logger.error('AUTH', 'Erro interno no registo', { error: err instanceof Error ? err.message : String(err), ip })
     return NextResponse.json({ error: 'Erro interno. Tente novamente.' }, { status: 500 })
   }
 }

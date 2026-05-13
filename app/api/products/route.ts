@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { productService } from '@/lib/services/product.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,9 +13,11 @@ export async function GET(req: NextRequest) {
     const sp     = new URL(req.url).searchParams
     const status = sp.get('status') as 'active' | 'archived' | null
     const { userId } = auth.session
-    return NextResponse.json(await productService.getAll(userId, status ?? undefined))
+    const products = await productService.getAll(userId, status ?? undefined)
+    logger.info('PRODUTO', 'Listagem consultada', { userId, filtro: status ?? 'all', total: products.length })
+    return NextResponse.json(products)
   } catch (err) {
-    console.error('[products GET]', err)
+    logger.error('PRODUTO', 'Erro ao listar produtos', { error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
@@ -65,9 +68,10 @@ export async function POST(req: NextRequest) {
       customDomain:     body.customDomain ?? '',
     })
 
+    logger.info('PRODUTO', 'Produto criado', { productId: product.id, userId, nome: name, preco: price, moeda: body.currency ?? 'EUR' })
     return NextResponse.json(product, { status: 201 })
   } catch (err) {
-    console.error('[products POST]', err)
+    logger.error('PRODUTO', 'Erro ao criar produto', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

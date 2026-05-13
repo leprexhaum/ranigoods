@@ -1,4 +1,6 @@
 // Mapeamento de métodos de pagamento Stripe → UTMify
+import { logger } from '@/lib/logger'
+
 const METHOD_MAP: Record<string, 'credit_card' | 'boleto' | 'pix' | 'paypal' | 'free_price'> = {
   card:        'credit_card',
   boleto:      'boleto',
@@ -121,10 +123,12 @@ export const utmifyService = {
       })
       if (!res.ok) {
         const text = await res.text().catch(() => '')
-        console.error('[utmify] HTTP', res.status, text)
+        logger.error('UTMIFY', 'Envio falhado', { piId: input.orderId, status: res.status, body: text })
+      } else {
+        logger.info('UTMIFY', 'Conversão registada com sucesso', { piId: input.orderId, amount: input.totalPriceInCents, currency })
       }
     } catch (err) {
-      console.error('[utmify] sendOrder failed:', err)
+      logger.error('UTMIFY', 'Envio falhado', { piId: input.orderId, error: err instanceof Error ? err.message : String(err) })
     }
   },
 }

@@ -11,6 +11,7 @@ import { webhookNotifyService } from '@/lib/services/webhook-notify.service'
 import { stripeLogger } from '@/lib/services/stripe-logger.service'
 import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
 import { cartService } from '@/lib/services/cart.service'
+import { logger } from '@/lib/logger'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 
@@ -115,10 +116,13 @@ async function persistRefund(charge: Stripe.Charge): Promise<void> {
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
+  const start = Date.now()
 
   let event: Stripe.Event
   try { event = JSON.parse(body) as Stripe.Event }
   catch { return NextResponse.json({ received: true }) }
+
+  logger.info('WEBHOOK', 'Evento recebido', { type: event.type, id: event.id, livemode: event.livemode })
 
   // Registar evento no banco antes de processar
   await stripeLogger.logEvent(event)
@@ -132,6 +136,7 @@ export async function POST(req: NextRequest) {
       case 'payment_intent.succeeded': {
         const pi     = event.data.object as Stripe.PaymentIntent
         const charge = await getCharge(pi)
+        logger.info('WEBHOOK', 'Processando payment_intent.succeeded', { piId: pi.id, amount: pi.amount, currency: pi.currency.toUpperCase() })
 
         // Se é um PI de upsell, tratar separadamente
         if (pi.metadata?.upsellFor) {
@@ -309,12 +314,13 @@ export async function POST(req: NextRequest) {
 
       case 'payment_intent.payment_failed': {
         const pi = event.data.object as Stripe.PaymentIntent
+        const errCode = pi.last_payment_error?.code ?? pi.last_payment_error?.type ?? ''
+        const errMsg  = pi.last_payment_error?.message ?? ''
+        logger.warn('WEBHOOK', 'Pagamento falhado', { piId: pi.id, reason: errCode, code: errMsg.slice(0, 100), amount: pi.amount })
         await persistFailedPayment(pi)
         await checkoutService.updatePaymentStatus(pi.id, 'failed')
 
         // Guardar detalhes do erro
-        const errCode = pi.last_payment_error?.code ?? pi.last_payment_error?.type ?? ''
-        const errMsg  = pi.last_payment_error?.message ?? ''
         await prisma.checkoutPayment.updateMany({
           where: { stripePaymentIntentId: pi.id },
           data:  { stripeErrorCode: errCode, stripeErrorMsg: errMsg.slice(0, 500), lastStripeEventId: event.id },
@@ -387,7 +393,7 @@ export async function POST(req: NextRequest) {
             }
           }
         } catch (err) {
-          console.error('[webhook] multibanco email error:', err)
+          logger.error('WEBHOOK', 'Erro ao enviar email Multibanco', { piId: pi.id, error: err instanceof Error ? err.message : String(err) })
         }
         break
       }
@@ -407,6 +413,7 @@ export async function POST(req: NextRequest) {
       case 'charge.dispute.updated':
       case 'charge.dispute.closed': {
         const dispute = event.data.object as Stripe.Dispute
+        logger.warn('WEBHOOK', 'Disputa recebida', { disputeId: dispute.id, type: event.type, amount: dispute.amount, reason: dispute.reason })
         const piId = typeof dispute.payment_intent === 'string'
           ? dispute.payment_intent
           : dispute.payment_intent?.id
@@ -424,7 +431,7 @@ export async function POST(req: NextRequest) {
 
       case 'customer.subscription.created': {
         const sub = event.data.object as Stripe.Subscription
-        console.log(`Assinatura criada: ${sub.id}`)
+        logger.info('WEBHOOK', 'Assinatura criada', { subscriptionId: sub.id })
         const subProductId = sub.metadata?.productId ?? ''
         let subOwnerUserId = ''
         if (subProductId) {
@@ -441,13 +448,13 @@ export async function POST(req: NextRequest) {
 
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription
-        console.log(`Assinatura atualizada: ${sub.id}`)
+        logger.info('WEBHOOK', 'Assinatura atualizada', { subscriptionId: sub.id })
         break
       }
 
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription
-        console.log(`Assinatura cancelada: ${sub.id}`)
+        logger.info('WEBHOOK', 'Assinatura cancelada', { subscriptionId: sub.id })
         break
       }
 
@@ -713,7 +720,7 @@ export async function POST(req: NextRequest) {
           create: { date: dateLabel, isoDate, receita: 0, vendas: 0, falhas: 1 },
           update: { falhas: { increment: 1 } },
         })
-        console.log(`[webhook] invoice.payment_failed: ${invoice.id}`)
+        logger.warn('WEBHOOK', 'Invoice payment failed', { invoiceId: invoice.id })
         break
       }
 
@@ -748,6 +755,7 @@ export async function POST(req: NextRequest) {
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge
         const piId   = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id ?? ''
+        logger.info('WEBHOOK', 'Reembolso processado', { chargeId: charge.id, piId, amount_refunded: charge.amount_refunded })
         for (const r of charge.refunds?.data ?? []) {
           await prisma.stripeRefund.upsert({
             where:  { id: r.id },
@@ -851,7 +859,7 @@ export async function POST(req: NextRequest) {
           where: { stripePaymentIntentId: pi.id },
           data:  { status: 'requires_action' },
         })
-        console.log(`[webhook] payment_intent.requires_action: ${pi.id} email=${email}`)
+        logger.info('WEBHOOK', 'PaymentIntent requires_action', { piId: pi.id, email })
         break
       }
 
@@ -937,18 +945,19 @@ export async function POST(req: NextRequest) {
             },
           }).catch(() => {}) // Ignorar se já existe (race condition)
         }
-        console.log(`[webhook] payment_intent.created: ${pi.id} amount=${pi.amount} currency=${pi.currency}`)
+        logger.info('WEBHOOK', 'PaymentIntent criado', { piId: pi.id, amount: pi.amount, currency: pi.currency })
         break
       }
 
       default:
-        console.log(`Evento não tratado: ${event.type}`)
+        logger.info('WEBHOOK', 'Evento não tratado', { type: event.type, id: event.id })
     }
 
     await stripeLogger.markEventProcessed(event.id)
+    logger.info('WEBHOOK', 'Evento processado', { type: event.type, id: event.id, duracao: `${Date.now() - start}ms` })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[webhook] processing error for ${event.type}:`, err)
+    logger.error('WEBHOOK', 'Erro no processamento', { type: event.type, id: event.id, error: msg, duracao: `${Date.now() - start}ms` })
     await stripeLogger.markEventFailed(event.id, msg)
   }
 

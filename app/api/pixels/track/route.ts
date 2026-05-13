@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { pixelService } from '@/lib/services/pixel.service'
+import { logger } from '@/lib/logger'
 import type { TrackEventPayload } from '@/lib/types/pixel'
 
 export async function POST(req: NextRequest) {
@@ -15,7 +16,6 @@ export async function POST(req: NextRequest) {
     const ip        = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1'
     const userAgent = req.headers.get('user-agent') ?? undefined
 
-    // Resolver userId a partir do productId se não vier explícito
     let resolvedUserId = userId
     if (!resolvedUserId && productId) {
       const product = await prisma.product.findUnique({ where: { id: productId }, select: { userId: true } })
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const logs = await pixelService.trackEvent(event, enriched, resolvedUserId)
     return NextResponse.json({ fired: logs.length, logs })
   } catch (err) {
-    console.error('[pixels/track]', err)
+    logger.error('PIXEL', 'Erro no tracking', { error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

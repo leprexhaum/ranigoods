@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 interface CreateAbandonedCartData {
   productId:             string
@@ -41,8 +42,9 @@ export const abandonedCartService = {
           customerPhone: data.customerPhone || undefined,
         },
       })
+      logger.info('CHECKOUT', 'Carrinho abandonado registado', { piId: data.stripePaymentIntentId, email: data.customerEmail, expira: expiresAt.toISOString() })
     } catch (err) {
-      console.error('[abandoned-cart] create failed:', err)
+      logger.error('CHECKOUT', 'Erro ao registar carrinho abandonado', { piId: data.stripePaymentIntentId, error: err instanceof Error ? err.message : String(err) })
     }
   },
 
@@ -52,8 +54,9 @@ export const abandonedCartService = {
         where: { stripePaymentIntentId, status: { not: 'recovered' } },
         data:  { status: 'recovered', recoveredAt: new Date() },
       })
+      logger.info('WEBHOOK', 'Carrinho abandonado recuperado', { piId: stripePaymentIntentId })
     } catch (err) {
-      console.error('[abandoned-cart] markRecovered failed:', err)
+      logger.error('CHECKOUT', 'Erro ao marcar carrinho recuperado', { piId: stripePaymentIntentId, error: err instanceof Error ? err.message : String(err) })
     }
   },
 
@@ -75,6 +78,7 @@ export const abandonedCartService = {
           data:  { isAbandoned: true },
         })
       }
+      logger.info('CRON', 'CheckoutPayments atualizados', { job: 'abandoned-carts', isAbandoned: true, afetados: piIds.length })
     }
     return result.count
   },
@@ -88,7 +92,6 @@ export const abandonedCartService = {
   } = { userId: '' }) {
     const { userId, status, search, page = 1, limit = 20 } = params
 
-    // Buscar productIds do userId
     const products = await prisma.product.findMany({
       where:  { userId },
       select: { id: true },
@@ -98,7 +101,7 @@ export const abandonedCartService = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = productIds.length > 0
       ? { productId: { in: productIds } }
-      : { productId: '__none__' } // retorna vazio se não há produtos
+      : { productId: '__none__' }
 
     if (status && status !== 'all') where.status = status
     if (search) {

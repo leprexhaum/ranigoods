@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { cloudflareService } from './cloudflare.service'
+import { logger } from '@/lib/logger'
 
 export type DomainStatus = 'pending_ns' | 'propagating' | 'configuring' | 'active' | 'failed'
 
@@ -47,6 +48,7 @@ export const domainService = {
 
     // Cria zona no Cloudflare
     const { zoneId, nameservers } = await cloudflareService.createZone(clean)
+    logger.info('DOMÍNIO', 'Zona Cloudflare criada', { domain: clean, zoneId, nameservers })
 
     const row = await prisma.customDomain.create({
       data: {
@@ -57,6 +59,7 @@ export const domainService = {
         cfNameservers: nameservers,
       },
     })
+    logger.info('DOMÍNIO', 'Domínio adicionado', { domain: clean, userId, status: 'pending_ns' })
     return toRecord(row)
   },
 
@@ -65,12 +68,14 @@ export const domainService = {
     if (!row) return null
     if (row.status === 'active') return toRecord(row)
 
+    logger.info('DOMÍNIO', 'Verificação de nameservers', { domain: row.domain, status: row.status })
+
     try {
       const zoneStatus = await cloudflareService.checkZoneStatus(row.cfZoneId)
 
       if (zoneStatus === 'active') {
         // Zona ativa — configurar Worker + DNS + SSL
-        const updated = await prisma.customDomain.update({
+        await prisma.customDomain.update({
           where: { id },
           data: { status: 'configuring', failReason: '' },
         })
@@ -81,6 +86,7 @@ export const domainService = {
             where: { id },
             data: { status: 'active', verifiedAt: new Date(), failReason: '' },
           })
+          logger.info('DOMÍNIO', 'Domínio verificado com sucesso', { domain: row.domain, zoneId: row.cfZoneId })
           return toRecord(final)
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Erro ao configurar domínio'
@@ -88,6 +94,7 @@ export const domainService = {
             where: { id },
             data: { status: 'failed', failReason: msg },
           })
+          logger.error('DOMÍNIO', 'Erro na API Cloudflare', { domain: row.domain, operacao: 'setup_domain', error: msg })
           return toRecord(failed)
         }
       }
@@ -101,6 +108,7 @@ export const domainService = {
           failReason: '',
         },
       })
+      logger.info('DOMÍNIO', 'Verificação de nameservers', { domain: row.domain, status: 'aguardando_propagacao' })
       return toRecord(updated)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao verificar DNS'
@@ -108,6 +116,7 @@ export const domainService = {
         where: { id },
         data: { status: 'failed', failReason: msg },
       })
+      logger.warn('DOMÍNIO', 'Verificação falhada', { domain: row.domain, motivo: msg })
       return toRecord(failed)
     }
   },
@@ -125,6 +134,7 @@ export const domainService = {
     }
 
     const result = await prisma.customDomain.deleteMany({ where: { id, userId } })
+    logger.info('DOMÍNIO', 'Domínio removido', { domain: row.domain, userId })
     return result.count > 0
   },
 

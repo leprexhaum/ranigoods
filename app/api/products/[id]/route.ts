@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { productService } from '@/lib/services/product.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 
 export async function GET(
   req: NextRequest,
@@ -24,6 +25,7 @@ export async function PUT(
   const data = await req.json()
   const updated = await productService.update(params.id, data)
   if (!updated) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+  logger.info('PRODUTO', 'Produto atualizado', { productId: params.id, userId: auth.session.userId, campos: Object.keys(data).join(',') })
   return NextResponse.json(updated)
 }
 
@@ -36,5 +38,6 @@ export async function DELETE(
 
   const ok = await productService.delete(params.id)
   if (!ok) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+  logger.info('PRODUTO', 'Produto arquivado', { productId: params.id, userId: auth.session.userId })
   return NextResponse.json({ deleted: true })
 }

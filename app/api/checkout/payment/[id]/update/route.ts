@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
+import { logger } from '@/lib/logger'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 
@@ -53,7 +54,7 @@ export async function PATCH(
     // Atualizar amount no Stripe e no banco se solicitado
     if (amount && amount > 0 && amount !== payment.amount && payment.stripePaymentIntentId) {
       await stripe.paymentIntents.update(payment.stripePaymentIntentId, { amount })
-        .catch(err => console.warn('[update-payment] stripe amount update failed:', err))
+        .catch(err => logger.warn('CHECKOUT', 'Falha ao atualizar amount no Stripe', { piId: payment.stripePaymentIntentId, error: err instanceof Error ? err.message : String(err) }))
       await prisma.checkoutPayment.update({ where: { id: params.id }, data: { amount } })
     }
 
@@ -65,7 +66,7 @@ export async function PATCH(
       if (data.customerPhone) meta.customerPhone = data.customerPhone
       if (Object.keys(meta).length > 0) {
         await stripe.paymentIntents.update(payment.stripePaymentIntentId, { metadata: meta })
-          .catch(err => console.warn('[update-payment] stripe metadata update failed:', err))
+          .catch(err => logger.warn('CHECKOUT', 'Falha ao atualizar metadata no Stripe', { piId: payment.stripePaymentIntentId, error: err instanceof Error ? err.message : String(err) }))
       }
     }
 
@@ -91,7 +92,7 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[checkout/payment/update]', err)
+    logger.error('CHECKOUT', 'Erro ao atualizar pagamento', { paymentId: params.id, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro ao atualizar pagamento' }, { status: 500 })
   }
 }

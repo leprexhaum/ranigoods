@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { logger } from '@/lib/logger'
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY ?? 'placeholder')
@@ -85,6 +86,8 @@ export const emailService = {
     currency:  string
     expiresAt: string
   }): Promise<void> {
+    logger.info('EMAIL', 'Envio iniciado', { tipo: 'multibanco', destinatario: params.to, referencia: params.reference })
+    const start = Date.now()
     try {
       await getResend().emails.send({
         from:    process.env.RESEND_FROM_EMAIL ?? 'noreply@techpags.com',
@@ -92,8 +95,9 @@ export const emailService = {
         subject: `Instruções de pagamento Multibanco — Ref. ${params.reference}`,
         html:    multibancoHtml(params),
       })
+      logger.info('EMAIL', 'Envio concluído', { tipo: 'multibanco', destinatario: params.to, duracao: `${Date.now() - start}ms` })
     } catch (err) {
-      console.error('[email] sendMultibancoEmail failed:', err)
+      logger.error('EMAIL', 'Envio falhado', { tipo: 'multibanco', destinatario: params.to, error: err instanceof Error ? err.message : String(err) })
     }
   },
 }

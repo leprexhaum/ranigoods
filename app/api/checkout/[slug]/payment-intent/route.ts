@@ -4,6 +4,7 @@ import { checkoutService } from '@/lib/services/checkout.service'
 import { productService } from '@/lib/services/product.service'
 import { stripeLogger } from '@/lib/services/stripe-logger.service'
 import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
+import { logger } from '@/lib/logger'
 import type { CreatePaymentIntentRequest } from '@/lib/types/checkout'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
@@ -28,6 +29,7 @@ export async function POST(
 ) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
   if (isRateLimited(ip)) {
+    logger.warn('CHECKOUT', 'Rate limit atingido', { ip, tentativas: RATE_LIMIT + 1, janela: '60s' })
     return NextResponse.json({ error: 'Demasiadas tentativas. Aguarde um momento.' }, { status: 429 })
   }
 
@@ -40,14 +42,17 @@ export async function POST(
 
     const product = await checkoutService.getProductBySlug(params.slug)
     if (!product) {
+      logger.warn('CHECKOUT', 'Produto não encontrado', { slug: params.slug })
       return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 })
     }
 
     // Verificar estoque antes de criar o PI
     const stockCheck = await productService.checkStock(product.id, 1)
     if (!stockCheck.available) {
+      logger.warn('CHECKOUT', 'Produto esgotado', { productId: product.id, stock: 0 })
       return NextResponse.json({ error: 'Produto esgotado. Não há unidades disponíveis.' }, { status: 409 })
     }
+    logger.info('CHECKOUT', 'Verificação de estoque', { productId: product.id, disponivel: true, restante: stockCheck.stock })
 
     let total = product.price
 
@@ -174,6 +179,8 @@ export async function POST(
 
     const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 
+    logger.info('CHECKOUT', 'PaymentIntent criado', { piId: pi.id, productId: product.id, amount: total, currency: product.currency, email: customerEmail, ip })
+
     return NextResponse.json({
       clientSecret:    pi.client_secret,
       paymentIntentId: pi.id,
@@ -183,7 +190,7 @@ export async function POST(
       currency:        product.currency,
     })
   } catch (err) {
-    console.error('[checkout/payment-intent]', err)
+    logger.error('CHECKOUT', 'Erro ao criar PaymentIntent', { slug: params.slug, error: err instanceof Error ? err.message : String(err), ip })
     return NextResponse.json({ error: 'Erro ao criar pagamento' }, { status: 500 })
   }
 }

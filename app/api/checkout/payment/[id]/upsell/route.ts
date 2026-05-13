@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { funnelService } from '@/lib/services/funnel.service'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +18,6 @@ export async function GET(
     return NextResponse.json({ upsell: null })
   }
 
-  // Já respondeu ao upsell
   if (payment.upsellStatus !== 'none') {
     return NextResponse.json({ upsell: null })
   }
@@ -25,7 +25,6 @@ export async function GET(
   const funnel = await funnelService.getByProductId(payment.productId)
   if (!funnel) return NextResponse.json({ upsell: null })
 
-  // Buscar dados do produto de upsell
   const upsellProduct = await prisma.product.findUnique({
     where:  { id: funnel.upsellId },
     select: { id: true, name: true, description: true, imageUrl: true, price: true, currency: true },
@@ -33,6 +32,8 @@ export async function GET(
   if (!upsellProduct) return NextResponse.json({ upsell: null })
 
   const price = funnel.upsellPrice > 0 ? funnel.upsellPrice : upsellProduct.price
+
+  logger.info('UPSELL', 'Oferta apresentada', { paymentId: params.id, upsellProductId: upsellProduct.id, upsellAmount: price })
 
   return NextResponse.json({
     upsell: {

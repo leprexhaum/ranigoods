@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { cartService } from '@/lib/services/cart.service'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 
@@ -78,9 +79,11 @@ export async function POST(
       },
     })
 
+    logger.info('PEDIDO', 'Sessão Stripe criada', { cartId: params.cartId, sessionId: session.id })
+
     return NextResponse.json({ sessionUrl: session.url })
   } catch (err) {
-    console.error('[cart/session]', err)
+    logger.error('PEDIDO', 'Erro ao criar sessão', { cartId: params.cartId, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro ao criar sessão de pagamento' }, { status: 500 })
   }
 }

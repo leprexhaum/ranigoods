@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { paymentService } from '@/lib/services/payment.service'
 import { requireAuth } from '@/lib/api-auth'
+import { logger } from '@/lib/logger'
 import type { PaymentsQuery, PaymentStatus, PaymentMethod } from '@/lib/types/payment'
 
 export const dynamic = 'force-dynamic'
@@ -24,9 +25,10 @@ export async function GET(req: NextRequest) {
     }
 
     const result = await paymentService.query(query)
+    logger.info('PAGAMENTO', 'Listagem consultada', { userId: auth.session.userId, status: query.status, pagina: query.page, resultados: `${result.data.length}/${result.total}` })
     return NextResponse.json(result)
   } catch (err) {
-    console.error('[payments]', err)
+    logger.error('PAGAMENTO', 'Erro ao listar pagamentos', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

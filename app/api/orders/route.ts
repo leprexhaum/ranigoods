@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
       }),
     ])
 
+    logger.info('PEDIDO', 'Listagem consultada', { userId: auth.session.userId, status, pagina: page, resultados: `${rows.length}/${total}` })
     return NextResponse.json({
       data:  rows,
       total,
@@ -53,7 +55,7 @@ export async function GET(req: NextRequest) {
       pages: Math.ceil(total / limit),
     })
   } catch (err) {
-    console.error('[orders GET]', err)
+    logger.error('PEDIDO', 'Erro ao listar pedidos', { userId: auth.session.userId, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

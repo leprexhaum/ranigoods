@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { decryptIfNotEmpty } from '@/lib/crypto'
 import { getGoogleAdsCredentials } from '@/lib/services/platform-config.service'
 import { eurToBrlCents } from '@/lib/utils/currency'
+import { logger } from '@/lib/logger'
 import type {
   PixelConfig, PixelFireLog, TrackEventPayload, PixelEventConfig,
 } from '@/lib/types/pixel'
@@ -579,8 +580,13 @@ export const pixelService = {
       .map(rowToConfig)
       .filter(c => c.events.some(e => e.event === eventName && e.enabled))
 
+    if (configs.length > 0) {
+      logger.info('PIXEL', 'Configurações carregadas', { userId, total: configs.length, plataformas: configs.map(c => c.platform).join(',') })
+    }
+
     const results = await Promise.all(
       configs.map(async config => {
+        const start = Date.now()
         let res: { success: boolean; message: string }
 
         switch (config.platform) {
@@ -600,12 +606,24 @@ export const pixelService = {
               : { success: true, message: 'TikTok Pixel: disparado via client-side' }
             break
           case 'google_ads':
+            if (!payload.userData?.gclid) {
+              logger.warn('PIXEL', 'Disparo ignorado — gclid ausente', { platform: 'google_ads', event: eventName, configId: config.id })
+              res = { success: false, message: 'Google Ads: gclid não encontrado nos urlParams' }
+              break
+            }
             res = (config.pixelId || config.refreshToken)
               ? await fireGoogleAdsAPI(config, eventName, payload)
               : { success: true, message: 'Google Ads: disparado via gtag client-side' }
             break
           default:
             res = { success: true, message: 'Evento registrado' }
+        }
+
+        const duracao = Date.now() - start
+        if (res.success) {
+          logger.info('PIXEL', 'Disparo concluído com sucesso', { platform: config.platform, event: eventName, configId: config.id, duracao: `${duracao}ms` })
+        } else {
+          logger.error('PIXEL', 'Disparo falhado', { platform: config.platform, event: eventName, configId: config.id, error: res.message, duracao: `${duracao}ms` })
         }
 
         // Para Google Ads, salvar log com valor convertido em BRL

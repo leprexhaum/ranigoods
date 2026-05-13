@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 function safeJson(obj: unknown): object {
   try {
@@ -28,7 +29,7 @@ export const stripeLogger = {
         update: {},
       })
     } catch (err) {
-      console.error('[stripe-logger] logEvent failed:', err)
+      logger.error('WEBHOOK', 'Falha ao persistir evento', { eventId: event.id, type: event.type, error: err instanceof Error ? err.message : String(err) })
     }
   },
 
@@ -39,7 +40,7 @@ export const stripeLogger = {
         data:  { processed: true, error: null },
       })
     } catch (err) {
-      console.error('[stripe-logger] markEventProcessed failed:', err)
+      logger.error('WEBHOOK', 'Falha ao marcar evento processado', { eventId, error: err instanceof Error ? err.message : String(err) })
     }
   },
 
@@ -50,7 +51,7 @@ export const stripeLogger = {
         data:  { processed: false, error: error.slice(0, 1000) },
       })
     } catch (err) {
-      console.error('[stripe-logger] markEventFailed failed:', err)
+      logger.error('WEBHOOK', 'Falha ao marcar evento com erro', { eventId, error: err instanceof Error ? err.message : String(err) })
     }
   },
 
@@ -64,6 +65,7 @@ export const stripeLogger = {
     try {
       const result = await fn()
       const durationMs = Date.now() - start
+      logger.info('STRIPE-API', 'Resposta recebida', { operacao: operation, objectId, status: 'success', duracao: `${durationMs}ms` })
       prisma.stripeApiLog.create({
         data: {
           operation,
@@ -73,11 +75,12 @@ export const stripeLogger = {
           success:   true,
           durationMs,
         },
-      }).catch(e => console.error('[stripe-logger] logApiCall write failed:', e))
+      }).catch(e => logger.error('STRIPE-API', 'Falha ao persistir log', { operacao: operation, error: e instanceof Error ? e.message : String(e) }))
       return result
     } catch (err) {
       const durationMs = Date.now() - start
       const stripeErr = err as Stripe.errors.StripeError
+      logger.error('STRIPE-API', 'Erro na requisição', { operacao: operation, objectId, errorCode: stripeErr.code ?? stripeErr.type ?? 'unknown', errorMsg: stripeErr.message, duracao: `${durationMs}ms` })
       prisma.stripeApiLog.create({
         data: {
           operation,
@@ -89,7 +92,7 @@ export const stripeLogger = {
           errorMsg:  stripeErr.message?.slice(0, 500),
           durationMs,
         },
-      }).catch(e => console.error('[stripe-logger] logApiCall error write failed:', e))
+      }).catch(e => logger.error('STRIPE-API', 'Falha ao persistir log de erro', { operacao: operation, error: e instanceof Error ? e.message : String(e) }))
       throw err
     }
   },
