@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react'
@@ -120,14 +119,6 @@ export default function LoginPage() {
             {loading ? 'Entrando…' : 'Entrar'}
           </button>
         </form>
-
-        {/* Link cadastro */}
-        <p className="text-center text-ep-muted text-xs mt-6">
-          Não tem conta?{' '}
-          <Link href="/cadastro" className="text-ep-accent hover:text-ep-accent-light font-medium transition-colors">
-            Criar conta
-          </Link>
-        </p>
       </div>
 
       {/* Rodapé */}
