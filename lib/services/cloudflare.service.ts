@@ -18,7 +18,7 @@ function getAccountId() {
 }
 
 function getProxyIp() {
-  return process.env.CLOUDFLARE_PROXY_IP ?? '100.64.0.1'
+  return process.env.CLOUDFLARE_PROXY_IP ?? '192.0.2.1'
 }
 
 function getWorkerOrigin() {
@@ -107,7 +107,7 @@ async function deleteZone(zoneId: string): Promise<void> {
 // ─── DNS Records ─────────────────────────────────────────────────────────────
 
 async function createDnsRecords(zoneId: string, domain: string): Promise<void> {
-  // A record com IP dummy (100.64.0.1 — CGNAT, não roteável) + proxy ON
+  // A record com IP dummy (RFC 5737, não roteável) + proxy ON
   // O Worker intercepta antes de chegar ao IP
   await cfFetch(`/zones/${zoneId}/dns_records`, {
     method: 'POST',
