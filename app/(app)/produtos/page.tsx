@@ -86,13 +86,6 @@ function DomainPicker({
               <span className="truncate">{d}</span>
             </button>
           ))}
-          <button
-            onClick={() => handleSelect(defaultUrl)}
-            className="w-full text-left px-3 py-2 text-xs text-ep-secondary hover:text-ep-primary hover:bg-ep-raised transition-colors flex items-center gap-2"
-          >
-            <Globe size={11} className="flex-shrink-0" />
-            <span className="truncate">{DEFAULT_HOST}</span>
-          </button>
         </div>
       )}
     </div>
@@ -163,12 +156,20 @@ export default function ProdutosPage() {
     fetch('/api/domains')
       .then(r => r.json())
       .then((data: { domain: string; status: string; subdomains?: string[] }[]) => {
-        const active = Array.isArray(data) ? data.find(d => d.status === 'active') : undefined
-        if (active) {
-          const subs = (active.subdomains ?? []) as string[]
-          const urls = [active.domain, ...subs.map(s => `${s}.${active.domain}`)]
-          setDomainUrls(urls)
+        if (!Array.isArray(data)) return
+        const urls: string[] = []
+        for (const d of data) {
+          if (d.status !== 'active') continue
+          const subs = (d.subdomains ?? []) as string[]
+          if (subs.length > 0) {
+            for (const s of subs) {
+              urls.push(`${s}.${d.domain}`)
+            }
+          } else {
+            urls.push(d.domain)
+          }
         }
+        setDomainUrls(urls)
       })
       .catch(() => {})
   }, [])
