@@ -283,7 +283,7 @@ export default function CheckoutEditorPage() {
   )
 
   return (
-    <div className="space-y-4">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg bg-ep-accent/10 border border-ep-accent/20 flex items-center justify-center">
           <Palette size={15} className="text-ep-accent" />
