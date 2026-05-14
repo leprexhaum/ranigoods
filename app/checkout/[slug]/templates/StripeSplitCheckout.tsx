@@ -564,12 +564,20 @@ function OrderBumpsSection({ product, selectedBumps, setSelectedBumps, colors }:
 
 // ─── PaymentSection ───────────────────────────────────────────────────────────
 
+interface BillingInfo {
+  name: string
+  email: string
+  phone: string
+  address?: { line1: string; line2?: string; city: string; postalCode: string; country: string }
+}
+
 interface PaymentSectionProps {
   clientSecret: string
   stripePromise: ReturnType<typeof loadStripe> | null
   paymentId: string
   paymentAmount: number
   product: CheckoutProduct
+  billing: BillingInfo
   onAddPaymentInfo?: () => void
   onBeforeConfirm?: () => Promise<void>
   onValidate?: () => boolean
@@ -586,9 +594,9 @@ function PollingScreen({ colors }: { colors: CheckoutColors }) {
   )
 }
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo, onBeforeConfirm, onValidate, colors }: {
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, billing, onAddPaymentInfo, onBeforeConfirm, onValidate, colors }: {
   paymentId: string; successUrl: string; amount: number; currency: string
-  brandName: string; legalName: string; onAddPaymentInfo?: () => void; onBeforeConfirm?: () => Promise<void>; onValidate?: () => boolean
+  brandName: string; legalName: string; billing: BillingInfo; onAddPaymentInfo?: () => void; onBeforeConfirm?: () => Promise<void>; onValidate?: () => boolean
   colors: CheckoutColors
 }) {
   const stripe   = useStripe()
@@ -634,14 +642,40 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     onAddPaymentInfo?.()
     await onBeforeConfirm?.()
     const returnUrl = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}`
+
+    // Construir billing_details para melhorar taxa de aprovação 3DS (frictionless)
+    const billingDetails: Record<string, unknown> = {}
+    if (billing.name)  billingDetails.name  = billing.name
+    if (billing.email) billingDetails.email = billing.email
+    if (billing.phone) billingDetails.phone = billing.phone
+    if (billing.address?.line1) {
+      billingDetails.address = {
+        line1:       billing.address.line1,
+        line2:       billing.address.line2 || undefined,
+        city:        billing.address.city,
+        postal_code: billing.address.postalCode,
+        country:     billing.address.country || 'PT',
+      }
+    }
+
     const { error: err, paymentIntent } = await stripe.confirmPayment({
       elements,
-      confirmParams: { return_url: returnUrl },
+      confirmParams: {
+        return_url: returnUrl,
+        ...(Object.keys(billingDetails).length > 0 ? {
+          payment_method_data: { billing_details: billingDetails },
+        } : {}),
+      },
       redirect: 'if_required',
     })
-    if (err) { setError(err.message ?? 'Erro ao processar pagamento'); setLoading(false); return }
+    if (err) {
+      // Tratar erros de autenticação 3DS de forma mais amigável
+      const msg = err.code === 'payment_intent_authentication_failure'
+        ? 'Autenticação do cartão falhou. Tente novamente ou use outro cartão.'
+        : err.message ?? 'Erro ao processar pagamento'
+      setError(msg); setLoading(false); return
+    }
     if (paymentIntent) {
-      // Pagamento síncrono (cartão) — succeeded imediato, redirecionar sem esperar webhook
       if (paymentIntent.status === 'succeeded') {
         const dest = successUrl ? buildSuccessUrl(successUrl, paymentId) : `${window.location.origin}/checkout/success?payment_id=${paymentId}&status=paid`
         try {
@@ -652,6 +686,14 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
           }
         } catch { /* segue */ }
         window.location.href = dest
+        return
+      }
+      if (paymentIntent.status === 'requires_action') {
+        // 3DS challenge foi apresentado mas o utilizador pode ter fechado
+        // O Stripe.js com redirect: 'if_required' já trata o popup automaticamente
+        // Se chegou aqui com requires_action, significa que o 3DS falhou ou foi cancelado
+        setError('Autenticação necessária. Complete a verificação do seu banco ou tente outro cartão.')
+        setLoading(false)
         return
       }
       // Pagamento assíncrono (MB WAY, Multibanco) — polling até webhook confirmar
@@ -714,7 +756,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
   )
 }
 
-function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount, product, onAddPaymentInfo, onBeforeConfirm, onValidate, colors }: PaymentSectionProps) {
+function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount, product, billing, onAddPaymentInfo, onBeforeConfirm, onValidate, colors }: PaymentSectionProps) {
   const brandName = product.brandName || product.name
 
   return (
@@ -769,6 +811,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
               currency={product.currency}
               brandName={brandName}
               legalName={product.legalName || ''}
+              billing={billing}
               onAddPaymentInfo={onAddPaymentInfo}
               onBeforeConfirm={onBeforeConfirm}
               onValidate={onValidate}
@@ -1059,6 +1102,20 @@ function RightColumn({
         paymentId={paymentId}
         paymentAmount={paymentAmount}
         product={product}
+        billing={{
+          name: name,
+          email: email,
+          phone: phone ? `${callingCode}${phone.replace(/\D/g, '')}` : '',
+          ...(address.line1 ? {
+            address: {
+              line1: address.line1,
+              line2: address.line2 || undefined,
+              city: address.city,
+              postalCode: address.postalCode,
+              country: 'PT',
+            },
+          } : {}),
+        }}
         onAddPaymentInfo={onAddPaymentInfo}
         onBeforeConfirm={onBeforeConfirm}
         onValidate={validate}

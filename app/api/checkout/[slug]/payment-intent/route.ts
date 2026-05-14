@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { checkoutService } from '@/lib/services/checkout.service'
 import { productService } from '@/lib/services/product.service'
+import { funnelService } from '@/lib/services/funnel.service'
 import { stripeLogger } from '@/lib/services/stripe-logger.service'
 import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
 import { logger } from '@/lib/logger'
@@ -87,11 +88,25 @@ export async function POST(
       const existing = await stripe.customers.list({ email: customerEmail, limit: 1 })
       if (existing.data.length > 0) {
         stripeCustomerId = existing.data[0].id
+        // Atualizar dados do customer existente se tiver novos dados
+        if (customerName || body.customerPhone) {
+          await stripe.customers.update(stripeCustomerId, {
+            ...(customerName ? { name: customerName } : {}),
+            ...(body.customerPhone ? { phone: body.customerPhone } : {}),
+          }).catch(() => {})
+        }
       } else if (customerEmail) {
         const customer = await stripe.customers.create({
           name:  customerName,
           email: customerEmail,
           phone: body.customerPhone ?? undefined,
+          address: body.address?.line1 ? {
+            line1:       body.address.line1,
+            line2:       body.address.line2 || undefined,
+            city:        body.address.city || undefined,
+            postal_code: body.address.postalCode || undefined,
+            country:     body.address.country || 'PT',
+          } : undefined,
           metadata: { productId: product.id, productSlug: product.slug ?? '' },
         })
         stripeCustomerId = customer.id
@@ -103,11 +118,43 @@ export async function POST(
       upMeta[`up_${k}`] = String(v).slice(0, 500)
     }
 
-    const piParams = {
+    // Verificar se o produto tem funil de upsell ativo (para setup_future_usage)
+    const hasFunnel = await funnelService.getByProductId(product.id)
+
+    // Statement descriptor: máximo 22 chars, apenas ASCII
+    const stmtSuffix = (product.brandName || product.name || 'TECHPAGS')
+      .replace(/[^a-zA-Z0-9 ]/g, '')
+      .slice(0, 22)
+      .trim() || 'TECHPAGS'
+
+    const piParams: Stripe.PaymentIntentCreateParams = {
       amount:               total,
       currency:             product.currency.toLowerCase(),
       payment_method_types: paymentMethodTypes,
       customer:             stripeCustomerId,
+      description:          `${product.name}${product.brandName ? ` - ${product.brandName}` : ''}`,
+      statement_descriptor_suffix: stmtSuffix,
+      // 3DS: preferir frictionless, mas aceitar challenge quando necessário
+      payment_method_options: {
+        card: {
+          request_three_d_secure: 'any',
+        },
+      },
+      // Se tem funil de upsell, salvar PM para cobranças futuras off-session
+      ...(hasFunnel ? { setup_future_usage: 'off_session' } : {}),
+      // Shipping melhora score de frictionless 3DS
+      ...(body.address?.line1 ? {
+        shipping: {
+          name:    customerName || 'Cliente',
+          address: {
+            line1:       body.address.line1,
+            line2:       body.address.line2 || undefined,
+            city:        body.address.city || undefined,
+            postal_code: body.address.postalCode || undefined,
+            country:     body.address.country || 'PT',
+          },
+        },
+      } : {}),
       metadata: {
         productId: product.id, productSlug: product.slug, productName: product.name,
         customerName, customerEmail, ...upMeta,
@@ -132,7 +179,7 @@ export async function POST(
         const filteredMethods = invalidMethod
           ? paymentMethodTypes.filter(m => m !== invalidMethod)
           : paymentMethodTypes.filter(m => m === 'card')
-        const fallbackParams = { ...piParams, payment_method_types: filteredMethods.length > 0 ? filteredMethods : ['card'] }
+        const fallbackParams: Stripe.PaymentIntentCreateParams = { ...piParams, payment_method_types: filteredMethods.length > 0 ? filteredMethods : ['card'] }
         pi = await stripeLogger.logApiCall(
           'createPaymentIntent',
           '',
