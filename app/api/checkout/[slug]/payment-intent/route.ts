@@ -41,6 +41,19 @@ export async function POST(
       urlParams?:  Record<string, string>
     }
 
+    // Validação de input — sanitizar e limitar tamanhos
+    if (body.customerName  && (typeof body.customerName !== 'string'  || body.customerName.length > 200))  return NextResponse.json({ error: 'Nome inválido' }, { status: 400 })
+    if (body.customerEmail && (typeof body.customerEmail !== 'string' || body.customerEmail.length > 254 || !body.customerEmail.includes('@'))) return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
+    if (body.customerPhone && (typeof body.customerPhone !== 'string' || body.customerPhone.length > 30))  return NextResponse.json({ error: 'Telefone inválido' }, { status: 400 })
+    if (body.bumpIds && (!Array.isArray(body.bumpIds) || body.bumpIds.length > 10 || body.bumpIds.some(id => typeof id !== 'string'))) return NextResponse.json({ error: 'Bumps inválidos' }, { status: 400 })
+    if (body.shippingId && typeof body.shippingId !== 'string') return NextResponse.json({ error: 'Shipping inválido' }, { status: 400 })
+    if (body.address) {
+      const a = body.address
+      if (a.line1 && (typeof a.line1 !== 'string' || a.line1.length > 200)) return NextResponse.json({ error: 'Endereço inválido' }, { status: 400 })
+      if (a.city && (typeof a.city !== 'string' || a.city.length > 100))    return NextResponse.json({ error: 'Cidade inválida' }, { status: 400 })
+      if (a.postalCode && (typeof a.postalCode !== 'string' || a.postalCode.length > 20)) return NextResponse.json({ error: 'Código postal inválido' }, { status: 400 })
+    }
+
     const product = await checkoutService.getProductBySlug(params.slug)
     if (!product) {
       logger.warn('CHECKOUT', 'Produto não encontrado', { slug: params.slug })
@@ -111,7 +124,9 @@ export async function POST(
         })
         stripeCustomerId = customer.id
       }
-    } catch { /* não bloquear o checkout se falhar */ }
+    } catch (custErr) {
+      logger.warn('CHECKOUT', 'Falha ao criar/buscar Customer na Stripe', { email: customerEmail, error: custErr instanceof Error ? custErr.message : String(custErr) })
+    }
 
     const upMeta: Record<string, string> = {}
     for (const [k, v] of Object.entries(urlParams)) {

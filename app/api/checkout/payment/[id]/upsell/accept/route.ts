@@ -8,10 +8,27 @@ export const dynamic = 'force-dynamic'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 
+// Rate limit: 5 requests por minuto por IP (upsell é ação única)
+const rateLimitMap = new Map<string, number[]>()
+const RATE_LIMIT   = 5
+const WINDOW_MS    = 60_000
+
+function isRateLimited(ip: string): boolean {
+  const now  = Date.now()
+  const hits = (rateLimitMap.get(ip) ?? []).filter(t => now - t < WINDOW_MS)
+  hits.push(now)
+  rateLimitMap.set(ip, hits)
+  return hits.length > RATE_LIMIT
+}
+
 export async function POST(
   _req: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  const ip = _req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ error: 'Demasiadas tentativas. Aguarde um momento.' }, { status: 429 })
+  }
   const payment = await prisma.checkoutPayment.findUnique({
     where:  { id: params.id },
     select: {
@@ -89,13 +106,36 @@ export async function POST(
     return NextResponse.json({ success: true, status: upsellPi.status })
   } catch (err) {
     logger.error('UPSELL', 'Erro ao processar aceitação', { paymentId: params.id, error: err instanceof Error ? err.message : String(err) })
-    // Só marca declined se for erro de cartão recusado (authentication_required, card_declined, etc.)
-    // Erros técnicos (timeout, rate limit) não devem bloquear o upsell permanentemente
-    const stripeErr = err as { type?: string; code?: string }
+
+    const stripeErr = err as { type?: string; code?: string; raw?: { payment_intent?: { id?: string } } }
+
+    // Se o banco exige 3DS (authentication_required), devolver client_secret
+    // para o frontend completar a autenticação on-session
+    if (stripeErr?.code === 'authentication_required') {
+      const piId = stripeErr.raw?.payment_intent?.id
+      if (piId) {
+        try {
+          const pi = await stripe.paymentIntents.retrieve(piId)
+          // Marcar como pending_auth (não declined — ainda pode ser completado)
+          await prisma.checkoutPayment.update({
+            where: { id: params.id },
+            data:  { upsellStatus: 'pending_auth', upsellPiId: piId },
+          })
+          return NextResponse.json({
+            requires_action: true,
+            client_secret:   pi.client_secret,
+            payment_intent_id: piId,
+          }, { status: 402 })
+        } catch (retrieveErr) {
+          logger.error('UPSELL', 'Falha ao recuperar PI para 3DS', { piId, error: retrieveErr instanceof Error ? retrieveErr.message : String(retrieveErr) })
+        }
+      }
+    }
+
+    // Só marca declined se for erro de cartão recusado definitivo
     const isCardDeclined =
       stripeErr?.type === 'StripeCardError' ||
       stripeErr?.code === 'card_declined' ||
-      stripeErr?.code === 'authentication_required' ||
       stripeErr?.code === 'insufficient_funds'
     if (isCardDeclined) {
       await prisma.checkoutPayment.update({

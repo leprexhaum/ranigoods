@@ -1352,7 +1352,7 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
         const res = await fetch(`/api/checkout/payment/${paymentId}/update`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: newTotal }),
+          body: JSON.stringify({ bumpIds: selectedBumps, shippingId: selectedShip }),
         })
         if (res.ok) {
           setPaymentAmount(newTotal)
