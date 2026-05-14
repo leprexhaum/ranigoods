@@ -93,6 +93,7 @@ model Product {
   customDomain     String   @default("") @map("custom_domain")
   utmifyConfigId   String?  @map("utmify_config_id")
   utmifyConfigIds  Json     @default("[]") @map("utmify_config_ids")
+  checkoutColors   Json     @default("{}") @map("checkout_colors")
   utmifyConfig     UtmifyConfig? @relation("ProductUtmify", fields: [utmifyConfigId], references: [id], onDelete: SetNull)
   checkoutPayments CheckoutPayment[]
   cartItems        CartItem[]
@@ -196,6 +197,7 @@ model Settings {
   notifyRefund        Boolean @default(false) @map("notify_refund")
   notifyDaily         Boolean @default(false) @map("notify_daily")
   notifyWeekly        Boolean @default(false) @map("notify_weekly")
+  checkoutColors      Json    @default("{}") @map("checkout_colors")
 
   @@map("settings")
 }

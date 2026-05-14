@@ -1,9 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type {
-  CheckoutProduct, CheckoutPaymentDetail,
+  CheckoutProduct, CheckoutPaymentDetail, CheckoutColors,
   OrderBump, ShippingOption, CheckoutReview, CheckoutAddress,
 } from '@/lib/types/checkout'
+import { DEFAULT_CHECKOUT_COLORS } from '@/lib/types/checkout'
 
 function toCheckoutProduct(r: {
   id: string; name: string; description: string; imageUrl: string;
@@ -13,7 +14,14 @@ function toCheckoutProduct(r: {
   checkoutTemplate: string; checkoutLanguage: string; countdownMinutes: number;
   active: boolean; successUrl: string;
   logoUrl: string; brandName: string; legalName: string; requirePhone: boolean; requireAddress: boolean;
-}): CheckoutProduct {
+  checkoutColors: unknown;
+}, globalColors: Partial<CheckoutColors>): CheckoutProduct {
+  const productColors = (r.checkoutColors && typeof r.checkoutColors === 'object' && Object.keys(r.checkoutColors as object).length > 0)
+    ? r.checkoutColors as Partial<CheckoutColors>
+    : {}
+
+  const resolvedColors = { ...DEFAULT_CHECKOUT_COLORS, ...globalColors, ...productColors }
+
   return {
     id:               r.id,
     name:             r.name,
@@ -38,6 +46,7 @@ function toCheckoutProduct(r: {
     legalName:        r.legalName ?? '',
     requirePhone:     r.requirePhone ?? false,
     requireAddress:   r.requireAddress ?? false,
+    checkoutColors:   resolvedColors,
   }
 }
 
@@ -53,14 +62,22 @@ export const checkoutService = {
         checkoutTemplate: true, checkoutLanguage: true, countdownMinutes: true,
         active: true, successUrl: true,
         logoUrl: true, brandName: true, legalName: true, requirePhone: true, requireAddress: true,
+        checkoutColors: true,
       },
     })
     if (!r) {
       logger.warn('CHECKOUT', 'Produto não encontrado por slug', { slug })
       return null
     }
+
+    // Buscar cores globais do Settings
+    const settings = await prisma.settings.findFirst({ where: { id: 1 }, select: { checkoutColors: true } })
+    const globalColors = (settings?.checkoutColors && typeof settings.checkoutColors === 'object' && Object.keys(settings.checkoutColors as object).length > 0)
+      ? settings.checkoutColors as Partial<CheckoutColors>
+      : {}
+
     logger.info('CHECKOUT', 'Produto carregado para checkout', { slug, productId: r.id })
-    return toCheckoutProduct(r)
+    return toCheckoutProduct(r, globalColors)
   },
 
   async createPayment(data: {

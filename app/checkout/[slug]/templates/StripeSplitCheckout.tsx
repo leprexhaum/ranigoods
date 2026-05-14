@@ -9,7 +9,8 @@ import {
   useElements,
 } from '@stripe/react-stripe-js'
 import { Loader2 } from 'lucide-react'
-import type { CheckoutProduct } from '@/lib/types/checkout'
+import type { CheckoutProduct, CheckoutColors } from '@/lib/types/checkout'
+import { DEFAULT_CHECKOUT_COLORS } from '@/lib/types/checkout'
 import { captureUrlParams, getStoredUrlParams } from '@/lib/url-params'
 import { useCheckoutPixels } from '@/lib/hooks/useCheckoutPixels'
 import { AddressForm, emptyAddress } from '../components/AddressForm'
@@ -33,14 +34,13 @@ function buildSuccessUrl(baseUrl: string, paymentId: string): string {
 // ─── Shadow tokens (fiel ao clo-stripe) ──────────────────────────────────────
 
 const SH_DEFAULT      = 'rgb(224,224,224) 0px 0px 0px 1px, rgba(0,0,0,0.07) 0px 2px 4px 0px, rgba(0,0,0,0.05) 0px 1px 1.5px 0px'
-const SH_FOCUS        = 'rgb(0,116,212) 0px 0px 0px 2px, rgba(0,0,0,0.07) 0px 2px 4px 0px, rgba(0,0,0,0.05) 0px 1px 1.5px 0px'
 const SH_ERROR        = 'rgb(223,27,65) 0px 0px 0px 1px, rgba(0,0,0,0.07) 0px 2px 4px 0px, rgba(0,0,0,0.05) 0px 1px 1.5px 0px'
 const SH_ERROR_FOCUS  = 'rgb(223,27,65) 0px 0px 0px 2px, rgba(0,0,0,0.07) 0px 2px 4px 0px, rgba(0,0,0,0.05) 0px 1px 1.5px 0px'
 
-function inputShadow(focused: boolean, hasError: boolean) {
+function inputShadow(focused: boolean, hasError: boolean, accent?: string) {
   if (hasError && focused) return SH_ERROR_FOCUS
   if (hasError)            return SH_ERROR
-  if (focused)             return SH_FOCUS
+  if (focused)             return `${accent ?? 'rgb(0,116,212)'} 0px 0px 0px 2px, rgba(0,0,0,0.07) 0px 2px 4px 0px, rgba(0,0,0,0.05) 0px 1px 1.5px 0px`
   return SH_DEFAULT
 }
 
@@ -63,8 +63,9 @@ function inputStyle(
   hasError: boolean,
   borderRadius: string,
   extra?: React.CSSProperties,
+  accent?: string,
 ): React.CSSProperties {
-  return { ...INPUT_BASE, borderRadius, boxShadow: inputShadow(focused, hasError), ...extra }
+  return { ...INPUT_BASE, borderRadius, boxShadow: inputShadow(focused, hasError, accent), ...extra }
 }
 
 const LABEL_STYLE: React.CSSProperties = {
@@ -218,13 +219,13 @@ function StripeLogo() {
 
 // ─── CustomCheckbox ───────────────────────────────────────────────────────────
 
-function CustomCheckbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+function CustomCheckbox({ checked, onChange, colors }: { checked: boolean; onChange: () => void; colors: CheckoutColors }) {
   return (
     <div
       onClick={onChange}
       style={{
         width: '16px', height: '16px', borderRadius: '3px', flexShrink: 0,
-        backgroundColor: checked ? 'rgb(0,116,212)' : 'rgb(255,255,255)',
+        backgroundColor: checked ? colors.accent : 'rgb(255,255,255)',
         border: checked ? 'none' : '1.5px solid rgb(200,200,200)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
       }}
@@ -253,9 +254,10 @@ interface LeftColumnProps {
   total: number
   selectedBumps: string[]
   selectedShip: string
+  colors: CheckoutColors
 }
 
-function LeftColumn({ product, total, selectedBumps, selectedShip }: LeftColumnProps) {
+function LeftColumn({ product, total, selectedBumps, selectedShip, colors }: LeftColumnProps) {
   const brandName = product.brandName || product.name
 
   const intervalLabel = product.interval && product.interval !== 'unit'
@@ -268,7 +270,7 @@ function LeftColumn({ product, total, selectedBumps, selectedShip }: LeftColumnP
   return (
     <div style={{
       width: '420px',
-      backgroundColor: 'rgb(1,43,93)',
+      backgroundColor: colors.panelBg,
       padding: '40px 80px 48px 0',
       display: 'flex',
       flexDirection: 'column',
@@ -366,6 +368,7 @@ interface ContactSectionProps {
   focused: string | null; setFocused: (v: string | null) => void
   touched: Record<string, boolean>; touch: (id: string) => void
   submitted: boolean
+  colors: CheckoutColors
 }
 
 function FlagPTIcon() {
@@ -392,7 +395,7 @@ function ChevronDownIcon() {
 
 function ContactSection({
   email, setEmail, name, setName,
-  focused, setFocused, touched, touch, submitted,
+  focused, setFocused, touched, touch, submitted, colors,
 }: Omit<ContactSectionProps, 'phone' | 'setPhone' | 'countryCode' | 'callingCode' | 'requirePhone'>) {
   const show = (id: string) => submitted || touched[id]
   const errEmail = valEmail(email)
@@ -414,7 +417,7 @@ function ContactSection({
             onFocus={() => setFocused('email')}
             onBlur={() => touch('email')}
             autoComplete="email"
-            style={inputStyle(focused === 'email', !!(show('email') && errEmail), '6px 6px 0px 0px', { paddingLeft: '36px' })}
+            style={inputStyle(focused === 'email', !!(show('email') && errEmail), '6px 6px 0px 0px', { paddingLeft: '36px' }, colors.accent)}
           />
           <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'rgba(26,26,26,0.35)', display: 'flex' }}>
             <EmailIcon />
@@ -429,7 +432,7 @@ function ContactSection({
             onFocus={() => setFocused('name')}
             onBlur={() => touch('name')}
             autoComplete="name"
-            style={inputStyle(focused === 'name', !!(show('name') && errName), '0px 0px 6px 6px', { paddingLeft: '36px' })}
+            style={inputStyle(focused === 'name', !!(show('name') && errName), '0px 0px 6px 6px', { paddingLeft: '36px' }, colors.accent)}
           />
           <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'rgba(26,26,26,0.35)', display: 'flex' }}>
             <PersonIcon />
@@ -449,9 +452,10 @@ interface ShippingSectionProps {
   product: CheckoutProduct
   selectedShip: string
   setSelectedShip: (v: string) => void
+  colors: CheckoutColors
 }
 
-function ShippingSection({ product, selectedShip, setSelectedShip }: ShippingSectionProps) {
+function ShippingSection({ product, selectedShip, setSelectedShip, colors }: ShippingSectionProps) {
   if (product.shippingOptions.length === 0) return null
   return (
     <section style={{ marginBottom: '32px' }}>
@@ -469,7 +473,7 @@ function ShippingSection({ product, selectedShip, setSelectedShip }: ShippingSec
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '10px 12px', cursor: 'pointer',
-                boxShadow: selected ? SH_FOCUS : SH_DEFAULT,
+                boxShadow: selected ? `${colors.accent} 0px 0px 0px 2px, rgba(0,0,0,0.07) 0px 2px 4px 0px, rgba(0,0,0,0.05) 0px 1px 1.5px 0px` : SH_DEFAULT,
                 borderRadius: br, backgroundColor: 'rgb(255,255,255)',
                 transition: 'box-shadow 0.15s',
               }}
@@ -477,7 +481,7 @@ function ShippingSection({ product, selectedShip, setSelectedShip }: ShippingSec
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{
                   width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
-                  border: selected ? '5px solid rgb(0,116,212)' : '2px solid rgb(200,200,200)',
+                  border: selected ? `5px solid ${colors.accent}` : '2px solid rgb(200,200,200)',
                   backgroundColor: 'rgb(255,255,255)',
                   transition: 'border 0.15s',
                 }} />
@@ -501,9 +505,10 @@ interface OrderBumpsSectionProps {
   product: CheckoutProduct
   selectedBumps: string[]
   setSelectedBumps: (v: string[]) => void
+  colors: CheckoutColors
 }
 
-function OrderBumpsSection({ product, selectedBumps, setSelectedBumps }: OrderBumpsSectionProps) {
+function OrderBumpsSection({ product, selectedBumps, setSelectedBumps, colors }: OrderBumpsSectionProps) {
   if (product.orderBumps.length === 0) return null
 
   const toggle = (id: string) => {
@@ -527,18 +532,18 @@ function OrderBumpsSection({ product, selectedBumps, setSelectedBumps }: OrderBu
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: '10px',
                 padding: '12px', cursor: 'pointer',
-                boxShadow: checked ? SH_FOCUS : SH_DEFAULT,
+                boxShadow: checked ? `${colors.accent} 0px 0px 0px 2px, rgba(0,0,0,0.07) 0px 2px 4px 0px, rgba(0,0,0,0.05) 0px 1px 1.5px 0px` : SH_DEFAULT,
                 borderRadius: '6px', backgroundColor: 'rgb(255,255,255)',
                 transition: 'box-shadow 0.15s',
               }}
             >
               <div style={{ marginTop: '2px' }}>
-                <CustomCheckbox checked={checked} onChange={() => toggle(bump.id)} />
+                <CustomCheckbox checked={checked} onChange={() => toggle(bump.id)} colors={colors} />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(26,26,26,0.9)' }}>{bump.name}</span>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'rgb(0,116,212)', marginLeft: '8px', flexShrink: 0 }}>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: colors.accent, marginLeft: '8px', flexShrink: 0 }}>
                     +{fmt(bump.price, product.currency)}
                   </span>
                 </div>
@@ -568,21 +573,23 @@ interface PaymentSectionProps {
   onAddPaymentInfo?: () => void
   onBeforeConfirm?: () => Promise<void>
   onValidate?: () => boolean
+  colors: CheckoutColors
 }
 
-function PollingScreen() {
+function PollingScreen({ colors }: { colors: CheckoutColors }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', padding: '40px 0' }}>
-      <Loader2 size={36} style={{ color: 'rgb(0,116,212)', animation: 'spin 1s linear infinite' }} />
+      <Loader2 size={36} style={{ color: colors.accent, animation: 'spin 1s linear infinite' }} />
       <p style={{ fontSize: '14px', color: 'rgba(26,26,26,0.6)', textAlign: 'center' }}>A verificar pagamento…</p>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }
 
-function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo, onBeforeConfirm, onValidate }: {
+function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legalName, onAddPaymentInfo, onBeforeConfirm, onValidate, colors }: {
   paymentId: string; successUrl: string; amount: number; currency: string
   brandName: string; legalName: string; onAddPaymentInfo?: () => void; onBeforeConfirm?: () => Promise<void>; onValidate?: () => boolean
+  colors: CheckoutColors
 }) {
   const stripe   = useStripe()
   const elements = useElements()
@@ -652,7 +659,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
     }
   }
 
-  if (polling) return <PollingScreen />
+  if (polling) return <PollingScreen colors={colors} />
 
   return (
     <form onSubmit={handleSubmit}>
@@ -675,7 +682,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
         disabled={!stripe || loading}
         style={{
           width: '100%', height: '48px', marginTop: '16px', marginBottom: '8px',
-          backgroundColor: 'rgb(255,240,42)', color: 'rgb(0,0,0)',
+          backgroundColor: colors.buttonBg, color: colors.buttonText,
           fontSize: '16px', fontWeight: 500, borderRadius: '6px', border: 'none',
           cursor: loading ? 'not-allowed' : 'pointer',
           position: 'relative', overflow: 'hidden', fontFamily: 'inherit',
@@ -694,7 +701,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
         {!loading && (
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none',
-            background: 'linear-gradient(to right, rgba(255,240,42,0) 0%, rgb(255,255,75) 50%, rgba(255,240,42,0) 100%)',
+            background: 'linear-gradient(to right, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)',
             animation: 'ss-shimmer 2s infinite linear',
           }} />
         )}
@@ -707,7 +714,7 @@ function PaymentForm({ paymentId, successUrl, amount, currency, brandName, legal
   )
 }
 
-function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount, product, onAddPaymentInfo, onBeforeConfirm, onValidate }: PaymentSectionProps) {
+function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount, product, onAddPaymentInfo, onBeforeConfirm, onValidate, colors }: PaymentSectionProps) {
   const brandName = product.brandName || product.name
 
   return (
@@ -736,7 +743,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
               appearance: {
                 theme: 'stripe',
                 variables: {
-                  colorPrimary:    'rgb(0,116,212)',
+                  colorPrimary:    colors.accent,
                   colorBackground: '#ffffff',
                   colorText:       'rgba(26,26,26,0.9)',
                   colorDanger:     'rgb(223,27,65)',
@@ -746,10 +753,10 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
                 },
                 rules: {
                   '.Input': { border: 'none', boxShadow: 'rgb(224,224,224) 0px 0px 0px 1px, rgba(0,0,0,0.07) 0px 2px 4px 0px', padding: '8px 12px' },
-                  '.Input:focus': { boxShadow: 'rgb(0,116,212) 0px 0px 0px 2px, rgba(0,0,0,0.07) 0px 2px 4px 0px' },
+                  '.Input:focus': { boxShadow: `${colors.accent} 0px 0px 0px 2px, rgba(0,0,0,0.07) 0px 2px 4px 0px` },
                   '.Label': { fontSize: '13px', fontWeight: '500', color: 'rgba(26,26,26,0.6)' },
                   '.Tab': { border: 'none', boxShadow: 'rgb(224,224,224) 0px 0px 0px 1px' },
-                  '.Tab--selected': { boxShadow: 'rgb(0,116,212) 0px 0px 0px 2px' },
+                  '.Tab--selected': { boxShadow: `${colors.accent} 0px 0px 0px 2px` },
                 },
               },
             }}
@@ -764,6 +771,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
               onAddPaymentInfo={onAddPaymentInfo}
               onBeforeConfirm={onBeforeConfirm}
               onValidate={onValidate}
+              colors={colors}
             />
           </Elements>
         )
@@ -781,6 +789,7 @@ interface AddressSectionProps {
   focused: string | null; setFocused: (v: string | null) => void
   touched: Record<string, boolean>; touch: (id: string) => void
   submitted: boolean
+  colors: CheckoutColors
 }
 
 const SELECT_STYLE: React.CSSProperties = {
@@ -799,7 +808,7 @@ const SELECT_STYLE: React.CSSProperties = {
 function AddressSection({
   address, setAddress,
   phone, setPhone,
-  focused, setFocused, touched, touch, submitted,
+  focused, setFocused, touched, touch, submitted, colors,
 }: AddressSectionProps) {
   const show = (id: string) => submitted || touched[id]
   const set  = (field: keyof AddressData, val: string) => setAddress({ ...address, [field]: val })
@@ -826,7 +835,7 @@ function AddressSection({
           onFocus={() => setFocused('addr_name')}
           onBlur={() => touch('addr_name')}
           autoComplete="name"
-          style={inputStyle(focused === 'addr_name', !!(show('addr_name') && errName), '6px 6px 0px 0px')}
+          style={inputStyle(focused === 'addr_name', !!(show('addr_name') && errName), '6px 6px 0px 0px', undefined, colors.accent)}
         />
 
         {/* País (desativado, visual only) */}
@@ -848,7 +857,7 @@ function AddressSection({
           onFocus={() => setFocused('addr_line1')}
           onBlur={() => touch('addr_line1')}
           autoComplete="address-line1"
-          style={inputStyle(focused === 'addr_line1', !!(show('addr_line1') && errAddr1), '0px')}
+          style={inputStyle(focused === 'addr_line1', !!(show('addr_line1') && errAddr1), '0px', undefined, colors.accent)}
         />
 
         {/* Linha morada 2 */}
@@ -860,7 +869,7 @@ function AddressSection({
           onFocus={() => setFocused('addr_line2')}
           onBlur={() => touch('addr_line2')}
           autoComplete="address-line2"
-          style={inputStyle(focused === 'addr_line2', false, '0px')}
+          style={inputStyle(focused === 'addr_line2', false, '0px', undefined, colors.accent)}
         />
 
         {/* Código postal + Cidade */}
@@ -873,7 +882,7 @@ function AddressSection({
             onFocus={() => setFocused('addr_postal')}
             onBlur={() => touch('addr_postal')}
             autoComplete="postal-code"
-            style={inputStyle(focused === 'addr_postal', !!(show('addr_postal') && errPostal), '0px', { width: '50%' })}
+            style={inputStyle(focused === 'addr_postal', !!(show('addr_postal') && errPostal), '0px', { width: '50%' }, colors.accent)}
           />
           <input
             type="text"
@@ -883,7 +892,7 @@ function AddressSection({
             onFocus={() => setFocused('addr_city')}
             onBlur={() => touch('addr_city')}
             autoComplete="address-level2"
-            style={inputStyle(focused === 'addr_city', !!(show('addr_city') && errCity), '0px', { width: '50%' })}
+            style={inputStyle(focused === 'addr_city', !!(show('addr_city') && errCity), '0px', { width: '50%' }, colors.accent)}
           />
         </div>
 
@@ -915,7 +924,7 @@ function AddressSection({
               onBlur={() => touch('addr_phone')}
               inputMode="tel"
               autoComplete="tel"
-              style={inputStyle(focused === 'addr_phone', !!(show('addr_phone') && errPhone), '0px 0px 6px 0px', { width: '100%', paddingRight: '32px' })}
+              style={inputStyle(focused === 'addr_phone', !!(show('addr_phone') && errPhone), '0px 0px 6px 0px', { width: '100%', paddingRight: '32px' }, colors.accent)}
             />
             <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'rgba(26,26,26,0.35)', display: 'flex' }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -954,6 +963,7 @@ interface RightColumnProps {
   onAddressBlur?: () => void
   onBeforeConfirm?: () => Promise<void>
   requireAddress?: boolean
+  colors: CheckoutColors
 }
 
 function RightColumn({
@@ -967,6 +977,7 @@ function RightColumn({
   onAddPaymentInfo,
   onNameBlur, onEmailBlur, onPhoneBlur, onAddressBlur, onBeforeConfirm,
   requireAddress,
+  colors,
 }: RightColumnProps) {
   const [focused,   setFocused]   = useState<string | null>(null)
   const [touched,   setTouched]   = useState<Record<string, boolean>>({})
@@ -998,7 +1009,7 @@ function RightColumn({
   return (
     <div style={{
       flex: 1,
-      backgroundColor: 'rgb(255,255,255)',
+      backgroundColor: colors.formBg,
       padding: '40px 0 48px 48px',
       display: 'flex',
       flexDirection: 'column',
@@ -1012,6 +1023,7 @@ function RightColumn({
         focused={focused} setFocused={setFocused}
         touched={touched} touch={touch}
         submitted={submitted}
+        colors={colors}
       />
 
       {product.requireAddress && (
@@ -1021,6 +1033,7 @@ function RightColumn({
           focused={focused} setFocused={setFocused}
           touched={touched} touch={touch}
           submitted={submitted}
+          colors={colors}
         />
       )}
 
@@ -1028,12 +1041,14 @@ function RightColumn({
         product={product}
         selectedShip={selectedShip}
         setSelectedShip={setSelectedShip}
+        colors={colors}
       />
 
       <OrderBumpsSection
         product={product}
         selectedBumps={selectedBumps}
         setSelectedBumps={setSelectedBumps}
+        colors={colors}
       />
 
       <PaymentSection
@@ -1045,6 +1060,7 @@ function RightColumn({
         onAddPaymentInfo={onAddPaymentInfo}
         onBeforeConfirm={onBeforeConfirm}
         onValidate={validate}
+        colors={colors}
       />
 
       {/* Footer */}
@@ -1063,10 +1079,11 @@ function RightColumn({
 
 // ─── MobileSummary ────────────────────────────────────────────────────────────
 
-function MobileSummary({ product, total, selectedBumps, selectedShip, open, setOpen }: {
+function MobileSummary({ product, total, selectedBumps, selectedShip, open, setOpen, colors }: {
   product: CheckoutProduct; total: number
   selectedBumps: string[]; selectedShip: string
   open: boolean; setOpen: (v: boolean) => void
+  colors: CheckoutColors
 }) {
   const brandName = product.brandName || product.name
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -1081,7 +1098,7 @@ function MobileSummary({ product, total, selectedBumps, selectedShip, open, setO
     img.src = product.imageUrl
   }, [product.imageUrl, setOpen])
   return (
-    <div style={{ backgroundColor: 'rgb(1,43,93)', borderBottom: '1px solid rgba(255,255,255,0.1)' }} className="ss-mobile-summary">
+    <div style={{ backgroundColor: colors.panelBg, borderBottom: '1px solid rgba(255,255,255,0.1)' }} className="ss-mobile-summary">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
           {product.logoUrl ? (
@@ -1154,8 +1171,47 @@ function MobileSummary({ product, total, selectedBumps, selectedShip, open, setO
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function useResolvedColors(product: CheckoutProduct): CheckoutColors {
+  const base = useMemo(() => ({
+    ...DEFAULT_CHECKOUT_COLORS,
+    ...(product.checkoutColors ?? {}),
+  }), [product.checkoutColors])
+
+  const [colors, setColors] = useState<CheckoutColors>(base)
+
+  useEffect(() => {
+    setColors(base)
+  }, [base])
+
+  // Listen for postMessage from preview editor
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'checkout-colors-update' && e.data.colors) {
+        setColors(prev => ({ ...prev, ...e.data.colors }))
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
+
+  // Also check URL params for preview mode
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const colorsParam = params.get('colors')
+    if (colorsParam) {
+      try {
+        const parsed = JSON.parse(atob(colorsParam)) as Partial<CheckoutColors>
+        setColors(prev => ({ ...prev, ...parsed }))
+      } catch { /* ignore invalid */ }
+    }
+  }, [])
+
+  return colors
+}
+
 export default function StripeSplitCheckout({ product }: { product: CheckoutProduct }) {
   const { trackEvent } = useCheckoutPixels(product.id)
+  const colors = useResolvedColors(product)
 
   const [name,           setName]           = useState('')
   const [email,          setEmail]          = useState('')
@@ -1332,7 +1388,7 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
           display: flex;
           flex-direction: row;
           min-height: 100vh;
-          background: linear-gradient(to right, rgb(1,43,93) 50%, rgb(255,255,255) 50%);
+          background: linear-gradient(to right, ${colors.panelBg} 50%, ${colors.formBg} 50%);
         }
         .ss-inner {
           display: flex;
@@ -1349,7 +1405,7 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
         @media (max-width: 768px) {
           .ss-layout {
             flex-direction: column;
-            background: rgb(255,255,255);
+            background: ${colors.formBg};
           }
           .ss-inner {
             flex-direction: column;
@@ -1371,12 +1427,14 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
           product={product} total={total}
           selectedBumps={selectedBumps} selectedShip={selectedShip}
           open={mobileSumOpen} setOpen={setMobileSumOpen}
+          colors={colors}
         />
 
         <div className="ss-inner">
           <LeftColumn
             product={product} total={total}
             selectedBumps={selectedBumps} selectedShip={selectedShip}
+            colors={colors}
           />
           <RightColumn
             product={product} total={total}
@@ -1398,6 +1456,7 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
             onAddressBlur={handleAddressBlur}
             onBeforeConfirm={handleBeforeConfirm}
             requireAddress={product.requireAddress}
+            colors={colors}
           />
         </div>
       </div>

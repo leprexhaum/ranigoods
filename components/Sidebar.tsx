@@ -17,6 +17,7 @@ import {
   Layers,
   Plug,
   Globe,
+  Palette,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/components/providers/AuthProvider'
@@ -34,6 +35,7 @@ const navItems = [
   { href: '/webhooks',              label: 'Webhooks',            icon: Webhook         },
   { href: '/integracoes',           label: 'Integrações',         icon: Plug            },
   { href: '/dominios',              label: 'Domínios',            icon: Globe           },
+  { href: '/checkout-editor',       label: 'Checkout',            icon: Palette         },
   { href: '/stripe',                label: 'Stripe',              icon: Layers          },
   { href: '/calculadora',           label: 'Calculadora',         icon: Calculator      },
   { href: '/configuracoes',         label: 'Configurações',       icon: Settings        },

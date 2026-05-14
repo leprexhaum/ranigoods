@@ -1,5 +1,30 @@
 export type CheckoutTemplate = 'stripe_split'
 
+export interface CheckoutColors {
+  panelBg:    string
+  formBg:     string
+  accent:     string
+  buttonBg:   string
+  buttonText: string
+}
+
+export const DEFAULT_CHECKOUT_COLORS: CheckoutColors = {
+  panelBg:    '#012B5D',
+  formBg:     '#FFFFFF',
+  accent:     '#0074D4',
+  buttonBg:   '#FFF02A',
+  buttonText: '#000000',
+}
+
+export const CHECKOUT_PRESETS: Record<string, CheckoutColors> = {
+  padrao:      { panelBg: '#012B5D', formBg: '#FFFFFF', accent: '#0074D4', buttonBg: '#FFF02A', buttonText: '#000000' },
+  dark:        { panelBg: '#1A1A2E', formBg: '#16213E', accent: '#0F3460', buttonBg: '#E94560', buttonText: '#FFFFFF' },
+  verde:       { panelBg: '#1B4332', formBg: '#FFFFFF', accent: '#2D6A4F', buttonBg: '#40916C', buttonText: '#FFFFFF' },
+  roxo:        { panelBg: '#2D1B69', formBg: '#FFFFFF', accent: '#7C3AED', buttonBg: '#A78BFA', buttonText: '#FFFFFF' },
+  coral:       { panelBg: '#1F2937', formBg: '#FFFFFF', accent: '#F97316', buttonBg: '#FB923C', buttonText: '#FFFFFF' },
+  minimalista: { panelBg: '#FFFFFF', formBg: '#FFFFFF', accent: '#111827', buttonBg: '#111827', buttonText: '#FFFFFF' },
+}
+
 export interface OrderBump {
   id:          string
   name:        string
@@ -45,6 +70,7 @@ export interface CheckoutProduct {
   legalName:        string
   requirePhone:     boolean
   requireAddress:   boolean
+  checkoutColors?:  Partial<CheckoutColors>
 }
 
 export interface CheckoutAddress {
