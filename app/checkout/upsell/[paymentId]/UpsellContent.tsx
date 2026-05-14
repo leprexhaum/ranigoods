@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, ShieldCheck, Zap, X } from 'lucide-react'
+import { loadStripe } from '@stripe/stripe-js'
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface UpsellData {
   funnelId:    string
@@ -63,6 +66,37 @@ export default function UpsellContent() {
     setError('')
     try {
       const res = await fetch(`/api/checkout/payment/${paymentId}/upsell/accept`, { method: 'POST' })
+
+      // 3DS necessário — completar autenticação on-session
+      if (res.status === 402) {
+        const data = await res.json()
+        if (data.requires_action && data.client_secret) {
+          const stripe = await stripePromise
+          if (!stripe) {
+            setError('Erro ao carregar processador de pagamento.')
+            setAccepting(false)
+            return
+          }
+          const { error: confirmErr, paymentIntent } = await stripe.confirmCardPayment(data.client_secret)
+          if (confirmErr) {
+            setError(confirmErr.message ?? 'Autenticação falhou. Tente novamente.')
+            setAccepting(false)
+            return
+          }
+          if (paymentIntent?.status === 'succeeded') {
+            setAccepted(true)
+            setTimeout(() => {
+              if (successUrl) window.location.href = successUrl
+              else router.replace(`/checkout/success?payment_id=${paymentId}`)
+            }, 2000)
+            return
+          }
+          setError('Autenticação não completada. Tente novamente.')
+          setAccepting(false)
+          return
+        }
+      }
+
       if (!res.ok) {
         const d = await res.json()
         setError(d.error ?? 'Erro ao processar. Tente novamente.')

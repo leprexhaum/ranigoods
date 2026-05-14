@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
+import { checkoutService } from '@/lib/services/checkout.service'
 import { abandonedCartService } from '@/lib/services/abandoned-cart.service'
 import { logger } from '@/lib/logger'
 
@@ -8,12 +9,30 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06
 
 export const dynamic = 'force-dynamic'
 
+// Rate limit: 20 requests por minuto por IP
+const rateLimitMap = new Map<string, number[]>()
+const RATE_LIMIT   = 20
+const WINDOW_MS    = 60_000
+
+function isRateLimited(ip: string): boolean {
+  const now  = Date.now()
+  const hits = (rateLimitMap.get(ip) ?? []).filter(t => now - t < WINDOW_MS)
+  hits.push(now)
+  rateLimitMap.set(ip, hits)
+  return hits.length > RATE_LIMIT
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ error: 'Demasiadas tentativas. Aguarde um momento.' }, { status: 429 })
+  }
+
   try {
-    const { customerName, customerEmail, customerPhone, addressLine1, addressLine2, addressCity, addressPostalCode, addressCountry, amount } = await req.json() as {
+    const { customerName, customerEmail, customerPhone, addressLine1, addressLine2, addressCity, addressPostalCode, addressCountry, bumpIds, shippingId } = await req.json() as {
       customerName?:  string
       customerEmail?: string
       customerPhone?: string
@@ -22,7 +41,8 @@ export async function PATCH(
       addressCity?: string
       addressPostalCode?: string
       addressCountry?: string
-      amount?: number
+      bumpIds?:    string[]
+      shippingId?: string
     }
 
     const payment = await prisma.checkoutPayment.findUnique({
@@ -45,17 +65,38 @@ export async function PATCH(
     if (addressPostalCode?.trim()) data.addressPostalCode = addressPostalCode.trim()
     if (addressCountry?.trim())    data.addressCountry    = addressCountry.trim()
 
-    if (Object.keys(data).length === 0) {
+    if (Object.keys(data).length === 0 && !bumpIds && !shippingId) {
       return NextResponse.json({ ok: true })
     }
 
-    await prisma.checkoutPayment.update({ where: { id: params.id }, data })
+    if (Object.keys(data).length > 0) {
+      await prisma.checkoutPayment.update({ where: { id: params.id }, data })
+    }
 
-    // Atualizar amount no Stripe e no banco se solicitado
-    if (amount && amount > 0 && amount !== payment.amount && payment.stripePaymentIntentId) {
-      await stripe.paymentIntents.update(payment.stripePaymentIntentId, { amount })
-        .catch(err => logger.warn('CHECKOUT', 'Falha ao atualizar amount no Stripe', { piId: payment.stripePaymentIntentId, error: err instanceof Error ? err.message : String(err) }))
-      await prisma.checkoutPayment.update({ where: { id: params.id }, data: { amount } })
+    // Recalcular amount server-side a partir do produto (nunca confiar no cliente)
+    if (bumpIds !== undefined || shippingId !== undefined) {
+      const product = await checkoutService.getProductBySlug(
+        (await prisma.product.findUnique({ where: { id: payment.productId }, select: { slug: true } }))?.slug ?? ''
+      )
+      if (product) {
+        let newTotal = product.price
+        if (bumpIds?.length) {
+          for (const bumpId of bumpIds) {
+            const bump = product.orderBumps.find(b => b.id === bumpId)
+            if (bump) newTotal += bump.price
+          }
+        }
+        if (shippingId) {
+          const shipping = product.shippingOptions.find(s => s.id === shippingId)
+          if (shipping) newTotal += shipping.price
+        }
+
+        if (newTotal !== payment.amount && payment.stripePaymentIntentId) {
+          await stripe.paymentIntents.update(payment.stripePaymentIntentId, { amount: newTotal })
+            .catch(err => logger.warn('CHECKOUT', 'Falha ao atualizar amount no Stripe', { piId: payment.stripePaymentIntentId, error: err instanceof Error ? err.message : String(err) }))
+          await prisma.checkoutPayment.update({ where: { id: params.id }, data: { amount: newTotal } })
+        }
+      }
     }
 
     // Sincronizar metadata e shipping no PaymentIntent do Stripe
@@ -108,8 +149,8 @@ export async function PATCH(
         amount:                payment.amount,
         currency:              payment.currency,
         urlParams:             {},
-        bumpIds:               [],
-        shippingId:            '',
+        bumpIds:               bumpIds ?? [],
+        shippingId:            shippingId ?? '',
       }).catch(() => {})
     }
 
