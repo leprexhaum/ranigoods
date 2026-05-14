@@ -722,7 +722,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
       <h2 style={H2_STYLE}>Método de pagamento</h2>
 
       {!clientSecret ? (
-        <div style={{ padding: '8px 0' }}>
+        <div style={{ padding: '8px 0', transition: 'opacity 0.3s ease' }}>
           <div style={{ height: '18px', width: '60%', background: '#e5e7eb', borderRadius: '4px', marginBottom: '12px', animation: 'pulse 1.5s ease-in-out infinite' }} />
           <div style={{ height: '40px', width: '100%', background: '#e5e7eb', borderRadius: '6px', marginBottom: '10px', animation: 'pulse 1.5s ease-in-out infinite' }} />
           <div style={{ height: '40px', width: '100%', background: '#e5e7eb', borderRadius: '6px', marginBottom: '10px', animation: 'pulse 1.5s ease-in-out infinite' }} />
@@ -730,6 +730,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
         </div>
       ) : (
         stripePromise && (
+          <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
           <Elements
             key={clientSecret}
             stripe={stripePromise}
@@ -774,6 +775,7 @@ function PaymentSection({ clientSecret, stripePromise, paymentId, paymentAmount,
               colors={colors}
             />
           </Elements>
+          </div>
         )
       )}
     </section>
@@ -1381,6 +1383,10 @@ export default function StripeSplitCheckout({ product }: { product: CheckoutProd
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         /* Desktop: layout split */
