@@ -1110,16 +1110,16 @@ function MobileSummary({ product, total, selectedBumps, selectedShip, open, setO
         opacity: open ? 1 : 0,
         transition: 'max-height 0.3s ease, opacity 0.2s ease',
       }}>
-        <div style={{ padding: '0 16px 20px' }}>
+        <div style={{ padding: '0 16px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
           {product.imageUrl && (
-            <div style={{ borderRadius: '8px', overflow: 'hidden', backgroundColor: 'rgb(255,255,255)', marginBottom: '12px', width: '120px', height: '120px' }}>
+            <div style={{ borderRadius: '12px', overflow: 'hidden', backgroundColor: 'rgb(255,255,255)', marginBottom: '16px', width: '180px', height: '180px' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
             </div>
           )}
-          <p style={{ fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.65)', margin: '0 0 4px 0' }}>{product.name}</p>
+          <p style={{ fontSize: '16px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', margin: '0 0 6px 0' }}>{product.name}</p>
           {product.description && (
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', margin: 0, lineHeight: '18px' }}>{product.description}</p>
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', margin: 0, lineHeight: '18px' }}>{product.description}</p>
           )}
           {(selectedBumps.length > 0 || selectedShip) && (
             <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
