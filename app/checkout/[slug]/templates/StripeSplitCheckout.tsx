@@ -1069,6 +1069,17 @@ function MobileSummary({ product, total, selectedBumps, selectedShip, open, setO
   open: boolean; setOpen: (v: boolean) => void
 }) {
   const brandName = product.brandName || product.name
+  const [imageLoaded, setImageLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!product.imageUrl) {
+      setOpen(true)
+      return
+    }
+    const img = new Image()
+    img.onload = () => { setImageLoaded(true); setOpen(true) }
+    img.src = product.imageUrl
+  }, [product.imageUrl, setOpen])
   return (
     <div style={{ backgroundColor: 'rgb(1,43,93)', borderBottom: '1px solid rgba(255,255,255,0.1)' }} className="ss-mobile-summary">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}>
