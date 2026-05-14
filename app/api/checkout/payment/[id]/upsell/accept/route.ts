@@ -42,21 +42,30 @@ export async function POST(
   const price = funnel.upsellPrice > 0 ? funnel.upsellPrice : upsellProduct.price
 
   try {
-    // Recuperar o payment method do PI original
+    // Recuperar o payment method e customer do PI original
     const originalPi = await stripe.paymentIntents.retrieve(payment.stripePaymentIntentId)
     const paymentMethod = originalPi.payment_method
+    const customerId = typeof originalPi.customer === 'string'
+      ? originalPi.customer
+      : originalPi.customer?.id
 
     if (!paymentMethod || typeof paymentMethod !== 'string') {
       return NextResponse.json({ error: 'Método de pagamento não disponível para 1-click' }, { status: 400 })
     }
 
-    // Criar e confirmar novo PI off-session
+    if (!customerId) {
+      return NextResponse.json({ error: 'Customer não encontrado para cobrança off-session' }, { status: 400 })
+    }
+
+    // Criar e confirmar novo PI off-session com customer (obrigatório para SCA/3DS)
     const upsellPi = await stripe.paymentIntents.create({
       amount:         price,
       currency:       payment.currency.toLowerCase(),
+      customer:       customerId,
       payment_method: paymentMethod,
       confirm:        true,
       off_session:    true,
+      description:    `Upsell: ${upsellProduct.name}`,
       metadata: {
         upsellFor:   params.id,
         funnelId:    funnel.id,

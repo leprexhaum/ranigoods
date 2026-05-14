@@ -58,15 +58,38 @@ export async function PATCH(
       await prisma.checkoutPayment.update({ where: { id: params.id }, data: { amount } })
     }
 
-    // Sincronizar metadata no PaymentIntent do Stripe
+    // Sincronizar metadata e shipping no PaymentIntent do Stripe
     if (payment.stripePaymentIntentId) {
+      const piUpdate: Stripe.PaymentIntentUpdateParams = {}
+
+      // Metadata com dados do cliente
       const meta: Record<string, string> = {}
       if (data.customerName)  meta.customerName  = data.customerName
       if (data.customerEmail) meta.customerEmail = data.customerEmail
       if (data.customerPhone) meta.customerPhone = data.customerPhone
       if (Object.keys(meta).length > 0) {
-        await stripe.paymentIntents.update(payment.stripePaymentIntentId, { metadata: meta })
-          .catch(err => logger.warn('CHECKOUT', 'Falha ao atualizar metadata no Stripe', { piId: payment.stripePaymentIntentId, error: err instanceof Error ? err.message : String(err) }))
+        piUpdate.metadata = meta
+      }
+
+      // Shipping melhora score de frictionless 3DS e reduz recusas
+      const line1 = data.addressLine1 || addressLine1
+      if (line1) {
+        piUpdate.shipping = {
+          name:    data.customerName || 'Cliente',
+          phone:   data.customerPhone || undefined,
+          address: {
+            line1:       line1,
+            line2:       data.addressLine2 || addressLine2 || undefined,
+            city:        data.addressCity || addressCity || undefined,
+            postal_code: data.addressPostalCode || addressPostalCode || undefined,
+            country:     data.addressCountry || addressCountry || 'PT',
+          },
+        }
+      }
+
+      if (Object.keys(piUpdate).length > 0) {
+        await stripe.paymentIntents.update(payment.stripePaymentIntentId, piUpdate)
+          .catch(err => logger.warn('CHECKOUT', 'Falha ao atualizar PI no Stripe', { piId: payment.stripePaymentIntentId, error: err instanceof Error ? err.message : String(err) }))
       }
     }
 
