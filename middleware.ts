@@ -5,8 +5,8 @@ const COOKIE       = 'rg_session'
 const PUBLIC_PATHS = ['/login', '/s/registro', '/', '/privacidade', '/termos', '/reembolso', '/entrega', '/cookies', '/contato']
 const PUBLIC_PAGE_PREFIXES = ['/checkout']
 const PUBLIC_API   = ['/api/auth/', '/api/pixels/track', '/api/pixels/config', '/api/stripe/webhook', '/api/checkout/', '/api/cron/', '/api/v1/', '/api/integrations/google-ads/callback', '/api/products/by-domain', '/api/geo-ip']
-const ADMIN_PATHS  = ['/stripe', '/stripe-eventos', '/stripe-payouts', '/dev/integracoes']
-const ADMIN_API    = ['/api/stripe/balance', '/api/stripe/payouts', '/api/stripe/refunds', '/api/stripe/disputes', '/api/stripe/fraud', '/api/stripe/customers', '/api/stripe/backfill', '/api/stripe/coupons', '/api/stripe/transactions', '/api/stripe-events', '/api/dev/test-integration']
+const ADMIN_PATHS  = ['/stripe', '/stripe-eventos', '/stripe-payouts', '/dev/integracoes', '/admin/sellers']
+const ADMIN_API    = ['/api/stripe/balance', '/api/stripe/payouts', '/api/stripe/refunds', '/api/stripe/disputes', '/api/stripe/fraud', '/api/stripe/customers', '/api/stripe/backfill', '/api/stripe/coupons', '/api/stripe/transactions', '/api/stripe-events', '/api/dev/test-integration', '/api/admin/']
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? 'samnkls'
 
 function getKey() {

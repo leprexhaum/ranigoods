@@ -18,11 +18,12 @@ import {
   Plug,
   Globe,
   Palette,
+  Users,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/components/providers/AuthProvider'
 
-const ADMIN_PATHS = ['/stripe', '/stripe-eventos', '/stripe-payouts', '/dev/integracoes']
+const ADMIN_PATHS = ['/stripe', '/stripe-eventos', '/stripe-payouts', '/dev/integracoes', '/admin/sellers']
 
 const navItems = [
   { href: '/dashboard',             label: 'Dashboard',           icon: LayoutDashboard },
@@ -37,6 +38,7 @@ const navItems = [
   { href: '/dominios',              label: 'Domínios',            icon: Globe           },
   { href: '/checkout-editor',       label: 'Checkout',            icon: Palette         },
   { href: '/stripe',                label: 'Stripe',              icon: Layers          },
+  { href: '/admin/sellers',         label: 'Sellers',             icon: Users           },
   { href: '/calculadora',           label: 'Calculadora',         icon: Calculator      },
   { href: '/configuracoes',         label: 'Configurações',       icon: Settings        },
 ]
