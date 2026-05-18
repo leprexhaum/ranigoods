@@ -74,8 +74,8 @@ function StatusBadge({ status }: { status: string }) {
 
 function Skeleton() {
   return (
-    <div className="min-h-screen bg-ep-base p-6 animate-pulse">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 animate-pulse">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         <div className="h-8 w-48 bg-ep-raised rounded" />
         <div className="h-24 bg-ep-surface rounded-lg" />
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
@@ -194,7 +194,7 @@ export default function SellerDetailPage() {
   if (loading) return <Skeleton />
   if (!seller) {
     return (
-      <div className="min-h-screen bg-ep-base flex items-center justify-center">
+      <div className="p-4 md:p-6 flex items-center justify-center">
         <p className="text-ep-secondary">Seller não encontrado.</p>
       </div>
     )
@@ -211,8 +211,8 @@ export default function SellerDetailPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-ep-base p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           <button

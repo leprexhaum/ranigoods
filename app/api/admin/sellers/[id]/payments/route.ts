@@ -6,10 +6,12 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const auth = await requireAdmin()
   if (auth instanceof NextResponse) return auth
+
+  const { id } = await params
 
   const sp = new URL(req.url).searchParams
   const start = sp.get('start') ?? undefined
@@ -17,7 +19,7 @@ export async function GET(
   const limit = parseInt(sp.get('limit') ?? '50', 10)
 
   try {
-    const payments = await adminService.getSellerPayments(params.id, start, end, limit)
+    const payments = await adminService.getSellerPayments(id, start, end, limit)
     return NextResponse.json(payments.map(p => ({
       id: p.id,
       customer: p.customerName || 'Cliente',
